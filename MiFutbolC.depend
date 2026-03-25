@@ -1,0 +1,2428 @@
+# depslib dependency file v1.0
+1773890260 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\main.c
+	"raylib.h"
+	"menu.h"
+	"utils.h"
+	"gui.h"
+	"db.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<errno.h>
+	<sys/file.h>
+	<sys/stat.h>
+	<fcntl.h>
+	<unistd.h>
+
+1773203112 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\sqlite3.c
+	<vxWorks.h>
+	<pthread.h>
+	"mingw.h"
+	"_mingw.h"
+	<stdarg.h>
+	"sqlite_cfg.h"
+	<stdint.h>
+	<inttypes.h>
+	<intrin.h>
+	<cmnintrin.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<assert.h>
+	<stddef.h>
+	<ctype.h>
+	<TargetConditionals.h>
+	<time.h>
+	<sys/sysctl.h>
+	<malloc/malloc.h>
+	<libkern/OSAtomic.h>
+	<malloc.h>
+	<pthread.h>
+	"windows.h"
+	<sys/cygwin.h>
+	<sys/stat.h>
+	<unistd.h>
+	<errno.h>
+	<process.h>
+	<math.h>
+	<sys/types.h>
+	<sys/stat.h>
+	<unistd.h>
+	<sys/time.h>
+	<sys/types.h>
+	<sys/stat.h>
+	<fcntl.h>
+	<sys/ioctl.h>
+	<unistd.h>
+	<sys/time.h>
+	<errno.h>
+	<sys/mman.h>
+	<sys/file.h>
+	<sys/param.h>
+	<semaphore.h>
+	<limits.h>
+	<sys/mount.h>
+	<utime.h>
+	<sys/dcmd_blk.h>
+	<sys/statvfs.h>
+	<dlfcn.h>
+	<Windows.h>
+	"tclsqlite.h"
+	"sqlite3rtree.h"
+	<ctype.h>
+	<unicode/utypes.h>
+	<unicode/uregex.h>
+	<unicode/ustring.h>
+	<unicode/ucol.h>
+	<unicode/ubrk.h>
+	<unicode/utf16.h>
+	<sys/uio.h>
+	<math.h>
+
+1773727901 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\db.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"settings.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+	<errno.h>
+	<ctype.h>
+	<stdint.h>
+	<inttypes.h>
+	<direct.h>
+	<windows.h>
+	<ShlObj.h>
+	"direct.h"
+	"compat_windows.h"
+	"ShlObj.h"
+	<sys/stat.h>
+
+1773723127 d:\anime\libros\lenguaje c\proyectos\mifutbolc\db.h
+	<stddef.h>
+	"compat_port.h"
+	"sqlite3.h"
+
+1766432983 d:\anime\libros\lenguaje c\proyectos\mifutbolc\sqlite3.h
+	<stdarg.h>
+
+1773726841 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\utils.c
+	"utils.h"
+	"export.h"
+	"ascii_art.h"
+	"db.h"
+	"menu.h"
+	"settings.h"
+	"cJSON.h"
+	<ctype.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<limits.h>
+	<time.h>
+	<stddef.h>
+	<errno.h>
+	<stdarg.h>
+	<stdint.h>
+	<inttypes.h>
+	<conio.h>
+	<direct.h>
+	"direct.h"
+	<windows.h>
+	"compat_windows.h"
+	<sys/stat.h>
+	<termios.h>
+	<unistd.h>
+
+1773726841 d:\anime\libros\lenguaje c\proyectos\mifutbolc\utils.h
+	"cJSON.h"
+	"sqlite3.h"
+	<stddef.h>
+	<stdio.h>
+
+1773727810 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\camiseta.c
+	"menu.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+	<process.h>
+	<io.h>
+	"process.h"
+	<strings.h>
+	<ctype.h>
+	<limits.h>
+
+1773292021 d:\anime\libros\lenguaje c\proyectos\mifutbolc\camiseta.h
+
+1773723995 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\partido.c
+	"menu.h"
+	"db.h"
+	"utils.h"
+	"camiseta.h"
+	"equipo.h"
+	"ascii_art.h"
+	"entrenador_ia.h"
+	"financiamiento.h"
+	"settings.h"
+	<stdio.h>
+	<string.h>
+	<windows.h>
+	"compat_windows.h"
+	<stdlib.h>
+	<time.h>
+	<ctype.h>
+	<process.h>
+	"process.h"
+	<memory.h>
+	<limits.h>
+
+1770407105 d:\anime\libros\lenguaje c\proyectos\mifutbolc\partido.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas.c
+	"estadisticas.h"
+	"estadisticas_generales.h"
+	"estadisticas_mes.h"
+	"estadisticas_anio.h"
+	"records_rankings.h"
+	"estadisticas_meta.h"
+	"menu.h"
+	"entrenador_ia.h"
+	"utils.h"
+
+1769908272 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1770100528 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export.h
+
+1766433484 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\logger.c
+	"logger.h"
+	<stdio.h>
+	<time.h>
+
+1766433484 d:\anime\libros\lenguaje c\proyectos\mifutbolc\logger.h
+
+1773367576 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\menu.c
+	"utils.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<locale.h>
+	<time.h>
+	<ctype.h>
+	<windows.h>
+	"compat_windows.h"
+	"db.h"
+	"camiseta.h"
+	"cancha.h"
+	"partido.h"
+	"lesion.h"
+	"estadisticas.h"
+	"analisis.h"
+	"logros.h"
+	"export.h"
+	"export_all.h"
+	"import.h"
+	"equipo.h"
+	"torneo.h"
+	"temporada.h"
+	"ascii_art.h"
+	"settings.h"
+	"financiamiento.h"
+	"entrenador_ia.h"
+	"bienestar.h"
+	"carrera.h"
+
+1773895407 d:\anime\libros\lenguaje c\proyectos\mifutbolc\menu.h
+
+1766518203 d:\anime\libros\lenguaje c\proyectos\mifutbolc\models.h
+
+1766519244 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\menu_camisetas.c
+
+1766518203 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\partido_menu.c
+	"menu.h"
+	"partido.h"
+	<stddef.h>
+
+1766518203 d:\anime\libros\lenguaje c\proyectos\mifutbolc\menu_camisetas.h
+
+1766518203 d:\anime\libros\lenguaje c\proyectos\mifutbolc\partido_menu.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_all.c
+	"export_all.h"
+	"export_all_mejorado.h"
+	"export.h"
+	"export_camisetas.h"
+	"export_partidos.h"
+	"export_lesiones.h"
+	"export_estadisticas.h"
+	"export_estadisticas_generales.h"
+	"export_records_rankings.h"
+	"export_pdf.h"
+	"utils.h"
+	"menu.h"
+	"ascii_art.h"
+	"db.h"
+	"settings.h"
+	<stdio.h>
+
+1769908482 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_all.h
+
+1769911202 d:\anime\libros\lenguaje c\proyectos\mifutbolc\lesion.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\lesion.c
+	"menu.h"
+	"db.h"
+	"utils.h"
+	"estadisticas_lesiones.h"
+	"camiseta.h"
+	"partido.h"
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+
+1773470444 d:\anime\libros\lenguaje c\proyectos\mifutbolc\cancha.h
+
+1769907514 d:\anime\libros\lenguaje c\proyectos\mifutbolc\analisis.h
+
+1769911246 d:\anime\libros\lenguaje c\proyectos\mifutbolc\logros.h
+
+1773290410 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\analisis.c
+	"analisis.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"settings.h"
+	"entrenador_ia.h"
+	"partido.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\logros.c
+	"logros.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	<stdio.h>
+	<string.h>
+
+1773889177 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\cancha.c
+	"menu.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	<limits.h>
+	<process.h>
+	<io.h>
+	"process.h"
+	<strings.h>
+
+1766774181 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\cjson.c
+	<string.h>
+	<stdio.h>
+	<math.h>
+	<stdlib.h>
+	<limits.h>
+	<ctype.h>
+	<float.h>
+	<locale.h>
+	"cJSON.h"
+
+1766774181 d:\anime\libros\lenguaje c\proyectos\mifutbolc\cjson.h
+	<stddef.h>
+
+1767412039 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\cjson_utils.c
+	<ctype.h>
+	<string.h>
+	<stdlib.h>
+	<stdio.h>
+	<limits.h>
+	<math.h>
+	<float.h>
+	<math.h>
+	"cJSON_Utils.h"
+
+1767412039 d:\anime\libros\lenguaje c\proyectos\mifutbolc\cjson_utils.h
+	"cJSON.h"
+
+1769910897 d:\anime\libros\lenguaje c\proyectos\mifutbolc\import.h
+
+1773726841 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\import.c
+	"import.h"
+	"cJSON.h"
+	"db.h"
+	"menu.h"
+	"settings.h"
+	"sqlite3.h"
+	"utils.h"
+	<stdbool.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1766777361 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\sfd.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<limits.h>
+	"sfd.h"
+	<windows.h>
+
+1766777368 d:\anime\libros\lenguaje c\proyectos\mifutbolc\sfd.h
+
+1766957720 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\recurso.rc
+
+1769908087 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_generales.h
+
+1767324375 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_mes.h
+
+1767676435 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_anio.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_anio.c
+	"estadisticas_anio.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<string.h>
+
+1773290164 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_generales.c
+	"estadisticas_generales.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<string.h>
+	<time.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_mes.c
+	"estadisticas_mes.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<string.h>
+
+1767324684 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_camisetas.h
+
+1767421484 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_partidos.h
+
+1767762171 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_lesiones.h
+
+1767760703 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_estadisticas.h
+
+1767760362 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_estadisticas_generales.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_camisetas.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_estadisticas.c
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_estadisticas_generales.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_lesiones.c
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_partidos.c
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	"export_partidos_helpers.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1769629582 d:\anime\libros\lenguaje c\proyectos\mifutbolc\records_rankings.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_lesiones.c
+	"db.h"
+	"utils.h"
+	"sqlite3.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1767676671 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_lesiones.h
+
+1767422060 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_records_rankings.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_records_rankings.c
+	"export_records_rankings.h"
+	"db.h"
+	"utils.h"
+	"export.h"
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+
+1773288570 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\records_rankings.c
+	"records_rankings.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	<stdio.h>
+	<string.h>
+	<time.h>
+
+1769908242 d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_meta.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\estadisticas_meta.c
+	"estadisticas_meta.h"
+	"db.h"
+	"utils.h"
+	<stdio.h>
+	<string.h>
+	<math.h>
+	<time.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_all_mejorado.c
+	"export_all_mejorado.h"
+	"export_camisetas_mejorado.h"
+	"export_lesiones_mejorado.h"
+	"export_camisetas.h"
+	"export_lesiones.h"
+	"export.h"
+	"utils.h"
+	"menu.h"
+	<stdio.h>
+
+1769908308 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_all_mejorado.h
+
+1769908568 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_camisetas_mejorado.h
+
+1767761345 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_lesiones_mejorado.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_camisetas_mejorado.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_lesiones_mejorado.c
+	"export.h"
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<direct.h>
+	"direct.h"
+	<string.h>
+
+1773470444 d:\anime\libros\lenguaje c\proyectos\mifutbolc\equipo.h
+
+1773726841 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\equipo.c
+	"equipo.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"partido.h"
+	"ascii_art.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+	<windows.h>
+	"compat_windows.h"
+	"sqlite3.h"
+	<ctype.h>
+	<limits.h>
+	<process.h>
+	<io.h>
+	"process.h"
+	<strings.h>
+
+1767667294 d:\anime\libros\lenguaje c\proyectos\mifutbolc\torneo.h
+
+1773260192 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\torneo.c
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"equipo.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"sqlite3.h"
+
+1773468051 d:\anime\libros\lenguaje c\proyectos\mifutbolc\ascii_art.h
+	<stdio.h>
+
+1767851601 d:\anime\libros\lenguaje c\proyectos\mifutbolc\futbol_mundial.h
+
+1767854212 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\futbol_mundial.c
+	"futbol_mundial.h"
+	"menu.h"
+	"utils.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1765442468 c:\msys64\mingw64\include\stdarg.h
+	<_mingw_stdarg.h>
+
+1765442468 c:\msys64\mingw64\include\_mingw_stdarg.h
+	<vadefs.h>
+
+1765442468 c:\msys64\mingw64\include\vadefs.h
+	<_mingw.h>
+
+1765442468 c:\msys64\mingw64\include\_mingw.h
+	"_mingw_mac.h"
+	"_mingw_secapi.h"
+	"_cygwin.h"
+	<vadefs.h>
+	"sdks/_mingw_ddk.h"
+
+1765442468 c:\msys64\mingw64\include\_mingw_mac.h
+
+1765442468 c:\msys64\mingw64\include\_mingw_secapi.h
+
+1765442468 c:\msys64\mingw64\include\_cygwin.h
+	<stddef.h>
+
+1765442468 c:\msys64\mingw64\include\stddef.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\crtdefs.h
+	<corecrt.h>
+
+1765442468 c:\msys64\mingw64\include\corecrt.h
+	<_mingw.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\winapifamily.h
+
+1765442468 c:\msys64\mingw64\include\sdks\_mingw_ddk.h
+
+1765442468 c:\msys64\mingw64\include\stdio.h
+	<corecrt_stdio_config.h>
+	<_mingw_off_t.h>
+	<swprintf.inl>
+	<sec_api/stdio_s.h>
+
+1765442468 c:\msys64\mingw64\include\corecrt_stdio_config.h
+	<corecrt.h>
+
+1765442468 c:\msys64\mingw64\include\_mingw_off_t.h
+
+1765442468 c:\msys64\mingw64\include\swprintf.inl
+
+1765442468 c:\msys64\mingw64\include\sec_api\stdio_s.h
+	<stdio.h>
+
+1765442468 c:\msys64\mingw64\include\stdlib.h
+	<corecrt.h>
+	<corecrt_wstdlib.h>
+	<limits.h>
+	<sec_api/stdlib_s.h>
+	<malloc.h>
+
+1765442468 c:\msys64\mingw64\include\corecrt_wstdlib.h
+	<corecrt.h>
+
+1765442468 c:\msys64\mingw64\include\limits.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\stdlib_s.h
+	<stdlib.h>
+
+1765442468 c:\msys64\mingw64\include\malloc.h
+	<crtdefs.h>
+	<mm_malloc.h>
+
+1765442468 c:\msys64\mingw64\include\string.h
+	<crtdefs.h>
+	<sec_api/string_s.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\string_s.h
+	<string.h>
+
+1765442468 c:\msys64\mingw64\include\time.h
+	<crtdefs.h>
+	<sys/timeb.h>
+	<_timeval.h>
+	<pthread_time.h>
+
+1765442468 c:\msys64\mingw64\include\sys\timeb.h
+	<crtdefs.h>
+	<sec_api/sys/timeb_s.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\sys\timeb_s.h
+	<sys/timeb.h>
+
+1765442468 c:\msys64\mingw64\include\_timeval.h
+
+1765443017 c:\msys64\mingw64\include\pthread_time.h
+	<sys/timeb.h>
+	"pthread_compat.h"
+
+1765443017 c:\msys64\mingw64\include\pthread_compat.h
+
+1765442468 c:\msys64\mingw64\include\math.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\ctype.h
+	<corecrt_wctype.h>
+
+1765442468 c:\msys64\mingw64\include\corecrt_wctype.h
+	<corecrt.h>
+
+1765442468 c:\msys64\mingw64\include\float.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\locale.h
+	<crtdefs.h>
+	<stdio.h>
+
+1765442468 c:\msys64\mingw64\include\errno.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\direct.h
+	<crtdefs.h>
+	<io.h>
+
+1765442468 c:\msys64\mingw64\include\io.h
+	<crtdefs.h>
+	<string.h>
+	<_mingw_off_t.h>
+	<string.h>
+
+1765442468 c:\msys64\mingw64\include\windows.h
+	<_mingw.h>
+	<sdkddkver.h>
+	<winresrc.h>
+	<excpt.h>
+	<stdarg.h>
+	<windef.h>
+	<winbase.h>
+	<wingdi.h>
+	<winuser.h>
+	<winnls.h>
+	<wincon.h>
+	<winver.h>
+	<winreg.h>
+	<winnetwk.h>
+	<virtdisk.h>
+	<cderr.h>
+	<dde.h>
+	<ddeml.h>
+	<dlgs.h>
+	<lzexpand.h>
+	<mmsystem.h>
+	<nb30.h>
+	<rpc.h>
+	<shellapi.h>
+	<winperf.h>
+	<winsock.h>
+	<wincrypt.h>
+	<winefs.h>
+	<winscard.h>
+	<winspool.h>
+	<ole.h>
+	<ole2.h>
+	<commdlg.h>
+	<stralign.h>
+	<ole2.h>
+	<winsvc.h>
+	<mcx.h>
+	<imm.h>
+
+1765442468 c:\msys64\mingw64\include\sdkddkver.h
+
+1765442468 c:\msys64\mingw64\include\winresrc.h
+	<winuser.rh>
+	<commctrl.rh>
+	<dde.rh>
+	<winnt.rh>
+	<dlgs.h>
+	<winver.h>
+
+1765442468 c:\msys64\mingw64\include\winuser.rh
+
+1765442468 c:\msys64\mingw64\include\commctrl.rh
+
+1765442468 c:\msys64\mingw64\include\dde.rh
+
+1765442468 c:\msys64\mingw64\include\winnt.rh
+
+1765442468 c:\msys64\mingw64\include\dlgs.h
+
+1765442468 c:\msys64\mingw64\include\winver.h
+	<_mingw.h>
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\_mingw_unicode.h
+
+1765442468 c:\msys64\mingw64\include\excpt.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\windef.h
+	<winapifamily.h>
+	<minwindef.h>
+	<winnt.h>
+
+1765442468 c:\msys64\mingw64\include\minwindef.h
+	<_mingw.h>
+	<winapifamily.h>
+	<specstrings.h>
+	<winnt.h>
+
+1765442468 c:\msys64\mingw64\include\specstrings.h
+	<sal.h>
+	<driverspecs.h>
+
+1765442468 c:\msys64\mingw64\include\sal.h
+	<concurrencysal.h>
+
+1765442468 c:\msys64\mingw64\include\concurrencysal.h
+
+1765442468 c:\msys64\mingw64\include\driverspecs.h
+	<specstrings.h>
+	<concurrencysal.h>
+
+1765442468 c:\msys64\mingw64\include\winnt.h
+	<_mingw_unicode.h>
+	<_mingw.h>
+	<ctype.h>
+	<excpt.h>
+	<winapifamily.h>
+	<apiset.h>
+	<specstrings.h>
+	<psdk_inc/intrin-impl.h>
+	<sdkddkver.h>
+	<basetsd.h>
+	<guiddef.h>
+	<x86intrin.h>
+	<emmintrin.h>
+	<emmintrin.h>
+	<pshpack4.h>
+	<poppack.h>
+	"pshpack4.h"
+	"pshpack2.h"
+	"poppack.h"
+	"pshpack2.h"
+	<pshpack2.h>
+	<poppack.h>
+	"poppack.h"
+	"pshpack8.h"
+	"poppack.h"
+	"poppack.h"
+	<string.h>
+	<pshpack8.h>
+	<poppack.h>
+	<ktmtypes.h>
+	"pshpack4.h"
+	"poppack.h"
+
+1765442468 c:\msys64\mingw64\include\apiset.h
+	<_mingw.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\intrin-impl.h
+	<intrin.h>
+	<psdk_inc/intrin-impl.h>
+
+1765442468 c:\msys64\mingw64\include\intrin.h
+	<crtdefs.h>
+	<setjmp.h>
+	<stddef.h>
+	<psdk_inc/intrin-impl.h>
+	<stdlib.h>
+	<errno.h>
+	<malloc.h>
+	<x86intrin.h>
+	<cpuid.h>
+	<mmintrin.h>
+	<xmmintrin.h>
+	<emmintrin.h>
+	<pmmintrin.h>
+
+1765442468 c:\msys64\mingw64\include\setjmp.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\basetsd.h
+	<_mingw.h>
+
+1765442468 c:\msys64\mingw64\include\guiddef.h
+	<_mingw.h>
+	<string.h>
+
+1765442468 c:\msys64\mingw64\include\pshpack4.h
+
+1765442468 c:\msys64\mingw64\include\poppack.h
+
+1765442468 c:\msys64\mingw64\include\pshpack2.h
+
+1765442468 c:\msys64\mingw64\include\pshpack8.h
+
+1765442468 c:\msys64\mingw64\include\ktmtypes.h
+
+1765442468 c:\msys64\mingw64\include\winbase.h
+	<_mingw_unicode.h>
+	<apisetcconv.h>
+	<winapifamily.h>
+	<minwinbase.h>
+	<bemapiset.h>
+	<debugapi.h>
+	<errhandlingapi.h>
+	<fibersapi.h>
+	<fileapi.h>
+	<handleapi.h>
+	<heapapi.h>
+	<ioapiset.h>
+	<interlockedapi.h>
+	<jobapi.h>
+	<libloaderapi.h>
+	<memoryapi.h>
+	<namedpipeapi.h>
+	<namespaceapi.h>
+	<processenv.h>
+	<processthreadsapi.h>
+	<processtopologyapi.h>
+	<profileapi.h>
+	<realtimeapiset.h>
+	<securityappcontainer.h>
+	<securitybaseapi.h>
+	<synchapi.h>
+	<sysinfoapi.h>
+	<systemtopologyapi.h>
+	<threadpoolapiset.h>
+	<threadpoollegacyapiset.h>
+	<utilapiset.h>
+	<wow64apiset.h>
+	<psdk_inc/intrin-impl.h>
+	<winerror.h>
+	<timezoneapi.h>
+
+1765442468 c:\msys64\mingw64\include\apisetcconv.h
+
+1765442468 c:\msys64\mingw64\include\minwinbase.h
+
+1765442468 c:\msys64\mingw64\include\bemapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\debugapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\errhandlingapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\fibersapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\fileapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\handleapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\heapapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\ioapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\interlockedapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\jobapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\libloaderapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\memoryapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\namedpipeapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\namespaceapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\processenv.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\processthreadsapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\processtopologyapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\profileapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\realtimeapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\securityappcontainer.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\securitybaseapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\synchapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\sysinfoapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\systemtopologyapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\threadpoolapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\threadpoollegacyapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\utilapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\wow64apiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\winerror.h
+	<fltwinerror.h>
+
+1765442468 c:\msys64\mingw64\include\fltwinerror.h
+
+1765442468 c:\msys64\mingw64\include\timezoneapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\wingdi.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack2.h>
+	<poppack.h>
+	<pshpack2.h>
+	<poppack.h>
+	<pshpack4.h>
+	<poppack.h>
+	<pshpack4.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\pshpack1.h
+
+1765442468 c:\msys64\mingw64\include\winuser.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<apisetcconv.h>
+	<_mingw.h>
+	<stdarg.h>
+	<guiddef.h>
+	<libloaderapi.h>
+	<pshpack2.h>
+	<poppack.h>
+	<tvout.h>
+
+1765442468 c:\msys64\mingw64\include\tvout.h
+	<guiddef.h>
+
+1765442468 c:\msys64\mingw64\include\winnls.h
+	<winapifamily.h>
+	<datetimeapi.h>
+	<libloaderapi.h>
+	<stringapiset.h>
+
+1765442468 c:\msys64\mingw64\include\datetimeapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<minwinbase.h>
+
+1765442468 c:\msys64\mingw64\include\stringapiset.h
+	<apiset.h>
+	<apisetcconv.h>
+	<minwindef.h>
+	<winnls.h>
+
+1765442468 c:\msys64\mingw64\include\wincon.h
+	<winapifamily.h>
+	<wincontypes.h>
+	<wingdi.h>
+	<consoleapi.h>
+	<consoleapi2.h>
+	<consoleapi3.h>
+
+1765442468 c:\msys64\mingw64\include\wincontypes.h
+	<minwindef.h>
+
+1765442468 c:\msys64\mingw64\include\consoleapi.h
+	<_mingw_unicode.h>
+	<apiset.h>
+	<apisetcconv.h>
+	<minwinbase.h>
+	<minwindef.h>
+	<wincontypes.h>
+
+1765442468 c:\msys64\mingw64\include\consoleapi2.h
+	<_mingw_unicode.h>
+	<apiset.h>
+	<apisetcconv.h>
+	<minwinbase.h>
+	<minwindef.h>
+	<wincontypes.h>
+	<windef.h>
+
+1765442468 c:\msys64\mingw64\include\consoleapi3.h
+	<_mingw_unicode.h>
+	<apiset.h>
+	<apisetcconv.h>
+	<minwinbase.h>
+	<minwindef.h>
+	<wincontypes.h>
+	<windef.h>
+	<wingdi.h>
+
+1765442468 c:\msys64\mingw64\include\winreg.h
+	<_mingw_unicode.h>
+	<winapifamily.h>
+	<reason.h>
+
+1765442468 c:\msys64\mingw64\include\reason.h
+
+1765442468 c:\msys64\mingw64\include\winnetwk.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<wnnc.h>
+
+1765442468 c:\msys64\mingw64\include\wnnc.h
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\virtdisk.h
+
+1765442468 c:\msys64\mingw64\include\cderr.h
+
+1765442468 c:\msys64\mingw64\include\dde.h
+	<windef.h>
+
+1765442468 c:\msys64\mingw64\include\ddeml.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\lzexpand.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\mmsystem.h
+	<winapifamily.h>
+	<mmsyscom.h>
+	<pshpack1.h>
+	<mciapi.h>
+	<mmiscapi.h>
+	<mmiscapi2.h>
+	<playsoundapi.h>
+	<mmeapi.h>
+	<timeapi.h>
+	<joystickapi.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\mmsyscom.h
+	<winapifamily.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\mciapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\mmiscapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\mmiscapi2.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\playsoundapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\mmeapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<nt.h>
+	<ntrtl.h>
+	<nturtl.h>
+	<windows.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\timeapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\joystickapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<mmsyscom.h>
+
+1765442468 c:\msys64\mingw64\include\nb30.h
+
+1765442468 c:\msys64\mingw64\include\rpc.h
+	<_mingw.h>
+	<windows.h>
+	<basetsd.h>
+	<pshpack8.h>
+	<rpcdce.h>
+	<rpcnsi.h>
+	<rpcnterr.h>
+	<excpt.h>
+	<winerror.h>
+	<rpcasync.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\rpcdce.h
+	<_mingw_unicode.h>
+	<specstrings.h>
+	<guiddef.h>
+	<rpcdcep.h>
+
+1765442468 c:\msys64\mingw64\include\rpcdcep.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\rpcnsi.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\rpcnterr.h
+
+1765442468 c:\msys64\mingw64\include\rpcasync.h
+	<_mingw_unicode.h>
+	<pshpack8.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\shellapi.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<specstrings.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\winperf.h
+	<pshpack8.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\winsock.h
+	<windows.h>
+	<_timeval.h>
+	<_bsd_types.h>
+	<inaddr.h>
+	<psdk_inc/_socket_types.h>
+	<psdk_inc/_fd_types.h>
+	<psdk_inc/_ip_types.h>
+	<psdk_inc/_ip_mreq1.h>
+	<psdk_inc/_wsadata.h>
+	<psdk_inc/_xmitfile.h>
+	<psdk_inc/_wsa_errnos.h>
+
+1765442468 c:\msys64\mingw64\include\_bsd_types.h
+	<_mingw.h>
+
+1765442468 c:\msys64\mingw64\include\inaddr.h
+	<_bsd_types.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_socket_types.h
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_fd_types.h
+	<psdk_inc/_socket_types.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_ip_types.h
+	<_bsd_types.h>
+	<inaddr.h>
+	<_timeval.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_ip_mreq1.h
+	<inaddr.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_wsadata.h
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_xmitfile.h
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_wsa_errnos.h
+
+1765442468 c:\msys64\mingw64\include\wincrypt.h
+	<_mingw.h>
+	<_mingw_unicode.h>
+	<guiddef.h>
+	<winapifamily.h>
+	<apisetcconv.h>
+	<bcrypt.h>
+	<ncrypt.h>
+	<dpapi.h>
+
+1765442468 c:\msys64\mingw64\include\bcrypt.h
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\ncrypt.h
+	<winapifamily.h>
+	<bcrypt.h>
+
+1765442468 c:\msys64\mingw64\include\dpapi.h
+
+1765442468 c:\msys64\mingw64\include\winefs.h
+
+1765442468 c:\msys64\mingw64\include\winscard.h
+	<_mingw_unicode.h>
+	<wtypes.h>
+	<winioctl.h>
+	"winsmcrd.h"
+	"SCardErr.h"
+
+1765442468 c:\msys64\mingw64\include\wtypes.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<wtypesbase.h>
+
+1765442468 c:\msys64\mingw64\include\rpcndr.h
+	<pshpack8.h>
+	<basetsd.h>
+	<rpcnsip.h>
+	<rpcsal.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\rpcnsip.h
+
+1765442468 c:\msys64\mingw64\include\rpcsal.h
+	<specstrings.h>
+
+1765442468 c:\msys64\mingw64\include\ole2.h
+	<winapifamily.h>
+	<pshpack8.h>
+	<winerror.h>
+	<objbase.h>
+	<oleauto.h>
+	<oleidl.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\objbase.h
+	<winapifamily.h>
+	<rpc.h>
+	<rpcndr.h>
+	<pshpack8.h>
+	<combaseapi.h>
+	<objidl.h>
+	<urlmon.h>
+	<propidl.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\combaseapi.h
+	<apiset.h>
+	<apisetcconv.h>
+	<rpc.h>
+	<rpcndr.h>
+	<pshpack8.h>
+	<stdlib.h>
+	<wtypesbase.h>
+	<unknwnbase.h>
+	<objidlbase.h>
+	<guiddef.h>
+	<cguid.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\wtypesbase.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<basetsd.h>
+	<guiddef.h>
+
+1765442468 c:\msys64\mingw64\include\unknwnbase.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<wtypesbase.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\objidlbase.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<unknwnbase.h>
+	<wtypesbase.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\cguid.h
+
+1765442468 c:\msys64\mingw64\include\objidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<unknwn.h>
+	<wtypes.h>
+	<winapifamily.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\unknwn.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<wtypes.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\urlmon.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<oleidl.h>
+	<servprov.h>
+	<msxml.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\oleidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\servprov.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\msxml.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<unknwn.h>
+	<wtypes.h>
+	<objidl.h>
+	<oaidl.h>
+
+1765442468 c:\msys64\mingw64\include\oaidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\propidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<wtypes.h>
+	<objidl.h>
+	<oaidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\oleauto.h
+	<pshpack8.h>
+	<oaidl.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\winioctl.h
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\winsmcrd.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\scarderr.h
+
+1765442468 c:\msys64\mingw64\include\winspool.h
+	<_mingw_unicode.h>
+	<prsht.h>
+
+1765442468 c:\msys64\mingw64\include\prsht.h
+	<_mingw_unicode.h>
+	<pshpack8.h>
+	<pshpack4.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\ole.h
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\commdlg.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<prsht.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\stralign.h
+	<sec_api/stralign_s.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\stralign_s.h
+	<stralign.h>
+
+1765442468 c:\msys64\mingw64\include\winsvc.h
+	<_mingw.h>
+	<_mingw_unicode.h>
+	<apisetcconv.h>
+
+1765442468 c:\msys64\mingw64\include\mcx.h
+
+1765442468 c:\msys64\mingw64\include\imm.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\shlobj.h
+	<wtypesbase.h>
+	<wincrypt.h>
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<ole2.h>
+	<prsht.h>
+	<commctrl.h>
+	<shlguid.h>
+	<shtypes.h>
+	<shobjidl.h>
+	<pshpack1.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\commctrl.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<prsht.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\shlguid.h
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<isguids.h>
+	<exdisp.h>
+	<shldisp.h>
+	<knownfolders.h>
+
+1765442468 c:\msys64\mingw64\include\isguids.h
+	<_mingw_unicode.h>
+
+1765442468 c:\msys64\mingw64\include\exdisp.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<ocidl.h>
+	<docobj.h>
+
+1765442468 c:\msys64\mingw64\include\ocidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<oleidl.h>
+	<oaidl.h>
+	<oleidl.h>
+	<servprov.h>
+	<urlmon.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\docobj.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<ocidl.h>
+	<objidl.h>
+	<oleidl.h>
+	<oaidl.h>
+	<servprov.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\shldisp.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<ocidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\knownfolders.h
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\shtypes.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<unknwn.h>
+	<wtypes.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\shobjidl.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<oleidl.h>
+	<oaidl.h>
+	<docobj.h>
+	<shtypes.h>
+	<servprov.h>
+	<comcat.h>
+	<propidl.h>
+	<prsht.h>
+	<msxml.h>
+	<wtypes.h>
+	<propsys.h>
+	<objectarray.h>
+	<structuredquerycondition.h>
+	<winapifamily.h>
+	<_mingw_unicode.h>
+	<sherrors.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<prsht.h>
+	<pshpack8.h>
+	<poppack.h>
+	<commctrl.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+	<pshpack1.h>
+	<poppack.h>
+	<pshpack8.h>
+	<poppack.h>
+
+1765442468 c:\msys64\mingw64\include\comcat.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<unknwn.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\propsys.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<objidl.h>
+	<oleidl.h>
+	<ocidl.h>
+	<shtypes.h>
+	<structuredquerycondition.h>
+	<winapifamily.h>
+	<propkeydef.h>
+
+1765442468 c:\msys64\mingw64\include\structuredquerycondition.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<oaidl.h>
+	<ocidl.h>
+	<objidl.h>
+	<propidl.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\propkeydef.h
+
+1765442468 c:\msys64\mingw64\include\objectarray.h
+	<rpc.h>
+	<rpcndr.h>
+	<windows.h>
+	<ole2.h>
+	<oaidl.h>
+	<ocidl.h>
+
+1765442468 c:\msys64\mingw64\include\sherrors.h
+	<winapifamily.h>
+	<winerror.h>
+
+1765442468 c:\msys64\mingw64\include\sys\stat.h
+	<crtdefs.h>
+	<io.h>
+	<sys/types.h>
+	<_mingw_stat64.h>
+
+1765442468 c:\msys64\mingw64\include\sys\types.h
+	<crtdefs.h>
+	<_mingw_off_t.h>
+
+1765442468 c:\msys64\mingw64\include\_mingw_stat64.h
+
+1767909554 d:\anime\libros\lenguaje c\proyectos\mifutbolc\api.h
+	"cJSON.h"
+
+1765443017 c:\msys64\mingw64\include\pthread.h
+	<stddef.h>
+	<errno.h>
+	<sys/types.h>
+	<process.h>
+	<limits.h>
+	<signal.h>
+	<time.h>
+	"pthread_compat.h"
+	"sched.h"
+	"pthread_time.h"
+	<pthread_unistd.h>
+
+1765442468 c:\msys64\mingw64\include\process.h
+	<crtdefs.h>
+	<corecrt_startup.h>
+	<sys/types.h>
+
+1765442468 c:\msys64\mingw64\include\corecrt_startup.h
+	<corecrt.h>
+
+1765442468 c:\msys64\mingw64\include\signal.h
+	<crtdefs.h>
+	<pthread_signal.h>
+
+1765443017 c:\msys64\mingw64\include\pthread_signal.h
+
+1765443017 c:\msys64\mingw64\include\sched.h
+	<stddef.h>
+	<errno.h>
+	<sys/types.h>
+	<process.h>
+	<limits.h>
+	<signal.h>
+	"pthread_compat.h"
+
+1765443017 c:\msys64\mingw64\include\pthread_unistd.h
+
+1765442468 c:\msys64\mingw64\include\stdint.h
+	<crtdefs.h>
+	<stddef.h>
+
+1765442468 c:\msys64\mingw64\include\inttypes.h
+	<crtdefs.h>
+	<stdint.h>
+	<stddef.h>
+
+1765442468 c:\msys64\mingw64\include\assert.h
+	<crtdefs.h>
+	<stdlib.h>
+
+1765442468 c:\msys64\mingw64\include\unistd.h
+	<io.h>
+	<process.h>
+	<getopt.h>
+	<sys/types.h>
+	<pthread_unistd.h>
+
+1765442468 c:\msys64\mingw64\include\getopt.h
+	<crtdefs.h>
+
+1765442468 c:\msys64\mingw64\include\sys\time.h
+	<time.h>
+	<_timeval.h>
+	<sys/timeb.h>
+
+1765442468 c:\msys64\mingw64\include\fcntl.h
+	<crtdefs.h>
+	<io.h>
+
+1765442468 c:\msys64\mingw64\include\sys\file.h
+	<fcntl.h>
+
+1765442468 c:\msys64\mingw64\include\sys\param.h
+	<sys/types.h>
+	<limits.h>
+
+1765443017 c:\msys64\mingw64\include\semaphore.h
+	<sys/timeb.h>
+	"pthread_compat.h"
+
+1765442468 c:\msys64\mingw64\include\utime.h
+	<sys/utime.h>
+
+1765442468 c:\msys64\mingw64\include\sys\utime.h
+	<crtdefs.h>
+
+1767909713 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\api.c
+	"api.h"
+	<curl/curl.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1762402188 c:\msys64\mingw64\include\curl\curl.h
+	"curlver.h"
+	"system.h"
+	<stdio.h>
+	<limits.h>
+	<sys/param.h>
+	<sys/types.h>
+	<time.h>
+	<winsock2.h>
+	<ws2tcpip.h>
+	<sys/select.h>
+	<sys/socket.h>
+	<sys/time.h>
+	"easy.h"
+	"multi.h"
+	"urlapi.h"
+	"options.h"
+	"header.h"
+	"websockets.h"
+	"mprintf.h"
+	"typecheck-gcc.h"
+
+1762402188 c:\msys64\mingw64\include\curl\curlver.h
+
+1762402188 c:\msys64\mingw64\include\curl\system.h
+	<ConditionalMacros.h>
+	<inttypes.h>
+	<inttypes.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<sys/poll.h>
+
+1765442468 c:\msys64\mingw64\include\winsock2.h
+	<_mingw_unicode.h>
+	<windows.h>
+	<psdk_inc/_ws1_undef.h>
+	<_timeval.h>
+	<_bsd_types.h>
+	<inaddr.h>
+	<psdk_inc/_socket_types.h>
+	<psdk_inc/_fd_types.h>
+	<psdk_inc/_ip_types.h>
+	<psdk_inc/_wsadata.h>
+	<ws2def.h>
+	<psdk_inc/_wsa_errnos.h>
+	<qos.h>
+	<guiddef.h>
+	<poppack.h>
+	<wsipv6ok.h>
+
+1765442468 c:\msys64\mingw64\include\psdk_inc\_ws1_undef.h
+
+1765442468 c:\msys64\mingw64\include\ws2def.h
+	<_mingw.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\qos.h
+
+1765442468 c:\msys64\mingw64\include\wsipv6ok.h
+	<ws2tcpip.h>
+	<wspiapi.h>
+
+1765442468 c:\msys64\mingw64\include\ws2tcpip.h
+	<_mingw_unicode.h>
+	<winsock2.h>
+	<ws2ipdef.h>
+	<psdk_inc/_ip_mreq1.h>
+	<winapifamily.h>
+	<ws2ipdef.h>
+	<mstcpip.h>
+
+1765442468 c:\msys64\mingw64\include\ws2ipdef.h
+	<_mingw_unicode.h>
+	<winapifamily.h>
+	<in6addr.h>
+
+1765442468 c:\msys64\mingw64\include\in6addr.h
+	<_bsd_types.h>
+
+1765442468 c:\msys64\mingw64\include\mstcpip.h
+	<_mingw_unicode.h>
+	<winapifamily.h>
+
+1765442468 c:\msys64\mingw64\include\wspiapi.h
+	<stdio.h>
+	<stdlib.h>
+	<malloc.h>
+	<string.h>
+	<ws2tcpip.h>
+
+1762402188 c:\msys64\mingw64\include\curl\easy.h
+
+1762402188 c:\msys64\mingw64\include\curl\multi.h
+	"curl.h"
+
+1762402188 c:\msys64\mingw64\include\curl\urlapi.h
+	"curl.h"
+
+1762402188 c:\msys64\mingw64\include\curl\options.h
+
+1762402188 c:\msys64\mingw64\include\curl\header.h
+
+1762402188 c:\msys64\mingw64\include\curl\websockets.h
+
+1762402188 c:\msys64\mingw64\include\curl\mprintf.h
+	<stdarg.h>
+	<stdio.h>
+	"curl.h"
+
+1762402188 c:\msys64\mingw64\include\curl\typecheck-gcc.h
+
+1772828521 d:\anime\libros\lenguaje c\proyectos\mifutbolc\settings.h
+	<stdio.h>
+
+1769840391 d:\anime\libros\lenguaje c\proyectos\mifutbolc\financiamiento.h
+	<time.h>
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\financiamiento.c
+	"financiamiento.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"ascii_art.h"
+	"cJSON.h"
+	"sqlite3.h"
+	"partido.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1773724522 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\settings.c
+	"settings.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"export.h"
+	"export_all.h"
+	"import.h"
+	"ascii_art.h"
+	"cJSON.h"
+	<windows.h>
+	"compat_windows.h"
+	<shellapi.h>
+	<stdlib.h>
+	<string.h>
+
+1773726841 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\entrenador_ia.c
+	"db.h"
+	"utils.h"
+	"menu.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+	<math.h>
+
+1769973710 d:\anime\libros\lenguaje c\proyectos\mifutbolc\entrenador_ia.h
+	<time.h>
+
+1770235785 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\qr.c
+	"qr.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+	<qrencode.h>
+	<windows.h>
+
+1769995284 d:\anime\libros\lenguaje c\proyectos\mifutbolc\qr.h
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1773280121 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\temporada.c
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"equipo.h"
+	"torneo.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1769992595 d:\anime\libros\lenguaje c\proyectos\mifutbolc\temporada.h
+	<time.h>
+
+1769577147 d:\anime\libros\lenguaje c\proyectos\mifutbolc\comparator.h
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"sqlite3.h"
+	"db.h"
+	"utils.h"
+
+1768928083 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\comparator.c
+	"comparator.h"
+	"menu.h"
+	<time.h>
+	<math.h>
+
+1765442468 c:\msys64\mingw64\include\memory.h
+	<crtdefs.h>
+
+1773203078 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_partidos_helpers.h
+	"db.h"
+	"utils.h"
+	"cJSON.h"
+	"sqlite3.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1764363392 c:\msys64\mingw64\include\sqlite3.h
+	<stdarg.h>
+
+1748771847 c:\msys64\mingw64\include\qrencode.h
+
+1770167266 d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_pdf.h
+
+1773257523 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\export_pdf.c
+	"export_pdf.h"
+	"export_camisetas.h"
+	"export_camisetas_mejorado.h"
+	"export_partidos.h"
+	"export_lesiones.h"
+	"export_lesiones_mejorado.h"
+	"export_estadisticas.h"
+	"export_estadisticas_generales.h"
+	"export_records_rankings.h"
+	"export.h"
+	"utils.h"
+	"db.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<stdint.h>
+	<ctype.h>
+	"pdfgen.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf.h
+	"hpdf_config.h"
+	"hpdf_version.h"
+	"hpdf_consts.h"
+	"hpdf_types.h"
+	"hpdf_consts.h"
+	"hpdf_doc.h"
+	"hpdf_error.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_config.h
+
+1742192003 c:\msys64\mingw64\include\hpdf_version.h
+
+1742192003 c:\msys64\mingw64\include\hpdf_consts.h
+
+1742192003 c:\msys64\mingw64\include\hpdf_types.h
+	<stdlib.h>
+
+1742192003 c:\msys64\mingw64\include\hpdf_doc.h
+	"hpdf_catalog.h"
+	"hpdf_image.h"
+	"hpdf_pages.h"
+	"hpdf_outline.h"
+	"hpdf_ext_gstate.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_catalog.h
+	"hpdf_objects.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_objects.h
+	"hpdf_encoder.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_encoder.h
+	"hpdf_consts.h"
+	"hpdf_streams.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_streams.h
+	"hpdf_list.h"
+	"hpdf_encrypt.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_list.h
+	"hpdf_error.h"
+	"hpdf_mmgr.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_error.h
+	"hpdf_types.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_mmgr.h
+	"hpdf_types.h"
+	"hpdf_error.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_encrypt.h
+	"hpdf_mmgr.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_image.h
+	"hpdf_objects.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_pages.h
+	"hpdf_gstate.h"
+	"hpdf_ext_gstate.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_gstate.h
+	"hpdf_font.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_font.h
+	"hpdf_fontdef.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_fontdef.h
+	"hpdf_objects.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_ext_gstate.h
+	"hpdf_objects.h"
+
+1742192003 c:\msys64\mingw64\include\hpdf_outline.h
+	"hpdf_objects.h"
+
+1773726841 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\bienestar.c
+	"bienestar.h"
+	"menu.h"
+	"utils.h"
+	"db.h"
+	"export_pdf.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	<limits.h>
+	<time.h>
+	<process.h>
+	<io.h>
+	"process.h"
+	<strings.h>
+
+1770159151 d:\anime\libros\lenguaje c\proyectos\mifutbolc\bienestar.h
+
+1770230749 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\demo_ncurses.c
+	<locale.h>
+	<stdlib.h>
+	<string.h>
+	<curses.h>
+
+1767255663 c:\msys64\mingw64\include\ncursesw\ncurses.h
+	<ncursesw/ncurses_dll.h>
+	<stdint.h>
+	<stdnoreturn.h>
+	<stdio.h>
+	<stdarg.h>
+	<stddef.h>
+	<stdbool.h>
+	<libutf8.h>
+	<wchar.h>
+	<ncursesw/unctrl.h>
+
+1767255663 c:\msys64\mingw64\include\ncursesw\ncurses_dll.h
+
+1765442468 c:\msys64\mingw64\include\wchar.h
+	<corecrt.h>
+	<corecrt_stdio_config.h>
+	<corecrt_wstdlib.h>
+	<corecrt_wctype.h>
+	<_mingw_off_t.h>
+	<_mingw_stat64.h>
+	<swprintf.inl>
+	<sec_api/wchar_s.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\wchar_s.h
+	<wchar.h>
+
+1767255663 c:\msys64\mingw64\include\ncursesw\unctrl.h
+	<ncursesw/curses.h>
+
+1767255663 c:\msys64\mingw64\include\ncursesw\curses.h
+	<ncursesw/ncurses_dll.h>
+	<stdint.h>
+	<stdnoreturn.h>
+	<stdio.h>
+	<stdarg.h>
+	<stddef.h>
+	<stdbool.h>
+	<libutf8.h>
+	<wchar.h>
+	<ncursesw/unctrl.h>
+
+1773107547 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\pdfgen.c
+	<BaseTsd.h>
+	<sys/types.h>
+	<ctype.h>
+	<errno.h>
+	<inttypes.h>
+	<limits.h>
+	<locale.h>
+	<math.h>
+	<stdarg.h>
+	<stdbool.h>
+	<stddef.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<sys/stat.h>
+	<time.h>
+	"pdfgen.h"
+	<strings.h>
+	<endian.h>
+	<machine/endian.h>
+	<sys/param.h>
+	<sys/isadefs.h>
+
+1773082670 d:\anime\libros\lenguaje c\proyectos\mifutbolc\pdfgen.h
+	<stdint.h>
+	<stdio.h>
+	"pdfgen.h"
+
+1765442468 c:\msys64\mingw64\include\strings.h
+	<string.h>
+
+1773173252 d:\anime\libros\lenguaje c\proyectos\mifutbolc\compat_port.h
+	<errno.h>
+	<stddef.h>
+	<stdint.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1773202203 d:\anime\libros\lenguaje c\proyectos\mifutbolc\windows.h
+	<stdint.h>
+	<unistd.h>
+	<wchar.h>
+
+1773173913 d:\anime\libros\lenguaje c\proyectos\mifutbolc\process.h
+	<unistd.h>
+
+1773173913 d:\anime\libros\lenguaje c\proyectos\mifutbolc\direct.h
+	<sys/stat.h>
+	<unistd.h>
+
+1773173913 d:\anime\libros\lenguaje c\proyectos\mifutbolc\shlobj.h
+
+1773202355 d:\anime\libros\lenguaje c\proyectos\mifutbolc\compat_windows.h
+	<windows.h>
+	<stdint.h>
+	<unistd.h>
+	<wchar.h>
+
+1773288369 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\carrera.c
+	"carrera.h"
+	"db.h"
+	"utils.h"
+	"menu.h"
+	"settings.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<time.h>
+
+1773281431 d:\anime\libros\lenguaje c\proyectos\mifutbolc\carrera.h
+
+1765442468 c:\msys64\mingw64\include\conio.h
+	<crtdefs.h>
+	<corecrt_stdio_config.h>
+	<stddef.h>
+	<sec_api/conio_s.h>
+
+1765442468 c:\msys64\mingw64\include\sec_api\conio_s.h
+	<conio.h>
+
+1773890260 source:d:\anime\libros\lenguaje c\proyectos\mifutbolc\gui.c
+	"raylib.h"
+	"gui.h"
+	<ctype.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	"raylib.h"
+
+1773773169 d:\anime\libros\lenguaje c\proyectos\mifutbolc\gui.h
+	"menu.h"
+
+1738962238 c:\msys64\mingw64\include\raylib.h
+	<stdarg.h>
+	<stdbool.h>
+

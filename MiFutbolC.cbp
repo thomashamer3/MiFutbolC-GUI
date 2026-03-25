@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="MiFutbolC" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc-msys2-mingw64" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/MiFutbolC" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Compiler>
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-flto" />
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-std=c23" />
+					<Add option="-s" />
+					<Add option="-fstack-protector" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fdata-sections" />
+					<Add option="-isystem" />
+					<Add option="-mtune=native" />
+					<Add directory="C:/msys64/mingw64/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-O2" />
+					<Add option="-flto" />
+					<Add option="-s" />
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+					<Add option="-Wl,--gc-sections" />
+					<Add directory="C:/msys64/mingw64/lib" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/MiFutbolC" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="C:/msys64/mingw64/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add directory="C:/msys64/mingw64/lib" />
+				</Linker>
+			</Target>
+			<Target title="Debug GUI">
+				<Option output="bin/Debug/MiFutbolC_GUI" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/DebugGUI/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Compiler>
+					<Add directory="C:/msys64/mingw64/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-mwindows" />
+					<Add option="-lraylib -lglfw3 -lopengl32 -lgdi32 -lwinmm -lshell32" />
+					<Add library="raylib" />
+					<Add library="glfw3" />
+					<Add library="opengl32" />
+					<Add library="gdi32" />
+					<Add library="winmm" />
+					<Add library="shell32" />
+					<Add directory="C:/msys64/mingw64/lib" />
+				</Linker>
+			</Target>
+			<Target title="Release GUI">
+				<Option output="bin/Release/MiFutbolC_GUI" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/ReleaseGUI/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Compiler>
+					<Add directory="C:/msys64/mingw64/include" />
+				</Compiler>
+				<Linker>
+					<Add option="-mwindows" />
+					<Add directory="C:/msys64/mingw64/lib" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-fexpensive-optimizations" />
+			<Add option="-flto" />
+			<Add option="-Wextra" />
+			<Add option="-Wall" />
+			<Add option="-std=gnu23" />
+			<Add option="-s" />
+			<Add option="-fstack-protector" />
+			<Add option="-ffunction-sections" />
+			<Add option="-fdata-sections" />
+			<Add option="-isystem" />
+			<Add option="-mtune=native" />
+			<Add directory="C:/msys64/mingw64/include" />
+		</Compiler>
+		<Linker>
+			<Add option="-O2" />
+			<Add option="-flto" />
+			<Add option="-s" />
+			<Add option="-static-libstdc++" />
+			<Add option="-static-libgcc" />
+			<Add option="-static" />
+			<Add option="-Wl,--gc-sections" />
+			<Add directory="C:/msys64/mingw64/lib" />
+		</Linker>
+		<Unit filename="ShlObj.h" />
+		<Unit filename="analisis.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="analisis.h" />
+		<Unit filename="bienestar.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="bienestar.h" />
+		<Unit filename="cJSON.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cJSON.h" />
+		<Unit filename="camiseta.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="camiseta.h" />
+		<Unit filename="cancha.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="cancha.h" />
+		<Unit filename="carrera.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="carrera.h" />
+		<Unit filename="compat_port.h" />
+		<Unit filename="compat_windows.h" />
+		<Unit filename="db.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="db.h" />
+		<Unit filename="direct.h" />
+		<Unit filename="entrenador_ia.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="entrenador_ia.h" />
+		<Unit filename="equipo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="equipo.h" />
+		<Unit filename="estadisticas.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas.h" />
+		<Unit filename="estadisticas_anio.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas_anio.h" />
+		<Unit filename="estadisticas_generales.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas_generales.h" />
+		<Unit filename="estadisticas_lesiones.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas_lesiones.h" />
+		<Unit filename="estadisticas_mes.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas_mes.h" />
+		<Unit filename="estadisticas_meta.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="estadisticas_meta.h" />
+		<Unit filename="export.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export.h" />
+		<Unit filename="export_all.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_all.h" />
+		<Unit filename="export_all_mejorado.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_all_mejorado.h" />
+		<Unit filename="export_camisetas.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_camisetas.h" />
+		<Unit filename="export_camisetas_mejorado.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_camisetas_mejorado.h" />
+		<Unit filename="export_estadisticas.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_estadisticas.h" />
+		<Unit filename="export_estadisticas_generales.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_estadisticas_generales.h" />
+		<Unit filename="export_lesiones.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_lesiones.h" />
+		<Unit filename="export_lesiones_mejorado.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_lesiones_mejorado.h" />
+		<Unit filename="export_partidos.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_partidos.h" />
+		<Unit filename="export_pdf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_pdf.h" />
+		<Unit filename="export_records_rankings.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="export_records_rankings.h" />
+		<Unit filename="financiamiento.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="financiamiento.h" />
+		<Unit filename="gui.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui_components.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="gui_components.h" />
+		<Unit filename="gui_defs.h" />
+		<Unit filename="gui.h" />
+		<Unit filename="import.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="import.h" />
+		<Unit filename="lesion.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="lesion.h" />
+		<Unit filename="logros.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="logros.h" />
+		<Unit filename="main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="menu.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="menu.h" />
+		<Unit filename="models.h" />
+		<Unit filename="partido.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="partido.h" />
+		<Unit filename="pdfgen.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="pdfgen.h" />
+		<Unit filename="process.h" />
+		<Unit filename="records_rankings.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="records_rankings.h" />
+		<Unit filename="recurso.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
+		<Unit filename="settings.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="settings.h" />
+		<Unit filename="sqlite3.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sqlite3.h" />
+		<Unit filename="temporada.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="temporada.h" />
+		<Unit filename="torneo.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="torneo.h" />
+		<Unit filename="utils.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="utils.h" />
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

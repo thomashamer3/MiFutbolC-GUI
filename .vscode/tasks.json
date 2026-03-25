@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build MiFutbolC Debug",
+			"type": "shell",
+			"command": "cd D:\\ANIME\\Libros\\\"Lenguaje C\"\\Proyectos\\MiFutbolC && build.bat",
+			"problemMatcher": [
+				"$gcc"
+			]
+		}
+	]
+}

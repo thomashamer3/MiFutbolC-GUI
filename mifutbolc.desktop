@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=4.0
+Type=Application
+Name=MiFutbolC
+Name[es]=MiFutbolC
+GenericName=Football Manager (CLI)
+GenericName[es]=Gestor de Futbol (CLI)
+Comment=Manage your Football from the terminal
+Comment[es]=Gestiona tu Futbol desde la terminal
+Exec=MiFutbolC
+TryExec=MiFutbolC
+Icon=mifutbolc
+Terminal=true
+Categories=Game;Sports;
+Keywords=football;soccer;manager;estadisticas;torneo;
+StartupNotify=true

@@ -1,0 +1,14 @@
+{
+    "docwriter.language": "English",
+    "docwriter.style": "Doxygen",
+    "docwriter.progress.trackClasses": true,
+    "docwriter.progress.trackTypes": true,
+
+    "C_Cpp.intelliSenseEngine": "default",
+    // SonarLint en modo conectado
+    "sonarlint.connectedMode.project": {
+        "connectionId": "thomashamer3",
+        "projectKey": "thomashamer3_MiFutbolC-GUI"
+    },
+    "sonarlint.pathToCompileCommands": "${workspaceFolder}\\bw-output\\compile_commands.json"
+}
