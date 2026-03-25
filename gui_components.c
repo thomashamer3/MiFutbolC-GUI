@@ -872,7 +872,8 @@ void gui_normalize(const char *src, char *dst, size_t dst_size)
 {
     size_t out = 0;
     int prev_space = 1;
-    const unsigned char *p = (const unsigned char *)(src ? src : "");
+    static const unsigned char safe_empty[2] = { 0, 0 };
+    const unsigned char *p = (const unsigned char *)(src && src[0] ? (const unsigned char *)src : safe_empty);
 
     if (!dst || dst_size == 0) return;
 
