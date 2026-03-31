@@ -1,7 +1,7 @@
 #ifndef COMPAT_WINDOWS_H
 #define COMPAT_WINDOWS_H
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ENABLE_RAYLIB_GUI)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif

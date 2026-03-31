@@ -8,9 +8,13 @@
 #include "entrenador_ia.h"
 #include "financiamiento.h"
 #include "settings.h"
+#ifdef ENABLE_RAYLIB_GUI
+#include "input.h"
+#include "gui_components.h"
+#endif
 #include <stdio.h>
 #include <string.h>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ENABLE_RAYLIB_GUI)
 #include <windows.h>
 #else
 #include "compat_windows.h"
