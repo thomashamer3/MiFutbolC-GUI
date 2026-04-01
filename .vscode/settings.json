@@ -10,5 +10,6 @@
         "connectionId": "thomashamer3",
         "projectKey": "thomashamer3_MiFutbolC-GUI"
     },
-    "sonarlint.pathToCompileCommands": "${workspaceFolder}\\bw-output\\compile_commands.json"
+    "sonarlint.pathToCompileCommands": "${workspaceFolder}\\bw-output\\compile_commands.json",
+    "C_Cpp.default.compilerPath": "C:/msys64/mingw64/bin/gcc.exe"
 }
