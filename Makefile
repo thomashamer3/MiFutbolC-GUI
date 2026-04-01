@@ -29,6 +29,9 @@ else
   endif
 endif
 
+CFLAGS += $(GUI_CFLAGS)
+LDFLAGS += $(GUI_LDFLAGS)
+
 SRC = \
   analisis.c \
   bienestar.c \
@@ -86,8 +89,6 @@ $(OUT): $(SRC)
 run: $(OUT)
 	./$(OUT)
 
-gui: CFLAGS += -DENABLE_RAYLIB_GUI -DGUI_DEFAULT_MODE $(GUI_CFLAGS)
-gui: LDFLAGS += $(GUI_LDFLAGS)
 gui: OUT = MiFutbolC_GUI
 gui: $(OUT)
 

@@ -1,5 +1,4 @@
 #include "input.h"
-#ifdef ENABLE_RAYLIB_GUI
 #include "raylib.h"
 #include <string.h>
 #include <stdio.h>
@@ -161,5 +160,3 @@ void input_consume_key(int key)
     if (key == KEY_LEFT) s_in.key_left = 0;
     if (key == KEY_RIGHT) s_in.key_right = 0;
 }
-
-#endif /* ENABLE_RAYLIB_GUI */

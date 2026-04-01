@@ -8,17 +8,11 @@
 #include "entrenador_ia.h"
 #include "financiamiento.h"
 #include "settings.h"
-#ifdef ENABLE_RAYLIB_GUI
 #include "input.h"
 #include "gui_components.h"
-#endif
 #include <stdio.h>
 #include <string.h>
-#if defined(_WIN32) && !defined(ENABLE_RAYLIB_GUI)
-#include <windows.h>
-#else
 #include "compat_windows.h"
-#endif
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
@@ -44,9 +38,7 @@ static int cargar_jugadores_equipo(int equipo_id, Equipo *equipo);
 static UNUSED void guardar_estadisticas_equipo(const Equipo *equipo, int const *estadisticas, int const *asistencias,
         int resultado, int cancha_id, char const *fecha_simulacion);
 /* GUI (Raylib) helper: listado de partidos en modo gráfico */
-#ifdef ENABLE_RAYLIB_GUI
 static int listar_partidos_gui(void);
-#endif
 
 // Declaracion externa para funcion de financiamiento
 extern void obtener_fecha_actual(char *fecha);
@@ -524,7 +516,6 @@ void crear_partido()
  *
  * @note Si no hay partidos registrados, muestra un mensaje informativo
  */
-#ifdef ENABLE_RAYLIB_GUI
 /* Convierte Latin1 -> UTF-8 (solo para GUI) */
 static void latin1_to_utf8(const unsigned char *src, char *dst, size_t dst_sz)
 {
@@ -696,16 +687,14 @@ static int listar_partidos_gui(void)
     free(rows);
     return 1;
 }
-#endif
+
 void listar_partidos()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (listar_partidos_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("LISTADO DE PARTIDOS");
 

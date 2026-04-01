@@ -19,7 +19,7 @@ set RES_FILE=obj/Debug/recurso.res
 echo [2/3] Compilando MiFutbolC GUI (RELEASE)...
 
 gcc -Wall -O2 -s -DNDEBUG -ffunction-sections -fdata-sections ^
--std=c23 -include compat_port.h -DENABLE_RAYLIB_GUI -DGUI_DEFAULT_MODE ^
+-std=c23 -include compat_port.h ^
 -IC:/msys64/mingw64/include ^
 analisis.c bienestar.c cJSON.c camiseta.c cancha.c db.c estadisticas.c estadisticas_meta.c estadisticas_anio.c estadisticas_generales.c estadisticas_lesiones.c estadisticas_mes.c ^
 export.c export_all.c export_all_mejorado.c export_camisetas.c export_camisetas_mejorado.c export_estadisticas.c export_estadisticas_generales.c export_lesiones.c export_lesiones_mejorado.c export_partidos.c export_records_rankings.c export_pdf.c ^

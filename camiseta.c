@@ -19,14 +19,11 @@
 
 #define MAX_CAMISETAS_SORTEO 150
 
-#ifdef ENABLE_RAYLIB_GUI
 #include "raylib.h"
 #include "gui_components.h"
 #include "input.h"
-#endif
 
 /* Prototipos para funciones definidas más abajo (evita implicit-declaration) */
-#ifdef ENABLE_RAYLIB_GUI
 static int listar_camisetas_gui(void);
 static int crear_camiseta_gui(void);
 static int editar_camiseta_gui(void);
@@ -36,7 +33,6 @@ static int ver_imagen_camiseta_gui(void);
 static void configurar_visor_preferido_imagen_gui(void);
 
 static int sortear_camiseta_gui(void);
-#endif
 
 /* Prototipos de helpers usados por GUI antes de su definición */
 static void marcar_camiseta_sorteada(int id);
@@ -57,11 +53,8 @@ static void asegurar_fila_settings()
 }
 
 /* Convierte una cadena asumida en ISO-8859-1 (Latin1) a UTF-8 en el buffer destino.
-   Sólo se necesita en las rutas GUI (cuando la app corre con Raylib), por eso
-   la función se compila únicamente con ENABLE_RAYLIB_GUI para evitar warnings
-   de "función no usada" en compilaciones de consola.
+    Solo se necesita en las rutas GUI (cuando la app corre con Raylib).
  */
-#ifdef ENABLE_RAYLIB_GUI
 static void latin1_to_utf8(const unsigned char *src, char *dst, size_t dst_sz)
 {
     if (!dst || dst_sz == 0)
@@ -101,7 +94,6 @@ static void latin1_to_utf8(const unsigned char *src, char *dst, size_t dst_sz)
     }
     dst[di] = '\0';
 }
-#endif /* ENABLE_RAYLIB_GUI */
 
 static int obtener_visor_preferido(char *buffer, size_t size)
 {
@@ -466,13 +458,11 @@ static void probar_visor_imagen_actual()
 
 static void menu_ajustes_imagen_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         configurar_visor_preferido_imagen_gui();
         return;
     }
-#endif
     MenuItem items[] =
     {
         {1, "Configurar visor", configurar_visor_preferido_imagen},
@@ -549,13 +539,11 @@ static void listar_camisetas_simple()
  */
 void crear_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (crear_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     char nombre[50];
     solicitar_nombre_camiseta("Nombre y Numero: ", nombre, sizeof(nombre));
@@ -624,13 +612,11 @@ static int cargar_imagen_para_camiseta_id(int id)
 
 void listar_camisetas()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (listar_camisetas_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("LISTADO DE CAMISETAS");
 
@@ -648,13 +634,11 @@ void listar_camisetas()
  */
 void editar_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (editar_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("EDITAR CAMISETA");
 
@@ -707,13 +691,11 @@ void editar_camiseta()
 
 void cargar_imagen_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (cargar_imagen_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("CARGAR IMAGEN DE CAMISETA");
 
@@ -748,13 +730,11 @@ void cargar_imagen_camiseta()
 
 void ver_imagen_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (ver_imagen_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("VER IMAGEN DE CAMISETA");
 
@@ -784,13 +764,11 @@ void ver_imagen_camiseta()
  */
 void eliminar_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (eliminar_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("ELIMINAR CAMISETA");
 
@@ -896,7 +874,6 @@ static int seleccionar_id_aleatorio(const int ids[], int count)
     return ids[rand() % count];
 }
 
-#ifdef ENABLE_RAYLIB_GUI
 static int listar_camisetas_gui(void)
 {
     sqlite3_stmt *stmt = NULL;
@@ -1395,8 +1372,6 @@ static int sortear_camiseta_gui(void)
     return 1;
 }
 
-#endif /* ENABLE_RAYLIB_GUI */
-
 
 /**
  * @brief Marca una camiseta como sorteada en la base de datos
@@ -1442,13 +1417,11 @@ static char* obtener_nombre_camiseta(int id)
  */
 void sortear_camiseta()
 {
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (sortear_camiseta_gui())
             return;
     }
-#endif
     clear_screen();
     print_header("SORTEO DE CAMISETAS");
 

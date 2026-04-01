@@ -7,9 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
-#ifdef ENABLE_RAYLIB_GUI
 #include "raylib.h"
-#endif
 #ifdef _WIN32
 #include <process.h>
 #include <io.h>
@@ -24,7 +22,6 @@ static int preparar_stmt(sqlite3_stmt **stmt, const char *sql)
     return sqlite3_prepare_v2(db, sql, -1, stmt, NULL) == SQLITE_OK;
 }
 
-#ifdef ENABLE_RAYLIB_GUI
 static int listar_canchas_gui(void)
 {
     sqlite3_stmt *stmt = NULL;
@@ -156,7 +153,6 @@ static int listar_canchas_gui(void)
     free(rows);
     return 1;
 }
-#endif
 
 static int abrir_imagen_en_sistema(const char *ruta)
 {
@@ -375,13 +371,11 @@ void listar_canchas()
 {
     app_log_event("CANCHA", "Listado de canchas consultado");
 
-#ifdef ENABLE_RAYLIB_GUI
     if (menu_is_gui_enabled())
     {
         if (listar_canchas_gui())
             return;
     }
-#endif
 
     listar_entidades("cancha", "LISTADO DE CANCHAS", "No hay canchas cargadas.");
 }

@@ -11,8 +11,6 @@
 
 #include "gui_defs.h"
 
-#ifdef ENABLE_RAYLIB_GUI
-
 /* ── Datos de tema ─────────────────────────────────────── */
 
 const GuiTheme     *gui_get_theme_dark(void);
@@ -155,5 +153,4 @@ void gui_state_change_screen(GuiState *st, GuiScreen new_screen);
 
 int gui_input_search(char *query, int max_len, int focused);
 
-#endif /* ENABLE_RAYLIB_GUI */
 #endif /* GUI_COMPONENTS_H */

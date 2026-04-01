@@ -88,8 +88,7 @@ static int run_gui_flow(MenuItem *filtered_items, int count)
 
         if (gui_result == GUI_ACTION_OPEN_CLASSIC_MENU)
         {
-            run_menu(filtered_items, count);
-            return 0;
+            continue;
         }
 
         if (gui_result == GUI_ACTION_RUN_SELECTED_OPTION)
@@ -116,21 +115,8 @@ static int run_gui_flow(MenuItem *filtered_items, int count)
 
 int main(int argc, char **argv)
 {
-    int use_gui = 0;
-
-#ifdef ENABLE_RAYLIB_GUI
-#ifdef GUI_DEFAULT_MODE
-    use_gui = 1;
-#endif
-#endif
-
-    for (int i = 1; i < argc; i++)
-    {
-        if (strcmp(argv[i], "--gui") == 0)
-        {
-            use_gui = 1;
-        }
-    }
+    (void)argc;
+    (void)argv;
 
 #ifndef _WIN32
     if (!acquire_single_instance_lock())
@@ -150,21 +136,6 @@ int main(int argc, char **argv)
     int count;
     MenuItem* filtered_items = create_filtered_menu(&count);
 
-    if (use_gui && !gui_is_compiled())
-    {
-        fprintf(stderr,
-                "GUI solicitada pero este binario no fue compilado con Raylib. Usa target 'Debug GUI' o 'Release GUI' en Code::Blocks.\n");
-        use_gui = 0;
-    }
-
-    menu_set_gui_enabled(use_gui);
-
-    if (use_gui)
-    {
-        return run_gui_flow(filtered_items, count);
-    }
-
-    run_menu(filtered_items, count);
-
-    return 0;
+    menu_set_gui_enabled(1);
+    return run_gui_flow(filtered_items, count);
 }

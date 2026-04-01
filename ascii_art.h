@@ -22,7 +22,7 @@
     "|  |  |  | |  | |  |     |  `--'  |     |  |     |  |_)  | |  `--'  | |  `----.|  `----.\n" \
     "|__|  |__| |__| |__|      \\______/      |__|     |______/   \\______/  |_______| \\______|\n" \
     "Sistema de Gestion Futbolistica\n" \
-    "MiFutbolC v4.0\n\n"
+    "MiFutbolC v4.1\n\n"
 
 /**
  * @brief Título artístico para el módulo de Camisetas
@@ -187,6 +187,26 @@
     "                                              \n"
 
 /**
+ * @brief Título artístico para el módulo de Recordatorios
+ */
+#define ASCII_RECORDATORIOS \
+    "  ____                           _       _             _           \n" \
+    " |  _ \\ ___  ___ ___  _ __ __| | __ _| |_ ___  _ __(_) ___  ___ \n" \
+    " | |_) / _ \\/ __/ _ \\| '__/ _` |/ _` | __/ _ \\| '__| |/ _ \\/ __|\n" \
+    " |  _ <  __/ (_| (_) | | | (_| | (_| | || (_) | |  | | (_) \\__ \\\n" \
+    " |_| \\_\\___|\\___\\___/|_|  \\__,_|\\__,_|\\__\\___/|_|  |_|\\___/|___/\n"
+
+/**
+ * @brief Título artístico para el módulo de Colecciones
+ */
+#define ASCII_COLECCIONES \
+    "   ____      _               _                        \n" \
+    "  / ___|___ | | ___  ___ ___(_) ___  _ __   ___  ___ \n" \
+    " | |   / _ \\| |/ _ \\/ __/ __| |/ _ \\| '_ \\ / _ \\/ __|\n" \
+    " | |__| (_) | |  __/ (_| (__| | (_) | | | |  __/\\__ \\\n" \
+    "  \\____\\___/|_|\\___|\\___\\___|_|\\___/|_| |_|\\___||___/\n"
+
+/**
  * @brief Título artístico para el Entrenador IA
  */
 #define ASCII_ENTRENADOR_IA \
@@ -195,7 +215,6 @@
     " |  _| | '_ \\| __| '__/ _ \\ '_ \\ / _` |/ _` |/ _ \\| '__|  | |  / _ \\  \n" \
     " | |___| | | | |_| | |  __/ | | | (_| | (_| | (_) | |     | | / ___ \\ \n" \
     " |_____|_| |_|\\__|_|  \\___|_| |_|\\__,_|\\__,_|\\___/|_|    |___/_/   \\_\\\n"
-
 /**
  * @brief Genera una representación visual de una cancha de fútbol animada en consola
  *

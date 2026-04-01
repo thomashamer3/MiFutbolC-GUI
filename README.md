@@ -332,7 +332,6 @@ Controles GUI (MVP actual):
 - Busqueda en vivo por nombre de opcion (teclear para filtrar)
 - `Esc`: limpia la busqueda
 - `Enter`: ejecuta la opcion seleccionada
-- `F1`: abre el menu clasico de consola
 - Acciones rapidas: 3 botones con las primeras opciones visibles del filtro actual
 - Barra inferior de estado con ultima accion ejecutada
 

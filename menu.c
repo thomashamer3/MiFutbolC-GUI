@@ -346,7 +346,6 @@ void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad)
         return;
 #endif
 
-#ifdef ENABLE_RAYLIB_GUI
     if (g_gui_menus_enabled)
     {
         gui_set_context_title(menu_safe_title(titulo));
@@ -363,7 +362,7 @@ void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad)
 
             if (gui_result == GUI_ACTION_OPEN_CLASSIC_MENU)
             {
-                break;
+                return;
             }
 
             if (gui_result == GUI_ACTION_RUN_SELECTED_OPTION)
@@ -384,7 +383,6 @@ void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad)
             return;
         }
     }
-#endif
 
     int opcion;
     char log_msg[512];

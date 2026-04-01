@@ -5,8 +5,6 @@
 #include "gui_components.h"
 #include "gui_config.h"
 
-#ifdef ENABLE_RAYLIB_GUI
-
 #include "cJSON.h"
 #include <ctype.h>
 #include <math.h>
@@ -459,7 +457,7 @@ int gui_get_module_icon(int index)
 static const GuiModuleHelp s_module_help[GUI_FILTER_COUNT] = {
     {"Revisa el estado general antes de ejecutar.",
      "Usa busqueda para ubicar acciones rapido.",
-     "Atajos: F2 inicio, F3 modulos, F1 clasico."},
+    "Atajos: F2 inicio, F3 modulos, F4 tema."},
     {"Gestiona equipos, canchas, partidos y lesiones.",
      "Verifica datos antes de guardar cambios.",
      "Prioriza orden: equipo -> cancha -> partido."},
@@ -2015,5 +2013,3 @@ int gui_input_search(char *query, int max_len, int focused)
 
     return changed;
 }
-
-#endif /* ENABLE_RAYLIB_GUI */

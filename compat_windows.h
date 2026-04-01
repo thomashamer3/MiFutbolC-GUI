@@ -1,13 +1,6 @@
 #ifndef COMPAT_WINDOWS_H
 #define COMPAT_WINDOWS_H
 
-#if defined(_WIN32) && !defined(ENABLE_RAYLIB_GUI)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#else
-
 #include <stdint.h>
 #include <unistd.h>
 #include <wchar.h>
@@ -96,7 +89,5 @@ static inline void Sleep(DWORD dwMilliseconds)
 {
     usleep((useconds_t)dwMilliseconds * 1000U);
 }
-
-#endif /* !_WIN32 */
 
 #endif /* COMPAT_WINDOWS_H */

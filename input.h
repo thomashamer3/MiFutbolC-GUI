@@ -3,11 +3,6 @@
 
 #include "gui_defs.h"
 
-#ifndef ENABLE_RAYLIB_GUI
-/* Forward-declare InputState when GUI is not enabled so headers compile in non-GUI builds. */
-typedef struct InputState InputState;
-#endif
-
 /* Inicializa el modulo de input (llamar después de iniciar ventana/raylib) */
 void input_init(void);
 

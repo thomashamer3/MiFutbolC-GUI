@@ -105,7 +105,6 @@ typedef struct
 /* ═══════════════════════════════════════════════════════════
    Lo que sigue requiere raylib
    ═══════════════════════════════════════════════════════════ */
-#ifdef ENABLE_RAYLIB_GUI
 #include "raylib.h"
 
 /* ── Tema visual ───────────────────────────────────────── */
@@ -299,5 +298,4 @@ typedef struct
     const GuiTheme *theme;
 } GuiState;
 
-#endif /* ENABLE_RAYLIB_GUI */
 #endif /* GUI_DEFS_H */

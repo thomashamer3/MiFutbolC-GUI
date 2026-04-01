@@ -10,10 +10,11 @@
 #include "gui_components.h"
 #include "db.h"
 #include "input.h"
-
+#include "raylib.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
@@ -22,11 +23,6 @@
 static int g_last_selected_index = 0;
 static int g_gui_window_initialized = 0;
 static char g_context_title[96] = "Menu Principal";
-
-#ifdef ENABLE_RAYLIB_GUI
-
-#include "raylib.h"
-#include <stdarg.h>
 
 static char g_last_action_text[96] = "Ninguna";
 static Texture2D g_app_icon_texture = {0};
@@ -99,10 +95,10 @@ static int gui_handle_post_frame_actions(GuiState *st, const MenuItem *items, in
         return gui_shutdown(st, GUI_ACTION_EXIT);
     }
 
-    /* Abrir menu clasico */
+    /* Compatibilidad: si alguien solicita menu clasico, se interpreta como salida */
     if (gui_evt_has(&st->events, GUI_EVT_OPEN_CLASSIC))
     {
-        return gui_shutdown(st, GUI_ACTION_OPEN_CLASSIC_MENU);
+        return gui_shutdown(st, GUI_ACTION_EXIT);
     }
 
     /* Ejecucion pendiente confirmada: desmontar estado y notificar al caller */
@@ -250,8 +246,6 @@ static void collect_keyboard_events(GuiState *st)
     /* Teclas globales */
     if (in->key_f4)
         gui_evt_push(q, GUI_EVT_TOGGLE_THEME, 0);
-    if (in->key_f1)
-        gui_evt_push(q, GUI_EVT_OPEN_CLASSIC, 0);
     if (in->key_f2)
         gui_evt_push(q, GUI_EVT_GO_HOME, 0);
     if (in->key_f3)
@@ -452,8 +446,7 @@ static void process_state_events(GuiState *st)
             gui_set_status(st, "Vista Inicio");
             gui_state_set_toast(st, "Vista Inicio", 0.8f);
         } else if (st->current_screen == GUI_SCREEN_HOME) {
-            /* En lugar de salir completamente, devolver control al menu clasico */
-            gui_evt_push(&st->events, GUI_EVT_OPEN_CLASSIC, 0);
+            gui_evt_push(&st->events, GUI_EVT_EXIT, 0);
         }
     }
 }
@@ -805,13 +798,13 @@ static void draw_stat_cards(GuiState *st, float list_x)
 int run_raylib_gui(const MenuItem *items, int count)
 {
     if (!items || count <= 0)
-        return GUI_ACTION_OPEN_CLASSIC_MENU;
+        return GUI_ACTION_EXIT;
 
     /* ── Inicializar estado ─────────────────── */
     GuiState st;
     gui_state_init(&st, items, count, g_last_selected_index);
     if (!st.visible_indices)
-        return GUI_ACTION_OPEN_CLASSIC_MENU;
+        return GUI_ACTION_EXIT;
 
     /* Copiar ultima accion persistente */
     snprintf(st.last_action, sizeof(st.last_action), "%s",
@@ -1218,20 +1211,6 @@ int run_raylib_gui(const MenuItem *items, int count)
     return GUI_ACTION_EXIT;
 }
 
-#else /* !ENABLE_RAYLIB_GUI */
-
-int run_raylib_gui(const MenuItem *items, int count)
-{
-    (void)items;
-    (void)count;
-    fprintf(stderr,
-            "GUI no disponible: compila con -DENABLE_RAYLIB_GUI"
-            " y enlaza raylib.\n");
-    return GUI_ACTION_OPEN_CLASSIC_MENU;
-}
-
-#endif /* ENABLE_RAYLIB_GUI */
-
 /* ═══════════════════════════════════════════════════════════
    API publica (siempre disponible)
    ═══════════════════════════════════════════════════════════ */
@@ -1243,11 +1222,7 @@ int gui_get_last_selected_index(void)
 
 int gui_is_compiled(void)
 {
-#ifdef ENABLE_RAYLIB_GUI
     return 1;
-#else
-    return 0;
-#endif
 }
 
 void gui_set_context_title(const char *title)
