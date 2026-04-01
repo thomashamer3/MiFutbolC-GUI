@@ -46,6 +46,18 @@ typedef struct
 void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad);
 
 /**
+ * @brief Ejecuta un menu estandarizado con log de ingreso.
+ *
+ * Esta funcion registra en el log la entrada al menu y luego delega
+ * la navegacion a ejecutar_menu().
+ *
+ * @param titulo El titulo del menu a mostrar
+ * @param items Arreglo de elementos del menu
+ * @param cantidad Numero de elementos en el arreglo
+ */
+void ejecutar_menu_estandar(const char *titulo, const MenuItem *items, int cantidad);
+
+/**
  * @brief Inicializa la aplicación completa
  *
  * Configura la consola, establece el locale para caracteres especiales,

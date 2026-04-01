@@ -1,4 +1,4 @@
-﻿#include "entrenador_ia.h"
+#include "entrenador_ia.h"
 #include "db.h"
 #include "utils.h"
 #include "menu.h"
@@ -930,5 +930,5 @@ void menu_entrenador_ia()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ENTRENADOR IA", items, 5);
+    ejecutar_menu_estandar("ENTRENADOR IA", items, 5);
 }

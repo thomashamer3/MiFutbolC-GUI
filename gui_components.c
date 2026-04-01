@@ -472,9 +472,23 @@ static const GuiModuleHelp s_module_help[GUI_FILTER_COUNT] = {
      "Usa salir solo al finalizar operaciones."}
 };
 
+/* Storage para tema activo con variante aplicada. Un único slot global
+    es suficiente porque la app sólo mantiene una GUI a la vez. */
+static GuiTheme s_active_theme_storage;
+
 const GuiTheme *gui_get_theme_dark(void)  { return &s_theme_dark;  }
 const GuiTheme *gui_get_theme_light(void) { return &s_theme_light; }
 const GuiTheme *gui_get_theme_fm(void)    { return &s_theme_fm;    }
+
+const GuiTheme *gui_get_active_theme(void)
+{
+    if (s_active_theme_storage.bg_main.a != 0 ||
+        s_active_theme_storage.text_primary.a != 0)
+    {
+        return &s_active_theme_storage;
+    }
+    return &s_theme_dark;
+}
 
 /* Lista de nombres visibles para el usuario. Podemos exponer muchos nombres
    aunque internamente mapemos los nombres a los temas implementados.
@@ -626,10 +640,6 @@ const GuiModuleHelp *gui_get_module_help(int index)
     return &s_module_help[index];
 }
 
-/* Storage para tema activo con variante aplicada. Un único slot global
-   es suficiente porque la app sólo mantiene una GUI a la vez. */
-static GuiTheme s_active_theme_storage;
-
 void gui_update_active_theme(GuiState *st)
 {
     if (!st) return;
@@ -683,6 +693,11 @@ void gui_anim_snap(GuiAnim *a, float value)
 
 static Font  g_ui_font;
 static int   g_ui_font_loaded = 0;
+
+static unsigned char gui_luma(Color c)
+{
+    return (unsigned char)((77 * c.r + 150 * c.g + 29 * c.b) / 256);
+}
 
 void gui_load_font(void)
 {
@@ -739,8 +754,81 @@ void gui_text(const char *text, float x, float y, float size, Color color)
     Font font = gui_get_font();
     const char *safe = text ? text : "";
     Color shadow = {5, 12, 8, color.a};
+    if (gui_luma(color) < 96)
+    {
+        shadow = (Color){255, 255, 255, (unsigned char)(color.a * 0.45f)};
+    }
+    else
+    {
+        shadow = (Color){4, 10, 8, (unsigned char)(color.a * 0.7f)};
+    }
     DrawTextEx(font, safe, (Vector2){x + 1.0f, y + 1.0f}, size, 1.0f, shadow);
     DrawTextEx(font, safe, (Vector2){x, y}, size, 1.0f, color);
+}
+
+void gui_draw_module_header(const char *title, int screen_width)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    DrawRectangle(0, 0, screen_width, 84, theme->bg_header);
+    gui_text("MiFutbolC", 26.0f, 20.0f, 36.0f, theme->text_primary);
+    gui_text(title ? title : "", 230.0f, 34.0f, 20.0f, theme->text_secondary);
+}
+
+Rectangle gui_draw_list_shell(Rectangle panel,
+                              const char *col1,
+                              float col1_x,
+                              const char *col2,
+                              float col2_x)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    float header_h = 32.0f;
+
+    DrawRectangleRec(panel, theme->card_bg);
+    DrawRectangleLinesEx(panel, 1.0f, theme->border);
+
+    if (col1 && col1[0] != '\0')
+    {
+        gui_text(col1, panel.x + col1_x, panel.y + 8.0f, 16.0f, theme->text_secondary);
+    }
+
+    if (col2 && col2[0] != '\0')
+    {
+        gui_text(col2, panel.x + col2_x, panel.y + 8.0f, 16.0f, theme->text_secondary);
+    }
+
+    DrawLine((int)panel.x + 4,
+             (int)(panel.y + header_h - 2.0f),
+             (int)(panel.x + panel.width) - 4,
+             (int)(panel.y + header_h - 2.0f),
+             theme->border);
+
+    {
+        Rectangle content = {panel.x, panel.y + header_h, panel.width, panel.height - header_h};
+        if (content.height < 1.0f)
+        {
+            content.height = 1.0f;
+        }
+        return content;
+    }
+}
+
+void gui_draw_list_row_bg(Rectangle row_rect, int row_index, int hovered)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    Color even_bg = col_lerp(theme->bg_list, theme->card_bg, 0.22f);
+    Color odd_bg = col_lerp(theme->bg_list, theme->card_bg, 0.36f);
+    Color bg = (row_index % 2 == 0) ? even_bg : odd_bg;
+    if (hovered)
+    {
+        bg = theme->row_hover;
+    }
+    DrawRectangleRec(row_rect, bg);
+}
+
+void gui_draw_footer_hint(const char *text, float x, int screen_height)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    gui_text(text ? text : "", x, (float)screen_height - 62.0f, 18.0f, theme->text_secondary);
 }
 
 Vector2 gui_text_measure(const char *text, float size)

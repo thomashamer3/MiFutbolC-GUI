@@ -422,5 +422,5 @@ void menu_carrera_futbolistica(void)
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("CARRERA FUTBOLISTICA", items, 4);
+    ejecutar_menu_estandar("CARRERA FUTBOLISTICA", items, 4);
 }

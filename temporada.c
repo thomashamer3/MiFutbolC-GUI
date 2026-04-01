@@ -1,4 +1,4 @@
-﻿#include "temporada.h"
+#include "temporada.h"
 #include "db.h"
 #include "utils.h"
 #include "menu.h"
@@ -1825,5 +1825,5 @@ void menu_temporadas()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("TEMPORADAS", items, 7);
+    ejecutar_menu_estandar("TEMPORADAS", items, 7);
 }

@@ -23,6 +23,7 @@
 static int g_last_selected_index = 0;
 static int g_gui_window_initialized = 0;
 static char g_context_title[96] = "Menu Principal";
+static int g_ignore_escape_frames = 0;
 
 static char g_last_action_text[96] = "Ninguna";
 static Texture2D g_app_icon_texture = {0};
@@ -930,6 +931,11 @@ int run_raylib_gui(const MenuItem *items, int count)
         input_update();
         const InputState *inp = input_get_state();
         st.input = *inp;
+        if (g_ignore_escape_frames > 0)
+        {
+            st.input.key_escape = 0;
+            g_ignore_escape_frames--;
+        }
 
         /* ── Tick de animaciones ──────────────── */
         gui_anim_tick(&st.scroll_anim, dt);
@@ -1233,4 +1239,9 @@ void gui_set_context_title(const char *title)
         return;
     }
     snprintf(g_context_title, sizeof(g_context_title), "%s", title);
+}
+
+void gui_request_escape_cooldown(void)
+{
+    g_ignore_escape_frames = 1;
 }

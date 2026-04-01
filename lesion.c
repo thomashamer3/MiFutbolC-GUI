@@ -1,4 +1,4 @@
-﻿#include "lesion.h"
+#include "lesion.h"
 #include "menu.h"
 #include "db.h"
 #include "utils.h"
@@ -524,7 +524,7 @@ void modificar_lesion()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("MODIFICAR LESION", items, 8);
+    ejecutar_menu_estandar("MODIFICAR LESION", items, 8);
 }
 
 /**
@@ -747,5 +747,5 @@ void menu_lesiones()
         {7, "Actualizar Estados", actualizar_estados_lesiones},
         {0, "Volver", NULL}
     };
-    ejecutar_menu("LESIONES", items, 8);
+    ejecutar_menu_estandar("LESIONES", items, 8);
 }

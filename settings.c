@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file settings.c
  * @brief Implementacion del sistema de configuracion avanzada
  *
@@ -12,7 +12,6 @@
 #include "export.h"
 #include "export_all.h"
 #include "import.h"
-#include "ascii_art.h"
 #include "cJSON.h"
 #ifdef _WIN32
 #include <windows.h>
@@ -1349,7 +1348,7 @@ static void menu_theme_settings()
         {0, get_text("menu_back"), NULL}
     };
 
-    ejecutar_menu(get_text("settings_theme"), items, (int)(sizeof(items)/sizeof(items[0])));
+    ejecutar_menu_estandar(get_text("settings_theme"), items, (int)(sizeof(items)/sizeof(items[0])));
 }
 
 /**
@@ -1364,7 +1363,7 @@ static void menu_language_settings()
         {0, get_text("menu_back"), NULL}
     };
 
-    ejecutar_menu(get_text("settings_language"), items, (int)(sizeof(items)/sizeof(items[0])));
+    ejecutar_menu_estandar(get_text("settings_language"), items, (int)(sizeof(items)/sizeof(items[0])));
 }
 
 /**
@@ -1449,7 +1448,7 @@ static void menu_text_size_settings()
         {0, get_text("menu_back"), NULL}
     };
 
-    ejecutar_menu(get_text("settings_text_size"), items, (int)(sizeof(items)/sizeof(items[0])));
+    ejecutar_menu_estandar(get_text("settings_text_size"), items, (int)(sizeof(items)/sizeof(items[0])));
 }
 
 /**
@@ -1465,7 +1464,7 @@ static void menu_accessibility_settings()
         {0, get_text("menu_back"), NULL}
     };
 
-    ejecutar_menu(get_text("settings_accessibility"), items, (int)(sizeof(items)/sizeof(items[0])));
+    ejecutar_menu_estandar(get_text("settings_accessibility"), items, (int)(sizeof(items)/sizeof(items[0])));
 }
 
 /**
@@ -1570,7 +1569,7 @@ static void menu_mode_settings()
         {0, get_text("menu_back"), NULL}
     };
 
-    ejecutar_menu(get_text("settings_mode"), items, (int)(sizeof(items)/sizeof(items[0])));
+    ejecutar_menu_estandar(get_text("settings_mode"), items, (int)(sizeof(items)/sizeof(items[0])));
 }
 
 /**
@@ -1729,5 +1728,5 @@ void menu_settings()
 
     const int item_count = (int)(sizeof(items) / sizeof(items[0]));
 
-    ejecutar_menu(get_text("menu_settings"), items, item_count);
+    ejecutar_menu_estandar(get_text("menu_settings"), items, item_count);
 }

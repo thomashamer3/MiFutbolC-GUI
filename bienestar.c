@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file bienestar.c
  * @brief Menu y herramientas de bienestar
  */
@@ -837,7 +837,7 @@ static void mostrar_planificacion_personal(void)
 
     clear_screen();
     print_header("PLANIFICACION PERSONAL");
-    ejecutar_menu("PLANIFICACION PERSONAL", items, 6);
+    ejecutar_menu_estandar("PLANIFICACION PERSONAL", items, 6);
 }
 
 static void registrar_habitos(void)
@@ -1112,7 +1112,7 @@ static void mostrar_mentalidad_habitos(void)
 
     clear_screen();
     print_header("MENTALIDAD Y HABITOS");
-    ejecutar_menu("MENTALIDAD Y HABITOS", items, 5);
+    ejecutar_menu_estandar("MENTALIDAD Y HABITOS", items, 5);
 }
 
 static const char *tipo_sesion_texto(int tipo)
@@ -1774,7 +1774,7 @@ static void mostrar_mental_deportivo(void)
 
     clear_screen();
     print_header("MENTAL (AUTOCONOCIMIENTO)");
-    ejecutar_menu("MENTAL (AUTOCONOCIMIENTO)", items, 8);
+    ejecutar_menu_estandar("MENTAL (AUTOCONOCIMIENTO)", items, 8);
 }
 
 static int parse_mes_anio(const char *entrada, char *salida, int size)
@@ -2206,7 +2206,7 @@ static void mostrar_entrenamiento_expandido(void)
 
     clear_screen();
     print_header("ENTRENAMIENTO (EXPANDIDO)");
-    ejecutar_menu("ENTRENAMIENTO (EXPANDIDO)", items, 10);
+    ejecutar_menu_estandar("ENTRENAMIENTO (EXPANDIDO)", items, 10);
 }
 
 static const char *tipo_comida_texto(int tipo)
@@ -2566,7 +2566,7 @@ static void mostrar_alimentacion_expandido(void)
 
     clear_screen();
     print_header("ALIMENTACION (EXPANDIDO)");
-    ejecutar_menu("ALIMENTACION (EXPANDIDO)", items, 10);
+    ejecutar_menu_estandar("ALIMENTACION (EXPANDIDO)", items, 10);
 }
 
 static void mostrar_salud_perfil(void)
@@ -3337,7 +3337,7 @@ static void menu_salud(void)
 
     clear_screen();
     print_header("SALUD");
-    ejecutar_menu("SALUD", items, 12);
+    ejecutar_menu_estandar("SALUD", items, 12);
 }
 
 static void guardar_recomendacion(const char *fecha, int score, int riesgo, const char *resumen, const char *rutina)
@@ -3791,7 +3791,7 @@ static void menu_asistente_entrenamiento(void)
 
     clear_screen();
     print_header("ASISTENTE ENTRENAMIENTOS");
-    ejecutar_menu("ASISTENTE ENTRENAMIENTOS", items, 3);
+    ejecutar_menu_estandar("ASISTENTE ENTRENAMIENTOS", items, 3);
 }
 
 void menu_bienestar(void)
@@ -3811,5 +3811,5 @@ void menu_bienestar(void)
 
     clear_screen();
     print_header("BIENESTAR");
-    ejecutar_menu("BIENESTAR", items, 9);
+    ejecutar_menu_estandar("BIENESTAR", items, 9);
 }

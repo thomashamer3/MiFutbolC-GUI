@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file logros.c
  * @brief Sistema de logros y badges para MiFutbolC
  *
@@ -574,5 +574,5 @@ void menu_logros()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("LOGROS", items, 5);
+    ejecutar_menu_estandar("LOGROS", items, 5);
 }

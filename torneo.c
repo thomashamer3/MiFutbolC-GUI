@@ -1,4 +1,4 @@
-﻿#include "torneo.h"
+#include "torneo.h"
 #include "db.h"
 #include "utils.h"
 #include "menu.h"
@@ -1037,5 +1037,5 @@ void menu_torneos()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("TORNEOS", items, 5);
+    ejecutar_menu_estandar("TORNEOS", items, 5);
 }

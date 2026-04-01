@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file export_all.c
  * @brief Modulo para exportar todos los datos del sistema en multiples formatos.
  *
@@ -18,7 +18,6 @@
 #include "export_pdf.h"
 #include "utils.h"
 #include "menu.h"
-#include "ascii_art.h"
 #include "db.h"
 #include "settings.h"
 #include <stdio.h>
@@ -450,7 +449,7 @@ static void menu_exportar_partidos()
         {5, get_text("export_partido_menos_asistencias_reciente"), exportar_partido_menos_asistencias_reciente_todo},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("export_partidos_menu_title"), items, 6);
+    ejecutar_menu_estandar(get_text("export_partidos_menu_title"), items, 6);
 }
 
 /**
@@ -466,7 +465,7 @@ static void menu_exportar_estadisticas_generales()
         {4, get_text("export_records_rankings"), exportar_records_rankings_todo},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("export_estadisticas_generales_menu_title"), items, 5);
+    ejecutar_menu_estandar(get_text("export_estadisticas_generales_menu_title"), items, 5);
 }
 
 void menu_exportar()
@@ -487,5 +486,5 @@ void menu_exportar()
         {12, get_text("export_informe_total_pdf"), exportar_informe_total_pdf},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("export_menu_title"), items, 13);
+    ejecutar_menu_estandar(get_text("export_menu_title"), items, 13);
 }

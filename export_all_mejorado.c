@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file export_all_mejorado.c
  * @brief Funciones mejoradas para exportar todos los datos con analisis avanzado
  *
@@ -127,5 +127,5 @@ void menu_exportar_mejorado()
         {3, "Todo con Analisis Avanzado", exportar_todo_mejorado},
         {0, "Volver", NULL}
     };
-    ejecutar_menu("EXPORTAR DATOS MEJORADOS", items, 4);
+    ejecutar_menu_estandar("EXPORTAR DATOS MEJORADOS", items, 4);
 }

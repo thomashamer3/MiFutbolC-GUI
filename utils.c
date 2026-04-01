@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file utils.c
  * @brief Funciones utilitarias para entrada/salida, manejo de fechas y
  * operaciones de base de datos.
@@ -10,7 +10,6 @@
 
 #include "utils.h"
 #include "export.h"
-#include "ascii_art.h"
 #include "db.h"
 #include "menu.h"
 #include "settings.h"
@@ -1144,50 +1143,6 @@ void clear_screen()
 #endif
 }
 
-/**
- * Muestra informacion contextual del usuario y fecha para personalizar la
- * experiencia y registrar el momento de las operaciones, incluyendo arte ASCII
- * contextual.
- */
-static const char *obtener_ascii_por_titulo(const char *titulo)
-{
-    if (strstr(titulo, "MI FUTBOL C"))
-        return ASCII_BIENVENIDA;
-    if (strstr(titulo, "CAMISETA") || strstr(titulo, "CAMISETAS"))
-        return ASCII_CAMISETA;
-    if (strstr(titulo, "CANCHAS"))
-        return ASCII_CANCHA;
-    if (strstr(titulo, "PARTIDO") || strstr(titulo, "PARTIDOS"))
-        return ASCII_FUTBOL;
-    if (strstr(titulo, "EQUIPOS"))
-        return ASCII_EQUIPO;
-    if (strstr(titulo, "ESTADISTICA") || strstr(titulo, "ESTADISTICAS"))
-        return ASCII_ESTADISTICAS;
-    if (strstr(titulo, "LOGROS"))
-        return ASCII_LOGROS;
-    if (strstr(titulo, "ANALISIS") || strstr(titulo, "EVOLUCION TEMPORAL"))
-        return ASCII_ANALISIS;
-    if (strstr(titulo, "BIENESTAR") || strstr(titulo, "WELLNESS"))
-        return ASCII_BIENESTAR;
-    if (strstr(titulo, "LESIONES"))
-        return ASCII_LESIONES;
-    if (strstr(titulo, "FINANCIAMIENTO"))
-        return ASCII_FINANCIAMIENTO;
-    if (strstr(titulo, "EXPORTAR"))
-        return ASCII_EXPORTAR;
-    if (strstr(titulo, "IMPORTAR"))
-        return ASCII_IMPORTAR;
-    if (strstr(titulo, "TORNEOS"))
-        return ASCII_TORNEOS;
-    if (strstr(titulo, "AJUSTES") || strstr(titulo, "SETTINGS"))
-        return ASCII_AJUSTES;
-    if (strstr(titulo, "TEMPORADA") || strstr(titulo, "SEASON"))
-        return ASCII_TEMPORADA;
-    if (strstr(titulo, "ENTRENADOR IA"))
-        return ASCII_ENTRENADOR_IA;
-    return NULL;
-}
-
 static void free_nombre_usuario_if_needed(char *nombre_usuario)
 {
     if (nombre_usuario && strcmp(nombre_usuario, "Usuario Desconocido") != 0)
@@ -1196,15 +1151,10 @@ static void free_nombre_usuario_if_needed(char *nombre_usuario)
     }
 }
 
-static void print_header_stdout(const char *ascii, const char *titulo_display,
+static void print_header_stdout(const char *titulo_display,
                                 const char *nombre_usuario, const char *fecha,
                                 int mostrar_datos)
 {
-    if (ascii)
-    {
-        printf("%s\n", ascii);
-    }
-
     printf("%s\n", titulo_display);
     if (mostrar_datos)
     {
@@ -1229,15 +1179,13 @@ void print_header(const char *titulo)
 
     uppercase_ascii(titulo, titulo_buf, sizeof(titulo_buf));
     titulo_display = titulo ? titulo_buf : "";
-    const char *ascii = obtener_ascii_por_titulo(titulo_display);
     int mostrar_datos = 1;
     if (titulo && strstr(titulo, "LISTADO") != NULL)
     {
         mostrar_datos = 0;
     }
 
-
-    print_header_stdout(ascii, titulo_display, nombre_usuario, fecha,
+    print_header_stdout(titulo_display, nombre_usuario, fecha,
                         mostrar_datos);
     free_nombre_usuario_if_needed(nombre_usuario);
 }
@@ -2111,7 +2059,6 @@ void pedir_nombre_usuario()
 {
     char nombre[100];
     clear_screen();
-    ui_printf("%s\n", ASCII_BIENVENIDA);
     leer_nombre_no_vacio("Por favor, ingresa tu Nombre: ",
                          "El nombre no puede estar vacio. Ingresa tu nombre: ",
                          nombre, (int)sizeof(nombre));
@@ -2277,7 +2224,7 @@ void menu_usuario()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("USUARIO", items, 7);
+    ejecutar_menu_estandar("USUARIO", items, 7);
 }
 
 /**

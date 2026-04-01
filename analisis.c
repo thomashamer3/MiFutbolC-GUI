@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file analisis.c
  * @brief Modulo para el analisis de rendimiento en partidos de futbol.
  *
@@ -779,7 +779,7 @@ static void analizar_quimica_jugadores()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ANALISIS DE QUIMICA", items, 6);
+    ejecutar_menu_estandar("ANALISIS DE QUIMICA", items, 6);
 }
 
 /**
@@ -1162,7 +1162,7 @@ static void mostrar_comparador_avanzado()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("COMPARADOR AVANZADO", items, 5);
+    ejecutar_menu_estandar("COMPARADOR AVANZADO", items, 5);
 }
 
 /**
@@ -1182,7 +1182,7 @@ void mostrar_analisis()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ANALISIS Y COMPARADOR", items, 6);
+    ejecutar_menu_estandar("ANALISIS Y COMPARADOR", items, 6);
 }
 
 /**
@@ -1618,7 +1618,7 @@ void mostrar_evolucion_temporal()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("EVOLUCION TEMPORAL", items, 9);
+    ejecutar_menu_estandar("EVOLUCION TEMPORAL", items, 9);
 }
 
 /**

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file import.c
  * @brief Modulo para importar datos desde archivos JSON a la base de datos.
  */
@@ -2118,7 +2118,7 @@ static void submenu_importar_json()
         {5, get_text("import_todo"), &importar_todo_con_pausa},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("import_menu_json_title"), items, 6);
+    ejecutar_menu_estandar(get_text("import_menu_json_title"), items, 6);
 }
 
 /**
@@ -2133,7 +2133,7 @@ static void submenu_importar_txt()
         {5, get_text("import_todo"), &importar_todo_txt_con_pausa},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("import_menu_txt_title"), items, 6);
+    ejecutar_menu_estandar(get_text("import_menu_txt_title"), items, 6);
 }
 
 /**
@@ -2148,7 +2148,7 @@ static void submenu_importar_csv()
         {5, get_text("import_todo"), &importar_todo_csv_con_pausa},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("import_menu_csv_title"), items, 6);
+    ejecutar_menu_estandar(get_text("import_menu_csv_title"), items, 6);
 }
 
 /**
@@ -2163,7 +2163,7 @@ static void submenu_importar_html()
         {5, get_text("import_todo"), &importar_todo_html_con_pausa},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("import_menu_html_title"), items, 6);
+    ejecutar_menu_estandar(get_text("import_menu_html_title"), items, 6);
 }
 
 static void menu_importar_json_con_backup()
@@ -2227,5 +2227,5 @@ void menu_importar()
         {7, get_text("import_from_db"), &importar_base_datos_con_backup},
         {0, get_text("menu_back"), NULL}
     };
-    ejecutar_menu(get_text("import_menu_title"), items, 8);
+    ejecutar_menu_estandar(get_text("import_menu_title"), items, 8);
 }

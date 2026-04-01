@@ -16,6 +16,7 @@
 const GuiTheme     *gui_get_theme_dark(void);
 const GuiTheme     *gui_get_theme_light(void);
 const GuiTheme     *gui_get_theme_fm(void);
+const GuiTheme     *gui_get_active_theme(void);
 const GuiTheme     *gui_get_theme_by_index(int index);
 int                 gui_get_theme_count(void);
 const char         *gui_get_theme_name(int index);
@@ -85,6 +86,14 @@ void gui_history_panel_draw(const GuiState *st, Rectangle rect,
 void gui_detail_panel_draw(const GuiState *st, Rectangle rect,
                            const MenuItem *item,
                            const char history[][96], int hist_count);
+void gui_draw_module_header(const char *title, int screen_width);
+Rectangle gui_draw_list_shell(Rectangle panel,
+                              const char *col1,
+                              float col1_x,
+                              const char *col2,
+                              float col2_x);
+void gui_draw_list_row_bg(Rectangle row_rect, int row_index, int hovered);
+void gui_draw_footer_hint(const char *text, float x, int screen_height);
 
 /* ── Lista virtualizada ────────────────────────────────── */
 

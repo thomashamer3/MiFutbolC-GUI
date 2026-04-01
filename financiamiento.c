@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file financiamiento.c
  * @brief Implementacion de funciones para la gestion financiera en MiFutbolC
  */
@@ -7,7 +7,6 @@
 #include "db.h"
 #include "utils.h"
 #include "menu.h"
-#include "ascii_art.h"
 #include "cJSON.h"
 #include "sqlite3.h"
 #include "partido.h"
@@ -621,7 +620,7 @@ void menu_presupuestos_mensuales()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("PRESUPUESTOS MENSUALES", items, 4);
+    ejecutar_menu_estandar("PRESUPUESTOS MENSUALES", items, 4);
     return;
 #endif
     clear_screen();
@@ -638,7 +637,7 @@ void menu_presupuestos_mensuales()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("PRESUPUESTOS MENSUALES", items, 4);
+    ejecutar_menu_estandar("PRESUPUESTOS MENSUALES", items, 4);
 }
 
 /**
@@ -1795,7 +1794,7 @@ void menu_financiamiento()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("FINANCIAMIENTO", items, 9);
+    ejecutar_menu_estandar("FINANCIAMIENTO", items, 9);
 }
 
 /**

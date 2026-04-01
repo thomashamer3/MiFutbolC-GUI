@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file records_rankings.c
  * @brief Implementacion de records y rankings en MiFutbolC
  */
@@ -615,5 +615,5 @@ static MenuItem* construir_menu_records()
 void menu_records_rankings()
 {
     MenuItem const *items = construir_menu_records();
-    ejecutar_menu("RECORDS & RANKINGS", items, 17);
+    ejecutar_menu_estandar("RECORDS & RANKINGS", items, 17);
 }

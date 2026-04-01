@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file estadisticas.c
  * @brief Modulo principal para el menu de estadisticas en partidos de futbol.
  *
@@ -42,7 +42,7 @@ void menu_estadisticas()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS", items, 6);
+    ejecutar_menu_estandar("ESTADISTICAS", items, 6);
 }
 
 /**
@@ -64,7 +64,7 @@ void menu_estadisticas_generales()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS GENERALES", items, 5);
+    ejecutar_menu_estandar("ESTADISTICAS GENERALES", items, 5);
 }
 
 /**
@@ -87,7 +87,7 @@ void menu_estadisticas_partidos()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS DE PARTIDOS", items, 6);
+    ejecutar_menu_estandar("ESTADISTICAS DE PARTIDOS", items, 6);
 }
 
 /**
@@ -111,7 +111,7 @@ void menu_estadisticas_goles()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS DE GOLES", items, 7);
+    ejecutar_menu_estandar("ESTADISTICAS DE GOLES", items, 7);
 }
 
 /**
@@ -134,7 +134,7 @@ void menu_estadisticas_asistencias()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS DE ASISTENCIAS", items, 6);
+    ejecutar_menu_estandar("ESTADISTICAS DE ASISTENCIAS", items, 6);
 }
 
 /**
@@ -169,5 +169,5 @@ void menu_estadisticas_rendimiento()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("ESTADISTICAS DE RENDIMIENTO", items, 17);
+    ejecutar_menu_estandar("ESTADISTICAS DE RENDIMIENTO", items, 17);
 }

@@ -1,10 +1,9 @@
-﻿#include "partido.h"
+#include "partido.h"
 #include "menu.h"
 #include "db.h"
 #include "utils.h"
 #include "camiseta.h"
 #include "equipo.h"
-#include "ascii_art.h"
 #include "entrenador_ia.h"
 #include "financiamiento.h"
 #include "settings.h"
@@ -519,8 +518,19 @@ void crear_partido()
 /* Convierte Latin1 -> UTF-8 (solo para GUI) */
 static void latin1_to_utf8(const unsigned char *src, char *dst, size_t dst_sz)
 {
-    if (!dst || dst_sz == 0) return;
-    if (!src) { if (dst_sz > 0) dst[0] = '\0'; return; }
+    if (!dst || dst_sz == 0)
+    {
+        return;
+    }
+    if (!src)
+    {
+        if (dst_sz > 0)
+        {
+            dst[0] = '\0';
+        }
+        return;
+    }
+
     size_t di = 0;
     const unsigned char *s = src;
     while (*s && di + 1 < dst_sz)
@@ -546,30 +556,98 @@ static void latin1_to_utf8(const unsigned char *src, char *dst, size_t dst_sz)
     dst[di] = '\0';
 }
 
-static int listar_partidos_gui(void)
+typedef struct
+{
+    int id;
+    char fecha[64];
+    char cancha[128];
+    char camiseta[128];
+    char marcador[32];
+} PartidoGuiRow;
+
+static void partido_gui_set_fallback(char *dst, size_t dst_sz, const char *fallback)
+{
+    strncpy_s(dst, dst_sz, fallback, _TRUNCATE);
+}
+
+static int partido_gui_expand_rows(PartidoGuiRow **rows, int *cap)
+{
+    int new_cap = (*cap) * 2;
+    PartidoGuiRow *tmp = (PartidoGuiRow *)realloc(*rows, (size_t)new_cap * sizeof(PartidoGuiRow));
+    if (!tmp)
+    {
+        return 0;
+    }
+
+    memset(tmp + *cap, 0, (size_t)(new_cap - *cap) * sizeof(PartidoGuiRow));
+    *rows = tmp;
+    *cap = new_cap;
+    return 1;
+}
+
+static void partido_gui_fill_row_from_stmt(PartidoGuiRow *row, sqlite3_stmt *stmt)
+{
+    row->id = sqlite3_column_int(stmt, 0);
+
+    {
+        char fecha_buf[64] = {0};
+        const unsigned char *col_fecha = sqlite3_column_text(stmt, 2);
+        if (col_fecha)
+        {
+            format_date_for_display((const char *)col_fecha, fecha_buf, sizeof(fecha_buf));
+        }
+        else
+        {
+            partido_gui_set_fallback(fecha_buf, sizeof(fecha_buf), "(sin fecha)");
+        }
+        strncpy_s(row->fecha, sizeof(row->fecha), fecha_buf, _TRUNCATE);
+    }
+
+    {
+        const unsigned char *col_cancha = sqlite3_column_text(stmt, 1);
+        if (col_cancha)
+        {
+            latin1_to_utf8(col_cancha, row->cancha, sizeof(row->cancha));
+        }
+        else
+        {
+            partido_gui_set_fallback(row->cancha, sizeof(row->cancha), "(sin cancha)");
+        }
+
+        const unsigned char *col_cami = sqlite3_column_text(stmt, 5);
+        if (col_cami)
+        {
+            latin1_to_utf8(col_cami, row->camiseta, sizeof(row->camiseta));
+        }
+        else
+        {
+            partido_gui_set_fallback(row->camiseta, sizeof(row->camiseta), "(sin camiseta)");
+        }
+
+        {
+            int goles = sqlite3_column_int(stmt, 3);
+            int asist = sqlite3_column_int(stmt, 4);
+            snprintf(row->marcador, sizeof(row->marcador), "G:%d A:%d", goles, asist);
+        }
+    }
+}
+
+static int cargar_partidos_gui_rows(PartidoGuiRow **rows_out, int *count_out)
 {
     sqlite3_stmt *stmt = NULL;
     int cap = 64;
     int count = 0;
-    int scroll = 0;
-    int row_h = 30;
-    int panel_x = 80;
-    int panel_y = 130;
-    int panel_w = 1100;
-    int panel_h = 520;
+    PartidoGuiRow *rows = (PartidoGuiRow *)calloc((size_t)cap, sizeof(PartidoGuiRow));
 
-    typedef struct { int id; char fecha[64]; char cancha[128]; char camiseta[128]; char marcador[32]; char resultado[64]; char rendimiento_general[64]; char cansancio[64]; char estado_animo[64]; char comentario_personal[256]; char clima[64]; char dia[64]; double precio; } Row;
-    Row *rows = (Row*)calloc((size_t)cap, sizeof(Row));
-    if (!rows) return 0;
-
-    /* Consumir posibles pulsaciones previas que afectarían al modal */
-    input_consume_key(KEY_ESCAPE);
-    input_consume_key(KEY_ENTER);
+    if (!rows)
+    {
+        return 0;
+    }
 
     if (!preparar_stmt(
             "SELECT p.id, can.nombre, fecha_hora, goles, asistencias, c.nombre, resultado, rendimiento_general, cansancio, estado_animo, comentario_personal, clima, dia, precio "
-                "FROM partido p JOIN camiseta c ON p.camiseta_id = c.id "
-                "JOIN cancha can ON p.cancha_id = can.id ORDER BY p.id ASC",
+            "FROM partido p JOIN camiseta c ON p.camiseta_id = c.id "
+            "JOIN cancha can ON p.cancha_id = can.id ORDER BY p.id ASC",
             &stmt))
     {
         free(rows);
@@ -578,108 +656,181 @@ static int listar_partidos_gui(void)
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        if (count >= cap)
+        if (count >= cap && !partido_gui_expand_rows(&rows, &cap))
         {
-            int new_cap = cap * 2;
-            Row *tmp = (Row*)realloc(rows, (size_t)new_cap * sizeof(Row));
-            if (!tmp) { sqlite3_finalize(stmt); free(rows); return 0; }
-            memset(tmp + cap, 0, (size_t)(new_cap - cap) * sizeof(Row));
-            rows = tmp; cap = new_cap;
-        }
-        rows[count].id = sqlite3_column_int(stmt, 0);
-
-        /* Fecha formateada */
-        {
-            char fecha_buf[64] = {0};
-            const unsigned char *col_fecha = sqlite3_column_text(stmt, 2);
-            if (col_fecha)
-                format_date_for_display((const char*)col_fecha, fecha_buf, sizeof(fecha_buf));
-            else
-                snprintf(fecha_buf, sizeof(fecha_buf), "(sin fecha)");
-            strncpy_s(rows[count].fecha, sizeof(rows[count].fecha), fecha_buf, _TRUNCATE);
+            sqlite3_finalize(stmt);
+            free(rows);
+            return 0;
         }
 
-        /* Cancha y camiseta (posible Latin1) */
-        {
-            const unsigned char *col_cancha = sqlite3_column_text(stmt, 1);
-            if (col_cancha)
-                latin1_to_utf8(col_cancha, rows[count].cancha, sizeof(rows[count].cancha));
-            else
-                snprintf(rows[count].cancha, sizeof(rows[count].cancha), "(sin cancha)");
-
-            const unsigned char *col_cami = sqlite3_column_text(stmt, 5);
-            if (col_cami)
-                latin1_to_utf8(col_cami, rows[count].camiseta, sizeof(rows[count].camiseta));
-            else
-                snprintf(rows[count].camiseta, sizeof(rows[count].camiseta), "(sin camiseta)");
-
-            int goles = sqlite3_column_int(stmt, 3);
-            int asist = sqlite3_column_int(stmt, 4);
-            snprintf(rows[count].marcador, sizeof(rows[count].marcador), "G:%d A:%d", goles, asist);
-        }
-
+        partido_gui_fill_row_from_stmt(&rows[count], stmt);
         count++;
     }
+
     sqlite3_finalize(stmt);
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static void partido_gui_calcular_panel(int sw, int sh, int *panel_x, int *panel_w, int *panel_h)
+{
+    *panel_x = (sw > 900) ? 80 : 20;
+    *panel_w = sw - (*panel_x * 2);
+    *panel_h = sh - 220;
+    if (*panel_h < 200)
+    {
+        *panel_h = 200;
+    }
+}
+
+static int partido_gui_clamp_scroll(int scroll, int count, int visible_rows)
+{
+    int max_scroll = count - visible_rows;
+    if (max_scroll < 0)
+    {
+        max_scroll = 0;
+    }
+    if (scroll < 0)
+    {
+        return 0;
+    }
+    if (scroll > max_scroll)
+    {
+        return max_scroll;
+    }
+    return scroll;
+}
+
+static int partido_gui_actualizar_scroll(int scroll, int count, int visible_rows, Rectangle area)
+{
+    float wheel = GetMouseWheelMove();
+    if (CheckCollisionPointRec(GetMousePosition(), area))
+    {
+        if (wheel < 0.0f && scroll < count - visible_rows)
+        {
+            scroll++;
+        }
+        else if (wheel > 0.0f && scroll > 0)
+        {
+            scroll--;
+        }
+    }
+
+    return partido_gui_clamp_scroll(scroll, count, visible_rows);
+}
+
+static void partido_gui_dibujar_filas(const PartidoGuiRow *rows,
+                                      int count,
+                                      int scroll,
+                                      int row_h,
+                                      Rectangle panel)
+{
+    int panel_x = (int)panel.x;
+    int panel_y = (int)panel.y;
+    int panel_w = (int)panel.width;
+    int panel_h = (int)panel.height;
+
+    if (count == 0)
+    {
+        gui_text("No hay partidos cargados.", panel_x + 24, panel_y + 24, 24.0f, (Color){233,247,236,255});
+        return;
+    }
+
+    BeginScissorMode(panel_x, panel_y, panel_w, panel_h);
+    for (int i = scroll; i < count; i++)
+    {
+        int row = i - scroll;
+        int y = panel_y + row * row_h;
+        if (y + row_h > panel_y + panel_h)
+        {
+            break;
+        }
+
+        {
+            Rectangle fr = {(float)(panel_x + 2), (float)y, (float)(panel_w - 4), (float)(row_h - 1)};
+            int hovered = CheckCollisionPointRec(GetMousePosition(), fr);
+            gui_draw_list_row_bg(fr, row, hovered);
+        }
+
+        gui_text(TextFormat("%3d", rows[i].id), panel_x + 10, y + 7, 18.0f, (Color){220,238,225,255});
+        gui_text(rows[i].fecha, panel_x + 70, y + 7, 18.0f, (Color){220,238,225,255});
+        gui_text(rows[i].cancha, panel_x + 270, y + 7, 18.0f, (Color){233,247,236,255});
+        gui_text(rows[i].marcador, panel_x + panel_w - 120, y + 7, 18.0f, (Color){233,247,236,255});
+    }
+    EndScissorMode();
+}
+
+static int partido_gui_should_close(void)
+{
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+    {
+        input_consume_key(KEY_ESCAPE);
+        input_consume_key(KEY_ENTER);
+        return 1;
+    }
+    return 0;
+}
+
+static int listar_partidos_gui(void)
+{
+    PartidoGuiRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    const int row_h = 34;
+    const int panel_y = 130;
+
+    /* Consumir posibles pulsaciones previas que afectarían al modal */
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+
+    if (!cargar_partidos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
 
     while (!WindowShouldClose())
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
-        panel_x = sw > 900 ? 80 : 20;
-        panel_w = sw - panel_x * 2;
-        panel_h = sh - 220;
-        if (panel_h < 200) panel_h = 200;
+        int panel_x = 0;
+        int panel_w = 0;
+        int panel_h = 0;
+        int content_h = 0;
+        int visible_rows = 1;
+        Rectangle area;
 
-        int visible_rows = panel_h / row_h;
-        if (visible_rows < 1) visible_rows = 1;
+        partido_gui_calcular_panel(sw, sh, &panel_x, &panel_w, &panel_h);
 
-        float wheel = GetMouseWheelMove();
-        Rectangle area = (Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h};
-        if (CheckCollisionPointRec(GetMousePosition(), area))
+        content_h = panel_h - 32;
+        if (content_h < row_h)
         {
-            if (wheel < 0.0f && scroll < count - visible_rows) scroll++;
-            else if (wheel > 0.0f && scroll > 0) scroll--;
+            content_h = row_h;
         }
 
-        if (scroll < 0) scroll = 0;
-        if (scroll > count - visible_rows) scroll = count - visible_rows;
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+
+        area = (Rectangle){(float)panel_x, (float)(panel_y + 32), (float)panel_w, (float)content_h};
+        scroll = partido_gui_actualizar_scroll(scroll, count, visible_rows, area);
 
         BeginDrawing();
         ClearBackground((Color){14,27,20,255});
-        DrawRectangle(0, 0, sw, 84, (Color){17,54,33,255});
-        gui_text("MiFutbolC", 26, 20, 36.0f, (Color){241,252,244,255});
-        gui_text("LISTADO DE PARTIDOS", 230, 34, 20.0f, (Color){198,230,205,255});
+        gui_draw_module_header("LISTADO DE PARTIDOS", sw);
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID/FECHA", 10.0f,
+                            "CANCHA / G-A", 270.0f);
 
-        DrawRectangle(panel_x, panel_y, panel_w, panel_h, (Color){19,40,27,255});
-        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, (Color){110,161,125,255});
+        partido_gui_dibujar_filas(rows, count, scroll, row_h, area);
 
-        if (count == 0)
-        {
-            DrawText("No hay partidos cargados.", panel_x + 24, panel_y + 24, 24, (Color){233,247,236,255});
-        }
-        else
-        {
-            BeginScissorMode(panel_x, panel_y, panel_w, panel_h);
-            for (int i = scroll; i < count; i++)
-            {
-                int row = i - scroll;
-                int y = panel_y + row * row_h;
-                if (y + row_h > panel_y + panel_h) break;
-                gui_text(TextFormat("%3d", rows[i].id), panel_x + 10, y + 7, 18.0f, (Color){220,238,225,255});
-                gui_text(rows[i].fecha, panel_x + 70, y + 7, 18.0f, (Color){220,238,225,255});
-                gui_text(rows[i].cancha, panel_x + 270, y + 7, 18.0f, (Color){233,247,236,255});
-                gui_text(rows[i].marcador, panel_x + panel_w - 120, y + 7, 18.0f, (Color){233,247,236,255});
-            }
-            EndScissorMode();
-        }
-
-        gui_text("Rueda: scroll | ESC/Enter: volver", panel_x, sh - 62, 18.0f, (Color){178,214,188,255});
+        gui_draw_footer_hint("Rueda: scroll | ESC/Enter: volver", (float)panel_x, sh);
         EndDrawing();
 
-        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
-            input_consume_key(KEY_ESCAPE);
-            input_consume_key(KEY_ENTER);
+        if (partido_gui_should_close())
+        {
             break;
         }
     }
@@ -1204,7 +1355,7 @@ void modificar_partido()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("MODIFICAR PARTIDO", items, 12);
+    ejecutar_menu_estandar("MODIFICAR PARTIDO", items, 12);
 }
 /** @brief Busca partidos por camiseta utilizada */
 static void buscar_por_camiseta()
@@ -1250,7 +1401,7 @@ void buscar_partidos()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("BUSQUEDA DE PARTIDOS", items, 5);
+    ejecutar_menu_estandar("BUSQUEDA DE PARTIDOS", items, 5);
 }
 
 /**
@@ -1464,7 +1615,7 @@ static void mostrar_inicio_partido(Equipo const *equipo_local, Equipo const *equ
 static void mostrar_alineacion(Equipo const *equipo_local, Equipo const *equipo_visitante)
 {
     clear_screen();
-    printf("%s\n", ASCII_SIMULACION);
+    printf("========================================\n");
     printf("                    SIMULACION DE PARTIDO\n\n");
 
     printf("=== %s VS %s ===\n\n", equipo_local->nombre, equipo_visitante->nombre);
@@ -2337,7 +2488,7 @@ void menu_tacticas_partido()
 
     clear_screen();
     print_header("ANALISIS TACTICO");
-    ejecutar_menu("ANALISIS TACTICO", items, 3);
+    ejecutar_menu_estandar("ANALISIS TACTICO", items, 3);
 }
 
 /**
@@ -2361,5 +2512,5 @@ void menu_partidos()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("PARTIDOS", items, 7);
+    ejecutar_menu_estandar("PARTIDOS", items, 7);
 }

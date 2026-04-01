@@ -28,7 +28,6 @@
 #include "equipo.h"
 #include "torneo.h"
 #include "temporada.h"
-#include "ascii_art.h"
 #include "settings.h"
 #include "financiamiento.h"
 #include "entrenador_ia.h"
@@ -36,87 +35,88 @@
 #include "carrera.h"
 
 // Definir items del menu principal directamente con inicializacion static
-struct MenuItemDefinition
+
+typedef void (*MenuModuleAction)(void);
+
+static void abrir_modulo_gui(const char *modulo, const char *mensaje_ingreso, MenuModuleAction accion)
 {
-    int opcion;
-    const char* texto;
-    void (*accion)(void);
-    MenuCategory categoria;
-};
+    if (!accion)
+    {
+        return;
+    }
+
+    app_log_event(modulo, mensaje_ingreso);
+
+    if (!menu_is_gui_enabled())
+    {
+        app_log_event("MENU", "Modo GUI reactivado automaticamente");
+        menu_set_gui_enabled(1);
+    }
+
+    accion();
+}
 
 static void abrir_menu_equipos(void)
 {
-    app_log_event("EQUIPOS", "Ingreso al modulo Equipos");
-    menu_equipos();
+    abrir_modulo_gui("EQUIPOS", "Ingreso al modulo Equipos", menu_equipos);
 }
 
 static void abrir_menu_partidos(void)
 {
-    app_log_event("PARTIDOS", "Ingreso al modulo Partidos");
-    menu_partidos();
+    abrir_modulo_gui("PARTIDOS", "Ingreso al modulo Partidos", menu_partidos);
 }
 
 static void abrir_menu_lesiones(void)
 {
-    app_log_event("LESIONES", "Ingreso al modulo Lesiones");
-    menu_lesiones();
+    abrir_modulo_gui("LESIONES", "Ingreso al modulo Lesiones", menu_lesiones);
 }
 
 static void abrir_menu_estadisticas(void)
 {
-    app_log_event("ESTADISTICAS", "Ingreso al modulo Estadisticas");
-    menu_estadisticas();
+    abrir_modulo_gui("ESTADISTICAS", "Ingreso al modulo Estadisticas", menu_estadisticas);
 }
 
 static void abrir_menu_logros(void)
 {
-    app_log_event("LOGROS", "Ingreso al modulo Logros");
-    menu_logros();
+    abrir_modulo_gui("LOGROS", "Ingreso al modulo Logros", menu_logros);
 }
 
 static void abrir_menu_financiamiento(void)
 {
-    app_log_event("FINANCIAMIENTO", "Ingreso al modulo Financiamiento");
-    menu_financiamiento();
+    abrir_modulo_gui("FINANCIAMIENTO", "Ingreso al modulo Financiamiento", menu_financiamiento);
 }
 
 static void abrir_menu_torneos(void)
 {
-    app_log_event("TORNEOS", "Ingreso al modulo Torneos");
-    menu_torneos();
+    abrir_modulo_gui("TORNEOS", "Ingreso al modulo Torneos", menu_torneos);
 }
 
 static void abrir_menu_temporadas(void)
 {
-    app_log_event("TEMPORADA", "Ingreso al modulo Temporada");
-    menu_temporadas();
+    abrir_modulo_gui("TEMPORADA", "Ingreso al modulo Temporada", menu_temporadas);
 }
 
 static void abrir_menu_analisis(void)
 {
-    app_log_event("ANALISIS", "Ingreso al modulo Analisis");
-    mostrar_analisis();
+    abrir_modulo_gui("ANALISIS", "Ingreso al modulo Analisis", mostrar_analisis);
 }
 
 static void abrir_menu_bienestar(void)
 {
-    app_log_event("BIENESTAR", "Ingreso al modulo Bienestar");
-    menu_bienestar();
+    abrir_modulo_gui("BIENESTAR", "Ingreso al modulo Bienestar", menu_bienestar);
 }
 
 static void abrir_menu_settings(void)
 {
-    app_log_event("SETTINGS", "Ingreso al modulo Ajustes");
-    menu_settings();
+    abrir_modulo_gui("SETTINGS", "Ingreso al modulo Ajustes", menu_settings);
 }
 
 static void abrir_menu_carrera(void)
 {
-    app_log_event("CARRERA", "Ingreso al modulo Carrera Futbolistica");
-    menu_carrera_futbolistica();
+    abrir_modulo_gui("CARRERA", "Ingreso al modulo Carrera Futbolistica", menu_carrera_futbolistica);
 }
 
-static const struct MenuItemDefinition MENU_ITEMS[] =
+static const MenuItem MENU_ITEMS[] =
 {
     {1, "Camisetas", &menu_camisetas, MENU_CATEGORY_GESTION},
     {2, "Canchas", &menu_canchas, MENU_CATEGORY_GESTION},
@@ -173,7 +173,7 @@ int menu_get_item_count(void)
 
 const MenuItem *menu_get_items(void)
 {
-    return (const MenuItem *)MENU_ITEMS;
+    return MENU_ITEMS;
 }
 
 const MenuItem *menu_buscar_item(const MenuItem *items, int cantidad, int opcion)
@@ -273,7 +273,7 @@ MenuItem* create_filtered_menu(int* count)
  */
 void run_menu(MenuItem* filtered_items, int count)
 {
-    ejecutar_menu(get_text("menu_title"), filtered_items, count);
+    ejecutar_menu_estandar(get_text("menu_title"), filtered_items, count);
     free(filtered_items);
     db_close();
 }
@@ -281,6 +281,14 @@ void run_menu(MenuItem* filtered_items, int count)
 static const char *menu_safe_title(const char *titulo)
 {
     return titulo ? titulo : "(sin titulo)";
+}
+
+void ejecutar_menu_estandar(const char *titulo, const MenuItem *items, int cantidad)
+{
+    char log_msg[512];
+    snprintf(log_msg, sizeof(log_msg), "Ingreso al menu estandar: %.180s", menu_safe_title(titulo));
+    app_log_event("MENU", log_msg);
+    ejecutar_menu(titulo, items, cantidad);
 }
 
 #ifdef UNIT_TEST
@@ -332,6 +340,80 @@ static int ejecutar_accion_menu(const char *titulo, const MenuItem *selected, ch
     return 1;
 }
 
+static int ejecutar_opcion_gui_seleccionada(const MenuItem *items, int cantidad, int selected_index)
+{
+    if (selected_index < 0 || selected_index >= cantidad)
+        return 1;
+
+    const MenuItem *selected = &items[selected_index];
+    if (!selected->accion)
+        return 0;
+
+    selected->accion();
+    gui_request_escape_cooldown();
+    return 1;
+}
+
+static void ejecutar_menu_gui(const char *titulo, const MenuItem *items, int cantidad)
+{
+    gui_set_context_title(menu_safe_title(titulo));
+
+    while (1)
+    {
+        int gui_result = run_raylib_gui(items, cantidad);
+        int selected_index = gui_get_last_selected_index();
+
+        if (gui_result == GUI_ACTION_EXIT)
+        {
+            db_close();
+            exit(0);
+        }
+
+        if (gui_result == GUI_ACTION_OPEN_CLASSIC_MENU)
+            return;
+
+        if (gui_result != GUI_ACTION_RUN_SELECTED_OPTION)
+            return;
+
+        if (!ejecutar_opcion_gui_seleccionada(items, cantidad, selected_index))
+            return;
+    }
+}
+
+static int procesar_iteracion_menu_consola(const char *titulo,
+                                           const MenuItem *items,
+                                           int cantidad,
+                                           char *log_msg,
+                                           size_t log_size)
+{
+    clear_screen();
+    print_header(titulo);
+
+    for (int i = 0; i < cantidad; i++)
+    {
+        printf("%d.%s\n", items[i].opcion, items[i].texto);
+    }
+
+    int opcion = input_int(">");
+    if (opcion == -1)
+    {
+        snprintf(log_msg, log_size,
+                 "Menu %.120s -> entrada no valida repetida/EOF, salida preventiva",
+                 menu_safe_title(titulo));
+        app_log_event("MENU", log_msg);
+        return 0;
+    }
+
+    const MenuItem *selected = buscar_item(items, cantidad, opcion);
+    if (!selected)
+    {
+        log_menu_opcion_invalida(titulo, opcion, log_msg, log_size);
+        return 1;
+    }
+
+    return ejecutar_accion_menu(titulo, selected, log_msg, log_size);
+}
+
 /**
  * @brief Ejecuta un menu interactivo en la consola
  *
@@ -348,76 +430,17 @@ void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad)
 
     if (g_gui_menus_enabled)
     {
-        gui_set_context_title(menu_safe_title(titulo));
-        while (1)
-        {
-            int gui_result = run_raylib_gui(items, cantidad);
-            int selected_index = gui_get_last_selected_index();
-
-            if (gui_result == GUI_ACTION_EXIT)
-            {
-                db_close();
-                exit(0);
-            }
-
-            if (gui_result == GUI_ACTION_OPEN_CLASSIC_MENU)
-            {
-                return;
-            }
-
-            if (gui_result == GUI_ACTION_RUN_SELECTED_OPTION)
-            {
-                const MenuItem *selected = NULL;
-
-                if (selected_index < 0 || selected_index >= cantidad)
-                    continue;
-
-                selected = &items[selected_index];
-                if (!selected->accion)
-                    return;
-
-                selected->accion();
-                continue;
-            }
-
-            return;
-        }
+        ejecutar_menu_gui(titulo, items, cantidad);
+        return;
     }
 
-    int opcion;
     char log_msg[512];
     snprintf(log_msg, sizeof(log_msg), "Ingreso al menu: %.180s", menu_safe_title(titulo));
     app_log_event("MENU", log_msg);
 
     while (1)
     {
-        clear_screen();
-        print_header(titulo);
-
-        for (int i = 0; i < cantidad; i++)
-        {
-            printf("%d.%s\n", items[i].opcion, items[i].texto);
-        }
-
-        opcion = input_int(">");
-
-        if (opcion == -1)
-        {
-            snprintf(log_msg, sizeof(log_msg),
-                     "Menu %.120s -> entrada no valida repetida/EOF, salida preventiva",
-                     menu_safe_title(titulo));
-            app_log_event("MENU", log_msg);
-            return;
-        }
-
-        const MenuItem *selected = buscar_item(items, cantidad, opcion);
-        if (!selected)
-        {
-            log_menu_opcion_invalida(titulo, opcion, log_msg, sizeof(log_msg));
-            continue;
-        }
-
-        if (!ejecutar_accion_menu(titulo, selected, log_msg, sizeof(log_msg)))
+        if (!procesar_iteracion_menu_consola(titulo, items, cantidad, log_msg, sizeof(log_msg)))
             return;
     }
 }

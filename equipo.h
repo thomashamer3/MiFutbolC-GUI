@@ -160,4 +160,9 @@ const char *get_nombre_posicion(Posicion posicion);
  */
 const char *get_nombre_tipo_futbol(TipoFutbol tipo);
 
+/**
+ * @brief Dibuja el estado de la cancha durante simulaciones de partido.
+ */
+void mostrar_cancha_animada(int minuto, int evento_tipo);
+
 #endif

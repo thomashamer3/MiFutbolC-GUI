@@ -1,4 +1,4 @@
-﻿/**
+/**
 * @file equipo.c
 * @brief Implementacion de funciones para la gestion de equipos en MiFutbolC
 */
@@ -8,7 +8,6 @@
 #include "utils.h"
 #include "menu.h"
 #include "partido.h"
-#include "ascii_art.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2931,10 +2930,10 @@ void mostrar_estadisticas_jugadores(const Equipo *equipo_local, const Equipo *eq
 }
 
 /**
- * @brief Simula un partido entre dos equipos en ASCII art
+ * @brief Simula un partido entre dos equipos
  *
  * Esta funcion simula un partido de futbol de 60 minutos entre dos equipos momentaneos.
- * Muestra la cancha en ASCII, los jugadores de ambos equipos, genera eventos aleatorios
+ * Muestra la cancha y los jugadores de ambos equipos, genera eventos aleatorios
  * como goles y asistencias, y muestra el marcador en tiempo real.
  *
  * @param equipo_local Puntero al equipo local
@@ -2943,7 +2942,7 @@ void mostrar_estadisticas_jugadores(const Equipo *equipo_local, const Equipo *eq
 void simular_partido(const Equipo *equipo_local, const Equipo *equipo_visitante)
 {
     clear_screen();
-    printf("%s\n", ASCII_SIMULACION);
+    printf("========================================\n");
     printf("                    SIMULACION DE PARTIDO\n\n");
 
     // Inicializar estadisticas
@@ -3000,5 +2999,5 @@ void menu_equipos()
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu("EQUIPOS", items, 7);
+    ejecutar_menu_estandar("EQUIPOS", items, 7);
 }
