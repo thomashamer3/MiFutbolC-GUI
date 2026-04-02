@@ -95,7 +95,6 @@ int input_key_released(int key)
     return s_key_released[key];
 }
 
-/* Double-click table (per-target) */
 typedef struct { int id; double t; } ClickEntry;
 #define INPUT_CLICK_TABLE_SIZE 64
 static ClickEntry s_click_table[INPUT_CLICK_TABLE_SIZE] = {{-1, 0.0}};
@@ -141,7 +140,10 @@ int input_register_click(int target_id, int hit)
 
 void input_clear_clicks(void)
 {
-    for (int i = 0; i < INPUT_CLICK_TABLE_SIZE; i++) s_click_table[i].id = -1, s_click_table[i].t = 0.0;
+    for (int i = 0; i < INPUT_CLICK_TABLE_SIZE; i++) {
+        s_click_table[i].id = -1;
+        s_click_table[i].t = 0.0;
+    }
 }
 
 void input_consume_key(int key)

@@ -66,10 +66,11 @@ static const char *gui_resolve_icons_base(void)
     int n = (int)(sizeof(candidates) / sizeof(candidates[0]));
     for (int i = 0; i < n; i++) {
         char test[256];
+          int suffix_len = (int)(sizeof("Salir-0.png") - 1);
         /* Limitar la porción de prefijo para dejar sitio al sufijo y evitar
            advertencias de truncation del compilador */
         snprintf(test, sizeof(test), "%.*sSalir-0.png",
-                 (int)(sizeof(test) - (int)strlen("Salir-0.png") - 1),
+                      (int)(sizeof(test) - suffix_len - 1),
                  candidates[i]);
         if (FileExists(test)) {
             s_icons_base = candidates[i];
@@ -82,8 +83,9 @@ static const char *gui_resolve_icons_base(void)
         const char *app_dir = GetApplicationDirectory();
         if (app_dir && app_dir[0]) {
             snprintf(abs_path, sizeof(abs_path), "%s../../Icons/", app_dir);
+            int suffix_len = (int)(sizeof("Salir-0.png") - 1);
             char test[512];            snprintf(test, sizeof(test), "%.*sSalir-0.png",
-                     (int)(sizeof(test) - (int)strlen("Salir-0.png") - 1),
+                     (int)(sizeof(test) - suffix_len - 1),
                      abs_path);
             if (FileExists(test)) {
                 s_icons_base = abs_path;
@@ -590,7 +592,6 @@ static Color col_lerp(Color a, Color b, float t)
 void gui_theme_apply_variant(const GuiTheme *base, int variant_index, GuiTheme *out)
 {
     if (!base || !out) return;
-    /* Copiar todo por defecto */
     *out = *base;
 
     int v = (variant_index < 0) ? 0 : (variant_index % s_variant_count);
@@ -849,8 +850,7 @@ void gui_text_truncated(const char *text, float x, float y,
         return;
     }
     char buf[256];
-    int slen = (int)strlen(safe);
-    if (slen > 252) slen = 252;
+    int slen = (int)strlen_s(safe, 252);
     for (int n = slen; n > 0; n--) {
         snprintf(buf, sizeof(buf), "%.*s...", n, safe);
         if (gui_text_measure(buf, size).x <= max_width) {
@@ -959,7 +959,7 @@ void gui_normalize(const char *src, char *dst, size_t dst_size)
     size_t out = 0;
     int prev_space = 1;
     static const unsigned char safe_empty[2] = { 0, 0 };
-    const unsigned char *p = (const unsigned char *)(src && src[0] ? (const unsigned char *)src : safe_empty);
+    const unsigned char *p = (src && src[0] ? (const unsigned char *)src : safe_empty);
 
     if (!dst || dst_size == 0) return;
 
@@ -985,13 +985,13 @@ QueryTokens gui_tokenize_query(const char *query)
 {
     QueryTokens q = {{{0}}, 0};
     char buf[128];
-    char *tok = NULL;
+    char const *tok = NULL;
     char *ctx = NULL;
 
     gui_normalize(query ? query : "", buf, sizeof(buf));
     tok = strtok_s(buf, " ", &ctx);
     while (tok && q.count < 8) {
-        if (strlen(tok) > 0) {
+        if (strlen_s(tok, sizeof(buf)) > 0) {
             strncpy_s(q.tokens[q.count], sizeof(q.tokens[q.count]), tok, _TRUNCATE);
             q.count++;
         }
@@ -1113,9 +1113,11 @@ int gui_module_btn(const GuiState *st, Rectangle rect, const char *label, int se
     float cx = rect.x + (rect.width - content_w) * 0.5f;
     float ty = rect.y + (rect.height - m.y) * 0.5f;
 
-    Color fill   = selected ? st->theme->row_selected
-                 : hovered  ? st->theme->accent_hover
-                            : st->theme->accent;
+    Color fill = st->theme->accent;
+    if (selected)
+        fill = st->theme->row_selected;
+    else if (hovered)
+        fill = st->theme->accent_hover;
     Color border = selected ? st->theme->text_secondary : st->theme->border;
     DrawRectangleRounded(rect, 0.25f, 4, fill);
     DrawRectangleLinesEx(rect, 1.0f, border);
@@ -1276,7 +1278,7 @@ void gui_searchbox_draw(const GuiState *st, Rectangle rect,
         snprintf(display, sizeof(display), "%s", query);
 
     if (focused && blink < 0.5f) {
-        size_t len = strlen(display);
+        size_t len = strlen_s(display, sizeof(display));
         if (len < sizeof(display) - 1) {
             display[len]     = '|';
             display[len + 1] = '\0';
@@ -1440,96 +1442,126 @@ void gui_detail_panel_draw(const GuiState *st, Rectangle rect,
    Solo itera y dibuja los ítems realmente visibles en pantalla.
    ═══════════════════════════════════════════════════════════ */
 
-GuiListResult gui_list_draw(const GuiState *st, Rectangle area,
-                            const MenuItem *items, int item_count,
-                            const int *visible_indices, int visible_count,
-                            int selected_global, float scroll_smooth,
-                            int row_h, const QueryTokens *tokens)
+static void gui_list_draw_empty(const GuiState *st, Rectangle area)
 {
-    GuiListResult result = {-1};
     float scale = st->scale;
-    (void)item_count;
+    gui_text("No hay resultados con el filtro actual.",
+             area.x + GS(22), area.y + GS(26), FONT_SUB,
+             st->theme->text_primary);
+    gui_text("Escribe otra busqueda o presiona Esc para limpiar.",
+             area.x + GS(22), area.y + GS(60), FONT_BODY,
+             st->theme->text_secondary);
+}
 
-    if (visible_count == 0) {
-        gui_text("No hay resultados con el filtro actual.",
-                 area.x + GS(22), area.y + GS(26), FONT_SUB,
-                 st->theme->text_primary);
-        gui_text("Escribe otra busqueda o presiona Esc para limpiar.",
-                 area.x + GS(22), area.y + GS(60), FONT_BODY,
-                 st->theme->text_secondary);
-        return result;
-    }
+static void gui_list_visible_range(const GuiListDrawContext *ctx,
+                                   Rectangle area,
+                                   int *first,
+                                   int *last,
+                                   int *y_shift)
+{
+    int local_first = (int)floorf(ctx->scroll_smooth);
+    float sub = ctx->scroll_smooth - (float)local_first;
+    int max_rows = (int)(area.height / (float)ctx->row_h) + 2;
+    int local_last = local_first + max_rows;
 
-    /* Rango visible: solo iterar lo estrictamente necesario */
-    int first    = (int)floorf(scroll_smooth);
-    float sub    = scroll_smooth - (float)first;
-    int y_shift  = (int)(sub * (float)row_h);
-    int max_rows = (int)(area.height / (float)row_h) + 2;
-    int last     = first + max_rows;
-    if (first < 0) first = 0;
-    if (last > visible_count) last = visible_count;
+    if (local_first < 0)
+        local_first = 0;
+    if (local_last > ctx->visible_count)
+        local_last = ctx->visible_count;
 
-    BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
+    *first = local_first;
+    *last = local_last;
+    *y_shift = (int)(sub * (float)ctx->row_h);
+}
 
-    for (int i = first; i < last; i++) {
-        int row = i - first;
-        int y   = (int)area.y + row * row_h - y_shift;
+static int gui_list_has_match(const GuiListDrawContext *ctx, int gidx)
+{
+    const char *item_text;
 
-        if (y + row_h < (int)area.y) continue;
-        if (y > (int)area.y + (int)area.height) break;
+    if (!ctx->tokens || ctx->tokens->count <= 0)
+        return 0;
 
-        int gidx = visible_indices[i];
-        Rectangle row_rect = {
-            area.x + GS(10), (float)y + 2.0f,
-            area.width - GS(22), (float)(row_h - 4)
-        };
+    item_text = ctx->items[gidx].texto;
+    if (!item_text)
+        item_text = "";
+    return gui_matches_query(item_text, ctx->tokens);
+}
 
-        int is_sel  = (gidx == selected_global);
-        int hovered = CheckCollisionPointRec(GetMousePosition(), row_rect);
-        int has_match = (tokens && tokens->count > 0)
-            ? gui_matches_query(items[gidx].texto ? items[gidx].texto : "", tokens)
-            : 0;
+static void gui_list_draw_row_background(const GuiState *st,
+                                         Rectangle row_rect,
+                                         int gidx,
+                                         int is_sel,
+                                         int hovered)
+{
+    float scale = st->scale;
+    int is_flash = (st->click_flash_timer > 0.0f && st->click_flash_row == gidx);
 
-        /* Click flash effect */
-        int is_flash = (st->click_flash_timer > 0.0f && st->click_flash_row == gidx);
-
-        if (is_flash) {
-            unsigned char fa = (unsigned char)(st->click_flash_timer * 600.0f);
-            if (fa > 255) fa = 255;
+    if (is_flash) {
+        unsigned char fa = (unsigned char)(st->click_flash_timer * 600.0f);
+        if (fa > 255)
+            fa = 255;
+        {
             Color flash = {st->theme->accent_primary.r,
                            st->theme->accent_primary.g,
                            st->theme->accent_primary.b, fa};
             DrawRectangleRec(row_rect, flash);
-        } else if (is_sel) {
-            DrawRectangleRec(row_rect, st->theme->row_selected);
-            /* Left accent bar — animated via row_highlight */
-            float hl = st->row_highlight.value;
-            if (hl < 0.1f) hl = 0.1f;
-            if (hl > 1.0f) hl = 1.0f;
-            float bar_w = GS(4) * hl;
-            if (bar_w < 1.0f) bar_w = 1.0f;
-            DrawRectangleRounded(
-                (Rectangle){row_rect.x, row_rect.y + 2,
-                            bar_w, row_rect.height - 4},
-                0.5f, 2, st->theme->accent_primary);
-        } else if (hovered) {
-            DrawRectangleRec(row_rect, st->theme->row_hover);
-            DrawRectangleRounded(
-                (Rectangle){row_rect.x, row_rect.y + 2,
-                            GS(3), row_rect.height - 4},
-                0.5f, 2, st->theme->accent_hover);
         }
+        return;
+    }
 
-        Color num_c = has_match ? st->theme->text_highlight : st->theme->text_secondary;
-        Color txt_c = has_match ? st->theme->text_highlight : st->theme->text_primary;
+    if (is_sel) {
+        DrawRectangleRec(row_rect, st->theme->row_selected);
+        {
+            float hl = st->row_highlight.value;
+            if (hl < 0.1f)
+                hl = 0.1f;
+            if (hl > 1.0f)
+                hl = 1.0f;
+            {
+                float bar_w = GS(4) * hl;
+                if (bar_w < 1.0f)
+                    bar_w = 1.0f;
+                DrawRectangleRounded(
+                    (Rectangle){row_rect.x, row_rect.y + 2,
+                                bar_w, row_rect.height - 4},
+                    0.5f, 2, st->theme->accent_primary);
+            }
+        }
+        return;
+    }
 
+    if (hovered) {
+        DrawRectangleRec(row_rect, st->theme->row_hover);
+        DrawRectangleRounded(
+            (Rectangle){row_rect.x, row_rect.y + 2,
+                        GS(3), row_rect.height - 4},
+            0.5f, 2, st->theme->accent_hover);
+    }
+}
+
+static void gui_list_draw_row_content(const GuiState *st,
+                                      const GuiListDrawContext *ctx,
+                                      Rectangle row_rect,
+                                      int gidx,
+                                      int is_sel,
+                                      int hovered,
+                                      int has_match)
+{
+    float scale = st->scale;
+    Color num_c = has_match ? st->theme->text_highlight : st->theme->text_secondary;
+    Color txt_c = has_match ? st->theme->text_highlight : st->theme->text_primary;
+    const char *item_text = ctx->items[gidx].texto;
+
+    if (!item_text)
+        item_text = "(sin texto)";
+
+    {
         Rectangle icon_rect = {
             row_rect.x + GS(6),
             row_rect.y + GS(3),
-            (float)(row_h - 10),
-            (float)(row_h - 10)
+            (float)(ctx->row_h - 10),
+            (float)(ctx->row_h - 10)
         };
-        /* Hover/selected: icono ligeramente mas brillante y grande */
         if (hovered || is_sel) {
             float boost = GS(2);
             icon_rect.x -= boost * 0.5f;
@@ -1537,14 +1569,68 @@ GuiListResult gui_list_draw(const GuiState *st, Rectangle area,
             icon_rect.width += boost;
             icon_rect.height += boost;
         }
-        gui_draw_option_icon(items[gidx].opcion, icon_rect);
+        gui_draw_option_icon(ctx->items[gidx].opcion, icon_rect);
+    }
 
-        gui_text(TextFormat("%2d", items[gidx].opcion),
-                 row_rect.x + GS(10) + (float)(row_h - 10), row_rect.y + GS(6),
-                 FONT_SUB, num_c);
-        gui_text_truncated(items[gidx].texto ? items[gidx].texto : "(sin texto)",
-                 row_rect.x + GS(62) + (float)(row_h - 10), row_rect.y + GS(6), FONT_SUB,
-                 row_rect.width - GS(72) - (float)(row_h - 10), txt_c);
+    gui_text(TextFormat("%2d", ctx->items[gidx].opcion),
+             row_rect.x + GS(10) + (float)(ctx->row_h - 10), row_rect.y + GS(6),
+             FONT_SUB, num_c);
+    gui_text_truncated(item_text,
+                       row_rect.x + GS(62) + (float)(ctx->row_h - 10), row_rect.y + GS(6),
+                       FONT_SUB,
+                       row_rect.width - GS(72) - (float)(ctx->row_h - 10), txt_c);
+}
+
+GuiListResult gui_list_draw(const GuiState *st, Rectangle area,
+                            const GuiListDrawContext *ctx)
+{
+    GuiListResult result = {-1};
+    float scale = st->scale;
+    int first = 0;
+    int last = 0;
+    int y_shift = 0;
+
+    if (!ctx || !ctx->items || !ctx->visible_indices || ctx->row_h <= 0)
+        return result;
+
+    if (ctx->visible_count == 0) {
+        gui_list_draw_empty(st, area);
+        return result;
+    }
+
+    gui_list_visible_range(ctx, area, &first, &last, &y_shift);
+
+    BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
+
+    for (int i = first; i < last; i++) {
+        int row;
+        int y;
+        int gidx;
+        Rectangle row_rect;
+        int is_sel;
+        int hovered;
+        int has_match;
+
+        row = i - first;
+        y = (int)area.y + row * ctx->row_h - y_shift;
+
+        if (y + ctx->row_h < (int)area.y)
+            continue;
+        if (y > (int)area.y + (int)area.height)
+            break;
+
+        gidx = ctx->visible_indices[i];
+        row_rect = (Rectangle){
+            area.x + GS(10), (float)y + 2.0f,
+            area.width - GS(22), (float)(ctx->row_h - 4)
+        };
+
+        is_sel = (gidx == ctx->selected_global);
+        hovered = CheckCollisionPointRec(GetMousePosition(), row_rect);
+        has_match = gui_list_has_match(ctx, gidx);
+
+        gui_list_draw_row_background(st, row_rect, gidx, is_sel, hovered);
+        gui_list_draw_row_content(st, ctx, row_rect, gidx, is_sel, hovered, has_match);
 
         if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             result.clicked_global = gidx;
@@ -1686,8 +1772,32 @@ void gui_prefs_save(const GuiState *st)
     cJSON_Delete(root);
 }
 
+static int gui_json_read_int(const cJSON *root, const char *key, int *out)
+{
+    cJSON const *j;
+    if (!root || !key || !out)
+        return 0;
+
+    j = cJSON_GetObjectItem(root, key);
+    if (!j || !cJSON_IsNumber(j))
+        return 0;
+
+    *out = j->valueint;
+    return 1;
+}
+
+static int gui_clamp_int(int v, int lo, int hi)
+{
+    if (v < lo)
+        return lo;
+    if (v > hi)
+        return hi;
+    return v;
+}
+
 void gui_prefs_load(GuiState *st)
 {
+    int v = 0;
     FILE *f = fopen("gui_prefs.json", "r");
     if (!f) return;
     fseek(f, 0, SEEK_END);
@@ -1704,35 +1814,27 @@ void gui_prefs_load(GuiState *st)
     free(buf);
     if (!root) return;
 
-    cJSON *j;
-    j = cJSON_GetObjectItem(root, "theme_index");
-    if (j && cJSON_IsNumber(j)) {
-        st->theme_index = j->valueint;
-        if (st->theme_index < 0 || st->theme_index >= gui_get_theme_count()) st->theme_index = 0;
-    }
-    j = cJSON_GetObjectItem(root, "variant_index");
-    if (j && cJSON_IsNumber(j)) {
-        st->variant_index = j->valueint;
-        if (st->variant_index < 0 || st->variant_index >= gui_get_variant_count()) st->variant_index = 0;
-    }
+    if (gui_json_read_int(root, "theme_index", &v))
+        st->theme_index = gui_clamp_int(v, 0, gui_get_theme_count() - 1);
+
+    if (gui_json_read_int(root, "variant_index", &v))
+        st->variant_index = gui_clamp_int(v, 0, gui_get_variant_count() - 1);
+
     /* Aplicar tema+variante al storage activo */
     gui_update_active_theme(st);
-    j = cJSON_GetObjectItem(root, "compact_mode");
-    if (j && cJSON_IsNumber(j)) st->compact_mode = j->valueint ? 1 : 0;
-    j = cJSON_GetObjectItem(root, "active_filter");
-    if (j && cJSON_IsNumber(j)) {
-        int v = j->valueint;
-        if (v >= 0 && v < GUI_FILTER_COUNT) {
-            st->active_filter = (GuiFilter)v;
-            st->current_screen = (v == 0) ? GUI_SCREEN_HOME : GUI_SCREEN_MODULE;
-        }
+
+    if (gui_json_read_int(root, "compact_mode", &v))
+        st->compact_mode = v ? 1 : 0;
+
+    if (gui_json_read_int(root, "active_filter", &v) && v >= 0 && v < GUI_FILTER_COUNT) {
+        st->active_filter = (GuiFilter)v;
+        st->current_screen = (v == 0) ? GUI_SCREEN_HOME : GUI_SCREEN_MODULE;
     }
-    j = cJSON_GetObjectItem(root, "last_selected");
-    if (j && cJSON_IsNumber(j)) {
-        int v = j->valueint;
-        if (v >= 0 && v < st->item_count) st->selected_global = v;
-    }
-    if (!st->needs_rebuild) st->needs_rebuild = 1;
+
+    if (gui_json_read_int(root, "last_selected", &v) && v >= 0 && v < st->item_count)
+        st->selected_global = v;
+
+    st->needs_rebuild = 1;
     cJSON_Delete(root);
 }
 
@@ -2077,7 +2179,7 @@ int gui_input_search(char *query, int max_len, int focused)
 
     int key = GetCharPressed();
     while (key > 0) {
-        int len = (int)strlen(query);
+        int len = (int)strlen_s(query, (size_t)max_len);
         if (len < max_len - 1 && key >= 32 && key <= 126) {
             query[len]     = (char)key;
             query[len + 1] = '\0';
@@ -2087,7 +2189,7 @@ int gui_input_search(char *query, int max_len, int focused)
     }
 
     if (IsKeyPressed(KEY_BACKSPACE)) {
-        int len = (int)strlen(query);
+        int len = (int)strlen_s(query, (size_t)max_len);
         if (len > 0) {
             query[len - 1] = '\0';
             changed = 1;

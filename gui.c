@@ -14,7 +14,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
@@ -36,6 +35,24 @@ static char g_cached_app_dir[512] = {0};
 static int g_cached_app_dir_ready = 0;
 /* Nota: se evita declarar bandera extra; la búsqueda de icono se cachea via
     g_cached_app_dir_ready / g_user_icon_texture_loaded */
+
+static void gui_copy_cstr_trunc(char *dst, size_t dst_sz, const char *src)
+{
+    if (!dst || dst_sz == 0)
+        return;
+
+    if (!src)
+    {
+        dst[0] = '\0';
+        return;
+    }
+
+#if defined(_MSC_VER)
+    (void)strncpy_s(dst, dst_sz, src, _TRUNCATE);
+#else
+    snprintf(dst, dst_sz, "%s", src);
+#endif
+}
 
 static void gui_release_icon_resources(void)
 {
@@ -126,14 +143,31 @@ static void gui_mark_needs_rebuild(GuiState *st)
     if (st && !st->needs_rebuild) st->needs_rebuild = 1;
 }
 
-/* Helper para setear status line con formato (reduce repeticion de snprintf) */
-static void gui_set_status(GuiState *st, const char *fmt, ...)
+/* Helper para setear status line con copy segura */
+static void gui_set_status(GuiState *st, const char *msg)
 {
-    if (!st || !fmt) return;
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(st->status_line, sizeof(st->status_line), fmt, ap);
-    va_end(ap);
+    if (!st || !msg)
+        return;
+    snprintf(st->status_line, sizeof(st->status_line), "%s", msg);
+}
+
+static void gui_set_status_module(GuiState *st, const char *module_title)
+{
+    if (!st || !module_title)
+        return;
+    snprintf(st->status_line, sizeof(st->status_line), "Vista: Modulo %s", module_title);
+}
+
+/* Wrapper reentrante para localtime con compatibilidad multiplataforma */
+static int gui_localtime_safe(time_t now, struct tm *out_tm)
+{
+    if (!out_tm)
+        return 0;
+#if defined(_WIN32)
+    return localtime_s(out_tm, &now) == 0;
+#else
+    return localtime_r(&now, out_tm) != NULL;
+#endif
 }
 
 static int gui_find_app_icon_path(char *out, size_t out_sz)
@@ -141,54 +175,55 @@ static int gui_find_app_icon_path(char *out, size_t out_sz)
     if (!out || out_sz == 0)
         return 0;
 
+    const char *rel_candidates[] = {
+        "./Icons/MiFutbolC.png",
+        "../Icons/MiFutbolC.png",
+        "Icons/MiFutbolC.png",
+    };
+    int nr = (int)(sizeof(rel_candidates) / sizeof(rel_candidates[0]));
+    for (int i = 0; i < nr; i++)
     {
-        const char *rel_candidates[] = {
-            "./Icons/MiFutbolC.png",
-            "../Icons/MiFutbolC.png",
-            "Icons/MiFutbolC.png",
-        };
-        int nr = (int)(sizeof(rel_candidates) / sizeof(rel_candidates[0]));
-        for (int i = 0; i < nr; i++)
+        if (FileExists(rel_candidates[i]))
         {
-            if (FileExists(rel_candidates[i]))
-            {
-                snprintf(out, out_sz, "%s", rel_candidates[i]);
-                return 1;
-            }
+            snprintf(out, out_sz, "%s", rel_candidates[i]);
+            return 1;
         }
     }
 
+    if (!g_cached_app_dir_ready)
     {
-        if (!g_cached_app_dir_ready) {
-            const char *app_dir = GetApplicationDirectory();
-            if (app_dir && app_dir[0] != '\0') {
-                strncpy(g_cached_app_dir, app_dir, sizeof(g_cached_app_dir)-1);
-                g_cached_app_dir[sizeof(g_cached_app_dir)-1] = '\0';
-            } else {
-                g_cached_app_dir[0] = '\0';
-            }
-            g_cached_app_dir_ready = 1;
+        const char *app_dir = GetApplicationDirectory();
+        if (app_dir && app_dir[0] != '\0')
+        {
+            gui_copy_cstr_trunc(g_cached_app_dir, sizeof(g_cached_app_dir), app_dir);
         }
-        if (g_cached_app_dir[0] != '\0') {
+        else
+        {
+            g_cached_app_dir[0] = '\0';
+        }
+        g_cached_app_dir_ready = 1;
+    }
+
+    if (g_cached_app_dir[0] != '\0')
+    {
+        const char *sufs[6] = {
+            "../../Icons/MiFutbolC.png",
+            "../Icons/MiFutbolC.png",
+            "Icons/MiFutbolC.png",
+            "../../Icons/MiFutbolC.ico",
+            "../Icons/MiFutbolC.ico",
+            "Icons/MiFutbolC.ico"
+        };
+        char cand[512];
+        for (int i = 0; i < 6; i++)
+        {
+            /* construir ruta segura y comprobar existencia */
+            snprintf(cand, sizeof(cand), "%s%s", g_cached_app_dir, sufs[i]);
+            if (FileExists(cand))
             {
-                const char *sufs[6] = {"../../Icons/MiFutbolC.png",
-                                       "../Icons/MiFutbolC.png",
-                                       "Icons/MiFutbolC.png",
-                                       "../../Icons/MiFutbolC.ico",
-                                       "../Icons/MiFutbolC.ico",
-                                       "Icons/MiFutbolC.ico"};
-                char cand[512];
-                for (int i = 0; i < 6; i++) {
-                    /* construir ruta segura y comprobar existencia */
-                    snprintf(cand, sizeof(cand), "%s%s", g_cached_app_dir, sufs[i]);
-                    if (FileExists(cand)) {
-                        /* copiar de forma segura al buffer de salida */
-                        if (out_sz > 0) {
-                            snprintf(out, out_sz, "%s", cand);
-                        }
-                        return 1;
-                    }
-                }
+                /* copiar de forma segura al buffer de salida */
+                snprintf(out, out_sz, "%s", cand);
+                return 1;
             }
         }
     }
@@ -207,6 +242,94 @@ static int gui_find_app_icon_path(char *out, size_t out_sz)
 /* forward-declare helper so we can call it from keyboard collection */
 static void apply_filter_change(GuiState *st, int filter_index);
 
+static void gui_cycle_focus(GuiState *st, int backwards)
+{
+    if (!st)
+        return;
+
+    if (!backwards)
+    {
+        if (st->focus == FOCUS_SEARCH)
+            st->focus = FOCUS_LIST;
+        else if (st->focus == FOCUS_LIST)
+            st->focus = FOCUS_BUTTON;
+        else
+            st->focus = FOCUS_SEARCH;
+    }
+    else
+    {
+        if (st->focus == FOCUS_SEARCH)
+            st->focus = FOCUS_BUTTON;
+        else if (st->focus == FOCUS_BUTTON)
+            st->focus = FOCUS_LIST;
+        else
+            st->focus = FOCUS_SEARCH;
+    }
+
+    gui_sound_hover();
+}
+
+static void gui_handle_global_shortcuts(GuiState *st, const InputState *in, GuiEventQueue *q)
+{
+    if (in->key_f4)
+        gui_evt_push(q, GUI_EVT_TOGGLE_THEME, 0);
+    if (in->key_f2)
+        gui_evt_push(q, GUI_EVT_GO_HOME, 0);
+    if (in->key_f3)
+    {
+        /* Cycle through modules: GESTION -> COMPETENCIA -> ANALISIS -> ADMIN -> ALL */
+        int next = (st->active_filter + 1) % GUI_FILTER_COUNT;
+        apply_filter_change(st, next);
+    }
+    if (in->key_f5)
+        gui_evt_push(q, GUI_EVT_TOGGLE_COMPACT, 0);
+    if (in->key_f9)
+        gui_evt_push(q, GUI_EVT_TOGGLE_DEBUG, 0);
+}
+
+static void gui_handle_search_focus_events(GuiState *st, const InputState *in, GuiEventQueue *q)
+{
+    if (st->focus != FOCUS_SEARCH)
+        return;
+
+    if (gui_input_search(st->search_query, (int)sizeof(st->search_query), 1))
+    {
+        st->query_tokens = gui_tokenize_query(st->search_query);
+        gui_evt_push(q, GUI_EVT_REBUILD_FILTER, 0);
+    }
+
+    if (in->key_enter)
+    {
+        st->focus = FOCUS_LIST;
+        gui_set_status(st, "Filtro aplicado");
+        gui_state_set_toast(st, "Filtro aplicado", 1.2f);
+    }
+
+    if (in->key_escape && st->search_query[0] == '\0')
+        st->focus = FOCUS_LIST;
+}
+
+static void gui_handle_button_focus_events(GuiState *st, const InputState *in, GuiEventQueue *q)
+{
+    if (st->focus != FOCUS_BUTTON)
+        return;
+
+    if (in->key_left && st->focused_button > 0)
+        st->focused_button--;
+    if (in->key_right && st->focused_button < 2)
+        st->focused_button++;
+
+    if (!in->key_enter)
+        return;
+
+    if (st->focused_button == 0)
+        gui_evt_push(q, GUI_EVT_RUN_SELECTED, 0);
+    else if (st->focused_button == 1)
+        gui_evt_push(q, GUI_EVT_GO_DETAIL, 0);
+    else
+        gui_evt_push(q, GUI_EVT_EXIT, 0);
+}
+
 static void collect_keyboard_events(GuiState *st)
 {
     const InputState *in = &st->input;
@@ -222,85 +345,20 @@ static void collect_keyboard_events(GuiState *st)
 
     /* Tab cycling entre zonas de foco */
     if (in->key_tab)
-    {
-        if (!in->key_shift)
-        {
-            if (st->focus == FOCUS_SEARCH)
-                st->focus = FOCUS_LIST;
-            else if (st->focus == FOCUS_LIST)
-                st->focus = FOCUS_BUTTON;
-            else
-                st->focus = FOCUS_SEARCH;
-        }
-        else
-        {
-            if (st->focus == FOCUS_SEARCH)
-                st->focus = FOCUS_BUTTON;
-            else if (st->focus == FOCUS_BUTTON)
-                st->focus = FOCUS_LIST;
-            else
-                st->focus = FOCUS_SEARCH;
-        }
-        gui_sound_hover();
-    }
+        gui_cycle_focus(st, in->key_shift);
 
     /* Teclas globales */
-    if (in->key_f4)
-        gui_evt_push(q, GUI_EVT_TOGGLE_THEME, 0);
-    if (in->key_f2)
-        gui_evt_push(q, GUI_EVT_GO_HOME, 0);
-    if (in->key_f3)
-    {
-        /* Cycle through modules: GESTION -> COMPETENCIA -> ANALISIS -> ADMIN -> ALL */
-        int next = (st->active_filter + 1) % GUI_FILTER_COUNT;
-        apply_filter_change(st, next);
-    }
-    if (in->key_f5)
-        gui_evt_push(q, GUI_EVT_TOGGLE_COMPACT, 0);
-    if (in->key_f9)
-        gui_evt_push(q, GUI_EVT_TOGGLE_DEBUG, 0);
+    gui_handle_global_shortcuts(st, in, q);
 
     /* Busqueda: input de texto */
-    if (st->focus == FOCUS_SEARCH)
-    {
-        if (gui_input_search(st->search_query,
-                             (int)sizeof(st->search_query), 1))
-        {
-            st->query_tokens = gui_tokenize_query(st->search_query);
-            gui_evt_push(q, GUI_EVT_REBUILD_FILTER, 0);
-        }
-        if (in->key_enter)
-        {
-            st->focus = FOCUS_LIST;
-            snprintf(st->status_line, sizeof(st->status_line),
-                     "Filtro aplicado");
-            gui_state_set_toast(st, "Filtro aplicado", 1.2f);
-        }
-        if (in->key_escape && st->search_query[0] == '\0')
-            st->focus = FOCUS_LIST;
-    }
+    gui_handle_search_focus_events(st, in, q);
 
     /* Lista: Enter ejecuta opcion seleccionada */
     if (st->focus == FOCUS_LIST && in->key_enter)
         gui_evt_push(q, GUI_EVT_RUN_SELECTED, 0);
 
     /* Botones de accion: navegacion con flechas + Enter */
-    if (st->focus == FOCUS_BUTTON)
-    {
-        if (in->key_left && st->focused_button > 0)
-            st->focused_button--;
-        if (in->key_right && st->focused_button < 2)
-            st->focused_button++;
-        if (in->key_enter)
-        {
-            if (st->focused_button == 0)
-                gui_evt_push(q, GUI_EVT_RUN_SELECTED, 0);
-            else if (st->focused_button == 1)
-                gui_evt_push(q, GUI_EVT_GO_DETAIL, 0);
-            else
-                gui_evt_push(q, GUI_EVT_EXIT, 0);
-        }
-    }
+    gui_handle_button_focus_events(st, in, q);
 }
 
 static void handle_mouse_focus(GuiState *st,
@@ -356,7 +414,7 @@ static void process_state_events(GuiState *st)
             st->theme_index = (st->theme_index + 1) % tc;
             gui_update_active_theme(st);
             const char *tname = gui_get_theme_name(st->theme_index);
-            gui_set_status(st, "%s", tname);
+            gui_set_status(st, tname);
             gui_state_set_toast(st, tname, 1.1f);
         }
         gui_sound_click();
@@ -384,8 +442,7 @@ static void process_state_events(GuiState *st)
         st->query_tokens = gui_tokenize_query(st->search_query);
         st->focus = FOCUS_LIST;
         gui_mark_needs_rebuild(st);
-        gui_set_status(st, "Vista: Modulo %s",
-                   gui_get_module_info(st->active_filter)->title);
+        gui_set_status_module(st, gui_get_module_info(st->active_filter)->title);
         gui_state_set_toast(st,
                             TextFormat("Modulo %s",
                                        gui_get_module_info(st->active_filter)->title),
@@ -393,8 +450,8 @@ static void process_state_events(GuiState *st)
         gui_sound_click();
     }
 
-        if (gui_evt_has(q, GUI_EVT_REBUILD_FILTER))
-            gui_mark_needs_rebuild(st);
+    if (gui_evt_has(q, GUI_EVT_REBUILD_FILTER))
+        gui_mark_needs_rebuild(st);
 
     if (gui_evt_has(q, GUI_EVT_CLEAR_FILTER))
     {
@@ -423,15 +480,14 @@ static void process_state_events(GuiState *st)
         gui_state_set_toast(st, st->debug_mode ? "Debug ON (F9)" : "Debug OFF", 0.8f);
     }
 
-    if (gui_evt_has(q, GUI_EVT_GO_DETAIL))
+    if (gui_evt_has(q, GUI_EVT_GO_DETAIL) &&
+        st->visible_count > 0 &&
+        st->current_screen != GUI_SCREEN_DETAIL)
     {
-        if (st->visible_count > 0 && st->current_screen != GUI_SCREEN_DETAIL)
-        {
-            gui_state_change_screen(st, GUI_SCREEN_DETAIL);
-            gui_set_status(st, "Vista: Detalle");
-            gui_state_set_toast(st, "Vista detalle", 0.8f);
-            gui_sound_click();
-        }
+        gui_state_change_screen(st, GUI_SCREEN_DETAIL);
+        gui_set_status(st, "Vista: Detalle");
+        gui_state_set_toast(st, "Vista detalle", 0.8f);
+        gui_sound_click();
     }
 
     if (gui_evt_has(q, GUI_EVT_GO_BACK))
@@ -485,7 +541,10 @@ static void rebuild_if_needed(GuiState *st)
             }
         }
         if (!found)
-            st->selected_global = st->visible_indices[0], vis_index = 0;
+        {
+            st->selected_global = st->visible_indices[0];
+            vis_index = 0;
+        }
         st->selected_visible = vis_index;
     }
 
@@ -500,71 +559,156 @@ static void rebuild_if_needed(GuiState *st)
 /* Forward declaration for helper used below */
 static int gui_find_visible_index(const GuiState *st, int global);
 
+static int gui_compute_visible_rows(Rectangle list_area, int row_h)
+{
+    int visible_rows = (int)(list_area.height / (float)row_h);
+    if (visible_rows < 1)
+        visible_rows = 1;
+    return visible_rows;
+}
+
+static int gui_get_selected_visible_index(const GuiState *st)
+{
+    int sel_vis = 0;
+
+    if (st->visible_count <= 0)
+        return sel_vis;
+
+    if (st->selected_visible >= 0 &&
+        st->selected_visible < st->visible_count &&
+        st->visible_indices[st->selected_visible] == st->selected_global)
+    {
+        return st->selected_visible;
+    }
+
+    {
+        int found = gui_find_visible_index(st, st->selected_global);
+        return (found >= 0) ? found : 0;
+    }
+}
+
+static int gui_apply_list_keyboard_navigation(const GuiState *st,
+                                              int sel_vis,
+                                              int visible_rows,
+                                              int *changed_by_keys)
+{
+    if (st->focus != FOCUS_LIST)
+        return sel_vis;
+
+    if (input_key_pressed(KEY_DOWN) && sel_vis < st->visible_count - 1)
+    {
+        sel_vis++;
+        *changed_by_keys = 1;
+    }
+    if (input_key_pressed(KEY_UP) && sel_vis > 0)
+    {
+        sel_vis--;
+        *changed_by_keys = 1;
+    }
+    if (input_key_pressed(KEY_PAGE_DOWN))
+    {
+        if (sel_vis + visible_rows < st->visible_count)
+            sel_vis += visible_rows;
+        else if (st->visible_count > 0)
+            sel_vis = st->visible_count - 1;
+        else
+            sel_vis = 0;
+        *changed_by_keys = 1;
+    }
+    if (input_key_pressed(KEY_PAGE_UP))
+    {
+        sel_vis = (sel_vis - visible_rows >= 0)
+                      ? sel_vis - visible_rows
+                      : 0;
+        *changed_by_keys = 1;
+    }
+    if (input_key_pressed(KEY_HOME))
+    {
+        sel_vis = 0;
+        *changed_by_keys = 1;
+    }
+    if (input_key_pressed(KEY_END) && st->visible_count > 0)
+    {
+        sel_vis = st->visible_count - 1;
+        *changed_by_keys = 1;
+    }
+
+    return sel_vis;
+}
+
+static void gui_apply_mouse_wheel_inertia(GuiState *st, Rectangle list_area)
+{
+    if (!CheckCollisionPointRec(st->input.mouse, list_area))
+        return;
+
+    {
+        float wheel = st->input.mouse_wheel;
+        if (wheel != 0.0f)
+        {
+            /* Invertimos para mantener la direccion esperada (wheel>0 => scroll up) */
+            const float accel = 0.6f; /* ajuste fino */
+            st->scroll_velocity -= wheel * accel;
+        }
+    }
+}
+
+static void gui_apply_scroll_physics(GuiState *st)
+{
+    if (fabsf(st->scroll_velocity) <= 0.001f)
+        return;
+
+    /* Accumular en float para preservar movimiento sub-row (sub-pixel) */
+    st->scroll_accum += st->scroll_velocity;
+    {
+        int delta = (int)roundf(st->scroll_accum);
+        if (delta != 0)
+        {
+            st->scroll_offset += delta;
+            st->scroll_accum -= (float)delta;
+        }
+    }
+
+    /* friccion */
+    st->scroll_velocity *= 0.78f;
+    if (fabsf(st->scroll_velocity) < 0.02f)
+        st->scroll_velocity = 0.0f;
+}
+
+static void gui_apply_keyboard_autoscroll(GuiState *st,
+                                          int sel_vis,
+                                          int visible_rows,
+                                          int max_scroll,
+                                          int changed_by_keys)
+{
+    if (changed_by_keys)
+    {
+        if (sel_vis < st->scroll_offset)
+            st->scroll_offset = sel_vis;
+        if (sel_vis >= st->scroll_offset + visible_rows)
+            st->scroll_offset = sel_vis - visible_rows + 1;
+    }
+
+    if (st->scroll_offset < 0)
+        st->scroll_offset = 0;
+    if (st->scroll_offset > max_scroll)
+        st->scroll_offset = max_scroll;
+}
+
 static void update_list_navigation(GuiState *st,
                                    Rectangle list_area, int row_h)
 {
     int old_selected = st->selected_global;
     int changed_by_keys = 0;
-    int visible_rows = (int)(list_area.height / (float)row_h);
-    if (visible_rows < 1)
-        visible_rows = 1;
+    int visible_rows = gui_compute_visible_rows(list_area, row_h);
     int max_scroll = (st->visible_count > visible_rows)
                          ? (st->visible_count - visible_rows)
                          : 0;
 
     /* Usar cached selected_visible si coincide con selected_global, si no re-scanear */
-    int sel_vis = 0;
-    if (st->visible_count > 0) {
-        if (st->selected_visible >= 0 && st->selected_visible < st->visible_count &&
-            st->visible_indices[st->selected_visible] == st->selected_global)
-        {
-            sel_vis = st->selected_visible;
-        } else {
-            int found = gui_find_visible_index(st, st->selected_global);
-            sel_vis = (found >= 0) ? found : 0;
-        }
-    }
+    int sel_vis = gui_get_selected_visible_index(st);
 
     /* Navegacion por teclado */
-    if (st->focus == FOCUS_LIST)
-    {
-        if (input_key_pressed(KEY_DOWN) && sel_vis < st->visible_count - 1)
-        {
-            sel_vis++;
-            changed_by_keys = 1;
-        }
-        if (input_key_pressed(KEY_UP) && sel_vis > 0)
-        {
-            sel_vis--;
-            changed_by_keys = 1;
-        }
-        if (input_key_pressed(KEY_PAGE_DOWN))
-        {
-            sel_vis = (sel_vis + visible_rows < st->visible_count)
-                          ? sel_vis + visible_rows
-                          : (st->visible_count > 0
-                                 ? st->visible_count - 1
-                                 : 0);
-            changed_by_keys = 1;
-        }
-        if (input_key_pressed(KEY_PAGE_UP))
-        {
-            sel_vis = (sel_vis - visible_rows >= 0)
-                          ? sel_vis - visible_rows
-                          : 0;
-            changed_by_keys = 1;
-        }
-        if (input_key_pressed(KEY_HOME))
-        {
-            sel_vis = 0;
-            changed_by_keys = 1;
-        }
-        if (input_key_pressed(KEY_END) && st->visible_count > 0)
-        {
-            sel_vis = st->visible_count - 1;
-            changed_by_keys = 1;
-        }
-    }
+    sel_vis = gui_apply_list_keyboard_navigation(st, sel_vis, visible_rows, &changed_by_keys);
 
     if (st->visible_count > 0)
         st->selected_global = st->visible_indices[sel_vis];
@@ -581,44 +725,13 @@ static void update_list_navigation(GuiState *st,
     }
 
     /* Rueda de mouse sobre la lista: inercia suave */
-    if (CheckCollisionPointRec(st->input.mouse, list_area))
-    {
-        float wheel = st->input.mouse_wheel;
-        if (wheel != 0.0f)
-        {
-            /* Invertimos para mantener la direccion esperada (wheel>0 => scroll up) */
-            const float accel = 0.6f; /* ajuste fino */
-            st->scroll_velocity -= wheel * accel;
-        }
-    }
+    gui_apply_mouse_wheel_inertia(st, list_area);
 
     /* Aplicar velocidad (inercial) y friccion */
-    if (fabsf(st->scroll_velocity) > 0.001f)
-    {
-        /* Accumular en float para preservar movimiento sub-row (sub-pixel) */
-        st->scroll_accum += st->scroll_velocity;
-        int delta = (int)roundf(st->scroll_accum);
-        if (delta != 0) {
-            st->scroll_offset += delta;
-            st->scroll_accum -= (float)delta;
-        }
-        /* friccion */
-        st->scroll_velocity *= 0.78f;
-        if (fabsf(st->scroll_velocity) < 0.02f) st->scroll_velocity = 0.0f;
-    }
+    gui_apply_scroll_physics(st);
 
     /* Auto-scroll solo cuando cambia la seleccion por teclado */
-    if (changed_by_keys)
-    {
-        if (sel_vis < st->scroll_offset)
-            st->scroll_offset = sel_vis;
-        if (sel_vis >= st->scroll_offset + visible_rows)
-            st->scroll_offset = sel_vis - visible_rows + 1;
-    }
-    if (st->scroll_offset < 0)
-        st->scroll_offset = 0;
-    if (st->scroll_offset > max_scroll)
-        st->scroll_offset = max_scroll;
+    gui_apply_keyboard_autoscroll(st, sel_vis, visible_rows, max_scroll, changed_by_keys);
 
     /* Animar scroll suave */
     gui_anim_set_target(&st->scroll_anim, (float)st->scroll_offset);
@@ -672,9 +785,9 @@ static void draw_header_right(GuiState *st, Rectangle header_rect)
     static time_t g_cached_time_sec = 0;
     static char g_cached_fecha_buf[64] = "";
     if (now != g_cached_time_sec) {
-        struct tm *lt = localtime(&now);
-        if (lt)
-            strftime(g_cached_fecha_buf, sizeof(g_cached_fecha_buf), "%d/%m/%Y %H:%M", lt);
+        struct tm tm_buf;
+        if (gui_localtime_safe(now, &tm_buf))
+            strftime(g_cached_fecha_buf, sizeof(g_cached_fecha_buf), "%d/%m/%Y %H:%M", &tm_buf);
         else
             snprintf(g_cached_fecha_buf, sizeof(g_cached_fecha_buf), "?");
         g_cached_time_sec = now;
@@ -785,11 +898,488 @@ static void draw_sidebar(GuiState *st, Rectangle sidebar_rect)
                         gui_get_module_help(st->active_filter));
 }
 
-static void draw_stat_cards(GuiState *st, float list_x)
+static void draw_stat_cards(const GuiState *st, float list_x)
 {
     /* Barra superior de tabs deshabilitada por solicitud de UX. */
     (void)st;
     (void)list_x;
+}
+
+static void gui_build_initial_visible_list(GuiState *st, const MenuItem *items, int count)
+{
+    GuiFilter eff = (st->current_screen == GUI_SCREEN_HOME)
+                        ? GUI_FILTER_ALL
+                        : st->active_filter;
+    gui_rebuild_visible(items, count, eff,
+                        &st->query_tokens,
+                        st->visible_indices, &st->visible_count);
+}
+
+static void gui_load_app_icon_assets(void)
+{
+    char icon_path[512];
+    if (!gui_find_app_icon_path(icon_path, sizeof(icon_path)))
+        return;
+
+    Image app_img = LoadImage(icon_path);
+    if (!app_img.data)
+        return;
+
+    /* SetWindowIcon requiere RGBA de 32 bits. */
+    if (app_img.format != PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
+        ImageFormat(&app_img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+
+    if (g_window_icon.data)
+        UnloadImage(g_window_icon);
+
+    g_window_icon = ImageCopy(app_img);
+    if (g_window_icon.data)
+    {
+        ImageResize(&g_window_icon, 64, 64);
+        SetWindowIcon(g_window_icon);
+    }
+    else
+    {
+        SetWindowIcon(app_img);
+        g_window_icon = app_img;
+        app_img.data = NULL;
+    }
+
+    g_app_icon_texture = LoadTextureFromImage(app_img);
+    g_app_icon_texture_loaded = (g_app_icon_texture.id != 0);
+
+    if (app_img.data)
+        UnloadImage(app_img);
+}
+
+static void gui_cache_app_dir_once(void)
+{
+    if (g_cached_app_dir_ready)
+        return;
+
+    {
+        const char *tmp = GetApplicationDirectory();
+        if (tmp && tmp[0] != '\0')
+        {
+            gui_copy_cstr_trunc(g_cached_app_dir, sizeof(g_cached_app_dir), tmp);
+        }
+        else
+        {
+            g_cached_app_dir[0] = '\0';
+        }
+    }
+
+    g_cached_app_dir_ready = 1;
+}
+
+static int gui_try_load_user_icon_candidates(const char *const *candidates, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        if (!FileExists(candidates[i]))
+            continue;
+
+        g_user_icon_texture = LoadTexture(candidates[i]);
+        if (g_user_icon_texture.id == 0)
+            continue;
+
+        SetTextureFilter(g_user_icon_texture, TEXTURE_FILTER_BILINEAR);
+        g_user_icon_texture_loaded = 1;
+        return 1;
+    }
+
+    return 0;
+}
+
+static int gui_try_load_user_icon_from_app_dir(void)
+{
+    if (g_cached_app_dir[0] == '\0')
+        return 0;
+
+    {
+        const char *sufs[3] = {
+            "../../Icons/Usuario.png",
+            "../Icons/Usuario.png",
+            "Icons/Usuario.png"
+        };
+        char cand[512];
+        for (int i = 0; i < 3; i++)
+        {
+            snprintf(cand, sizeof(cand), "%s%s", g_cached_app_dir, sufs[i]);
+            if (!FileExists(cand))
+                continue;
+
+            g_user_icon_texture = LoadTexture(cand);
+            if (g_user_icon_texture.id == 0)
+                continue;
+
+            SetTextureFilter(g_user_icon_texture, TEXTURE_FILTER_BILINEAR);
+            g_user_icon_texture_loaded = 1;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void gui_load_user_icon_texture_once(void)
+{
+    if (g_user_icon_texture_loaded)
+        return;
+
+    {
+        const char *rel_candidates[] = {
+            "./Icons/Usuario.png",
+            "../Icons/Usuario.png",
+            "../../Icons/Usuario.png",
+            "Icons/Usuario.png"
+        };
+        int rel_count = (int)(sizeof(rel_candidates) / sizeof(rel_candidates[0]));
+        if (gui_try_load_user_icon_candidates(rel_candidates, rel_count))
+            return;
+    }
+
+    gui_cache_app_dir_once();
+    gui_try_load_user_icon_from_app_dir();
+}
+
+static void gui_initialize_window_once(void)
+{
+    if (g_gui_window_initialized)
+        return;
+
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1280, 720, "MiFutbolC - GUI");
+    gui_load_app_icon_assets();
+
+    SetExitKey(KEY_NULL);
+    MaximizeWindow();
+    gui_load_font();   /* carga fuente + iconos (resuelve base path) */
+    gui_sounds_init();
+    gui_load_user_icon_texture_once();
+    SetTargetFPS(60);
+    input_init();
+    g_gui_window_initialized = 1;
+}
+
+typedef struct GuiFrameContext
+{
+    int sw;
+    int sh;
+    int row_h;
+    int item_count;
+    float content_x;
+    Rectangle search;
+    Rectangle list;
+    Rectangle toast_r;
+    Rectangle hist_r;
+    Rectangle action_btns[3];
+} GuiFrameContext;
+
+static void gui_draw_detail_mode_content(GuiState *st,
+                                         const MenuItem *items,
+                                         const GuiFrameContext *ctx)
+{
+    const MenuItem *sel_item = NULL;
+    if (st->selected_global >= 0 && st->selected_global < ctx->item_count)
+        sel_item = &items[st->selected_global];
+
+    {
+        Rectangle detail_area = {
+            ctx->search.x,
+            ctx->search.y,
+            ctx->list.width,
+            (ctx->list.y + ctx->list.height) - ctx->search.y
+        };
+        gui_detail_screen_draw(st, detail_area, sel_item,
+                               (const char (*)[96])st->history,
+                               st->history_count);
+    }
+
+    if (gui_btn_primary(st, ctx->action_btns[0], "Ejecutar"))
+        gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+    if (gui_btn(st, ctx->action_btns[1], "Volver (ESC)"))
+        gui_evt_push(&st->events, GUI_EVT_GO_BACK, 0);
+}
+
+static void gui_draw_quick_actions(GuiState *st,
+                                   const MenuItem *items,
+                                   float content_x)
+{
+    float scale = st->scale;
+
+    gui_text("Acciones rapidas:",
+             content_x, GS(184), FONT_SMALL,
+             st->theme->text_secondary);
+
+    {
+        int qn = st->visible_count < 3 ? st->visible_count : 3;
+        for (int i = 0; i < qn; i++)
+        {
+            int idx = st->visible_indices[i];
+            char qlabel[64];
+            snprintf(qlabel, sizeof(qlabel), "(%d) %s",
+                     i + 1,
+                     items[idx].texto ? items[idx].texto : "(sin texto)");
+
+            Rectangle quick_btn_rect = {
+                content_x + GS(130) + (float)i * GS(200),
+                GS(180), GS(190), GS(26)
+            };
+
+            if (gui_btn(st, quick_btn_rect, qlabel))
+            {
+                st->selected_global = idx;
+                gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+            }
+
+            if (input_register_click(200 + i,
+                                     CheckCollisionPointRec(st->input.mouse, quick_btn_rect)))
+            {
+                st->selected_global = idx;
+                gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+                gui_sound_click();
+            }
+        }
+    }
+}
+
+static void gui_draw_list_mode_content(GuiState *st,
+                                       const MenuItem *items,
+                                       const GuiFrameContext *ctx)
+{
+    float scale = st->scale;
+
+    gui_searchbox_draw(st, ctx->search, st->search_query,
+                       st->focus == FOCUS_SEARCH, st->cursor_blink);
+
+    if (gui_btn(st,
+                (Rectangle){ctx->search.x + ctx->search.width + GS(8), ctx->search.y, GS(110), GS(30)},
+                "Limpiar"))
+    {
+        gui_evt_push(&st->events, GUI_EVT_CLEAR_FILTER, 0);
+    }
+
+    gui_draw_quick_actions(st, items, ctx->content_x);
+
+    DrawRectangleRec(ctx->list, st->theme->bg_list);
+    if (st->focus == FOCUS_LIST)
+        DrawRectangleLinesEx(ctx->list, 1.5f, st->theme->list_focus);
+
+    {
+        GuiListDrawContext list_ctx = {
+            items,
+            ctx->item_count,
+            st->visible_indices,
+            st->visible_count,
+            st->selected_global,
+            st->scroll_anim.value,
+            ctx->row_h,
+            &st->query_tokens
+        };
+        GuiListResult lr = gui_list_draw(st, ctx->list, &list_ctx);
+
+        if (lr.clicked_global >= 0)
+        {
+            if (lr.clicked_global == st->selected_global)
+                gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+            st->selected_global = lr.clicked_global;
+            st->click_flash_timer = 0.35f;
+            st->click_flash_row = lr.clicked_global;
+            gui_anim_snap(&st->row_highlight, 0.3f);
+            gui_anim_set_target(&st->row_highlight, 1.0f);
+            gui_sound_click();
+        }
+    }
+
+    {
+        int vis_rows = (int)(ctx->list.height / (float)ctx->row_h);
+        if (vis_rows < 1)
+            vis_rows = 1;
+        gui_scrollbar_draw(st, ctx->list, st->visible_count,
+                           vis_rows, st->scroll_anim.value);
+    }
+
+    if (gui_btn_primary(st, ctx->action_btns[0], "Ejecutar (Enter)"))
+    {
+        st->focus = FOCUS_BUTTON;
+        st->focused_button = 0;
+        gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+    }
+    if (input_register_click(100,
+                             CheckCollisionPointRec(st->input.mouse, ctx->action_btns[0])))
+    {
+        gui_evt_push(&st->events, GUI_EVT_RUN_SELECTED, 0);
+    }
+
+    if (gui_btn(st, ctx->action_btns[1], "Ver detalle"))
+    {
+        st->focus = FOCUS_BUTTON;
+        st->focused_button = 1;
+        gui_evt_push(&st->events, GUI_EVT_GO_DETAIL, 0);
+    }
+    if (input_register_click(101,
+                             CheckCollisionPointRec(st->input.mouse, ctx->action_btns[1])))
+    {
+        gui_evt_push(&st->events, GUI_EVT_GO_DETAIL, 0);
+    }
+
+    if (gui_btn(st, ctx->action_btns[2], "Salir"))
+    {
+        st->focus = FOCUS_BUTTON;
+        st->focused_button = 2;
+        gui_evt_push(&st->events, GUI_EVT_EXIT, 0);
+    }
+    if (input_register_click(102,
+                             CheckCollisionPointRec(st->input.mouse, ctx->action_btns[2])))
+    {
+        gui_evt_push(&st->events, GUI_EVT_EXIT, 0);
+    }
+
+    if (st->focus == FOCUS_BUTTON)
+        DrawRectangleLinesEx(ctx->action_btns[st->focused_button],
+                             2.0f, st->theme->text_highlight);
+}
+
+static void gui_draw_status_toast_and_overlays(GuiState *st,
+                                               const MenuItem *items,
+                                               const GuiFrameContext *ctx)
+{
+    float scale = st->scale;
+
+    DrawRectangle(0, ctx->sh - GSI(28), ctx->sw, GSI(28), (Color){10, 20, 15, 255});
+    {
+        const char *mode_txt = st->compact_mode ? "[Compacto]" : "[Detallado]";
+        gui_text_truncated(
+            TextFormat("%s | %s %s | Ctrl+F buscar | TAB foco | F4 tema | F5 modo | F9 debug",
+                       st->status_line, st->last_action, mode_txt),
+            GS(14), (float)ctx->sh - GS(22), FONT_SMALL,
+            (float)ctx->sw - GS(28), st->theme->text_muted);
+    }
+
+    if (st->toast_timer > 0.0f)
+    {
+        float alpha = 1.0f;
+        if (st->toast_timer < 0.25f)
+            alpha = st->toast_timer / 0.25f;
+        /* añadir leve animacion de entrada: slide vertical basado en alpha */
+        {
+            float eased = 1.0f - powf(1.0f - (alpha > 1.0f ? 1.0f : alpha), 2.0f);
+            Rectangle toast_r2 = ctx->toast_r;
+            toast_r2.y += GS(12) * (1.0f - eased);
+            gui_toast_draw(st, toast_r2, st->toast_text, alpha);
+        }
+    }
+
+    if (st->current_screen != GUI_SCREEN_DETAIL)
+    {
+        const MenuItem *sel_item = NULL;
+        if (st->selected_global >= 0 && st->selected_global < ctx->item_count)
+            sel_item = &items[st->selected_global];
+        gui_detail_panel_draw(st, ctx->hist_r, sel_item,
+                              (const char (*)[96])st->history, st->history_count);
+    }
+
+    if (st->transition.value < 0.97f)
+    {
+        float fade = 1.0f - st->transition.value;
+        unsigned char alpha = (unsigned char)(fade * 200.0f);
+        DrawRectangle(0, GSI(84), ctx->sw, ctx->sh - GSI(84),
+                      (Color){st->theme->bg_main.r, st->theme->bg_main.g,
+                              st->theme->bg_main.b, alpha});
+    }
+
+    if (st->debug_mode)
+        gui_debug_overlay(st, ctx->sw, ctx->sh);
+
+    {
+        Vector2 mp = GetMousePosition();
+        int any_hover = 0;
+        if (CheckCollisionPointRec(mp, ctx->list))
+            any_hover = 1;
+        for (int bi = 0; bi < 3; bi++)
+        {
+            if (CheckCollisionPointRec(mp, ctx->action_btns[bi]))
+                any_hover = 1;
+        }
+        if (CheckCollisionPointRec(mp, ctx->search))
+            any_hover = 1;
+        SetMouseCursor(any_hover ? MOUSE_CURSOR_POINTING_HAND
+                                 : MOUSE_CURSOR_DEFAULT);
+    }
+}
+
+static void gui_apply_input_snapshot(GuiState *st)
+{
+    input_update();
+    {
+        const InputState *inp = input_get_state();
+        st->input = *inp;
+    }
+
+    if (g_ignore_escape_frames > 0)
+    {
+        st->input.key_escape = 0;
+        g_ignore_escape_frames--;
+    }
+}
+
+static void gui_tick_runtime_state(GuiState *st, float dt)
+{
+    gui_anim_tick(&st->scroll_anim, dt);
+    if (st->toast_timer > 0.0f)
+        st->toast_timer -= dt;
+    st->cursor_blink += dt;
+    if (st->cursor_blink >= 1.0f)
+        st->cursor_blink = 0.0f;
+    if (st->click_flash_timer > 0.0f)
+        st->click_flash_timer -= dt;
+    gui_anim_tick(&st->row_highlight, dt);
+    gui_anim_tick(&st->transition, dt);
+}
+
+static float gui_compute_slide_offset(const GuiState *st, int sw)
+{
+    float slide_offset = 0.0f;
+
+    if (st->transition.value < 0.999f)
+    {
+        int dir = 0; /* -1 = entra desde derecha (slide left), +1 = vuelve desde la izquierda */
+        if (st->current_screen == GUI_SCREEN_DETAIL)
+            dir = -1;
+        else if (st->prev_screen == GUI_SCREEN_DETAIL)
+            dir = 1;
+
+        /* suavizado (ease) para el movimiento */
+        {
+            float s = 1.0f - st->transition.value; /* 1 -> al inicio de la transicion */
+            float eased = s * s * (3.0f - 2.0f * s); /* smoothstep */
+            slide_offset = eased * (float)sw * (float)dir;
+        }
+    }
+
+    return slide_offset;
+}
+
+static void gui_draw_breadcrumb_for_state(const GuiState *st, float content_x)
+{
+    float scale = st->scale;
+    const char *crumbs[3];
+    int nc = 0;
+    crumbs[nc++] = "Inicio";
+    if (st->current_screen != GUI_SCREEN_HOME)
+        crumbs[nc++] = gui_get_module_info(st->active_filter)->title;
+    gui_breadcrumb_draw(st, content_x, GS(122), crumbs, nc);
+}
+
+static void gui_draw_main_content(GuiState *st,
+                                  const MenuItem *items,
+                                  const GuiFrameContext *ctx)
+{
+    if (st->current_screen == GUI_SCREEN_DETAIL)
+        gui_draw_detail_mode_content(st, items, ctx);
+    else
+        gui_draw_list_mode_content(st, items, ctx);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -815,105 +1405,10 @@ int run_raylib_gui(const MenuItem *items, int count)
     gui_prefs_load(&st);
 
     /* Build inicial de lista visible */
-    {
-        GuiFilter eff = (st.current_screen == GUI_SCREEN_HOME)
-                            ? GUI_FILTER_ALL : st.active_filter;
-        gui_rebuild_visible(items, count, eff,
-                            &st.query_tokens,
-                            st.visible_indices, &st.visible_count);
-    }
+    gui_build_initial_visible_list(&st, items, count);
 
     /* ── Inicializar ventana (solo la primera vez) ── */
-    if (!g_gui_window_initialized)
-    {
-        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-        InitWindow(1280, 720, "MiFutbolC - GUI");
-
-        {
-            char icon_path[512];
-            if (gui_find_app_icon_path(icon_path, sizeof(icon_path)))
-            {
-                Image app_img = LoadImage(icon_path);
-                if (app_img.data)
-                {
-                    /* SetWindowIcon requiere RGBA de 32 bits. */
-                    if (app_img.format != PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
-                        ImageFormat(&app_img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-
-                    if (g_window_icon.data)
-                        UnloadImage(g_window_icon);
-
-                    g_window_icon = ImageCopy(app_img);
-                    if (g_window_icon.data)
-                    {
-                        ImageResize(&g_window_icon, 64, 64);
-                        SetWindowIcon(g_window_icon);
-                    }
-                    else
-                    {
-                        SetWindowIcon(app_img);
-                        g_window_icon = app_img;
-                        app_img.data = NULL;
-                    }
-                    g_app_icon_texture = LoadTextureFromImage(app_img);
-                    if (g_app_icon_texture.id != 0)
-                        g_app_icon_texture_loaded = 1;
-
-                    if (app_img.data)
-                        UnloadImage(app_img);
-                }
-            }
-        }
-
-        SetExitKey(KEY_NULL);
-        MaximizeWindow();
-        gui_load_font();   /* carga fuente + iconos (resuelve base path) */
-        gui_sounds_init();
-        /* Cargar icono de usuario de forma eager durante la inicialización
-           en lugar de intentar hacerlo cada frame en la función de dibujo. */
-        if (!g_user_icon_texture_loaded)
-        {
-            const char *rel_candidates[] = {"./Icons/Usuario.png","../Icons/Usuario.png","../../Icons/Usuario.png","Icons/Usuario.png"};
-            for (int ci = 0; ci < (int)(sizeof(rel_candidates)/sizeof(rel_candidates[0])); ci++) {
-                if (FileExists(rel_candidates[ci])) {
-                    g_user_icon_texture = LoadTexture(rel_candidates[ci]);
-                    if (g_user_icon_texture.id != 0) {
-                        SetTextureFilter(g_user_icon_texture, TEXTURE_FILTER_BILINEAR);
-                        g_user_icon_texture_loaded = 1;
-                        break;
-                    }
-                }
-            }
-            if (!g_user_icon_texture_loaded && !g_cached_app_dir_ready) {
-                const char *tmp = GetApplicationDirectory();
-                if (tmp && tmp[0] != '\0') strncpy(g_cached_app_dir, tmp, sizeof(g_cached_app_dir)-1);
-                g_cached_app_dir_ready = 1;
-            }
-            if (!g_user_icon_texture_loaded && g_cached_app_dir[0] != '\0')
-            {
-                {
-                    const char *sufs[3] = {"../../Icons/Usuario.png",
-                                           "../Icons/Usuario.png",
-                                           "Icons/Usuario.png"};
-                    char cand[512];
-                    for (int ai = 0; ai < 3; ai++) {
-                        snprintf(cand, sizeof(cand), "%s%s", g_cached_app_dir, sufs[ai]);
-                        if (FileExists(cand)) {
-                            g_user_icon_texture = LoadTexture(cand);
-                            if (g_user_icon_texture.id != 0) {
-                                SetTextureFilter(g_user_icon_texture, TEXTURE_FILTER_BILINEAR);
-                                g_user_icon_texture_loaded = 1;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        SetTargetFPS(60);
-        input_init();
-        g_gui_window_initialized = 1;
-    }
+    gui_initialize_window_once();
 
     /* ═══════════════════════════════════════════
        Loop principal: Input -> Eventos -> Estado -> Draw
@@ -926,51 +1421,39 @@ int run_raylib_gui(const MenuItem *items, int count)
         st.scale = gui_compute_scale(sw, sh);
         float scale = st.scale;
         int row_h = st.compact_mode ? GSI(26) : GSI(34);
+        GuiFrameContext frame_ctx;
+        frame_ctx.sw = sw;
+        frame_ctx.sh = sh;
+        frame_ctx.row_h = row_h;
+        frame_ctx.item_count = count;
 
         /* ── Snapshot de input (centralizado una vez por frame) ── */
-        input_update();
-        const InputState *inp = input_get_state();
-        st.input = *inp;
-        if (g_ignore_escape_frames > 0)
-        {
-            st.input.key_escape = 0;
-            g_ignore_escape_frames--;
-        }
+        gui_apply_input_snapshot(&st);
 
         /* ── Tick de animaciones ──────────────── */
-        gui_anim_tick(&st.scroll_anim, dt);
-        if (st.toast_timer > 0.0f)
-            st.toast_timer -= dt;
-        st.cursor_blink += dt;
-        if (st.cursor_blink >= 1.0f)
-            st.cursor_blink = 0.0f;
-        if (st.click_flash_timer > 0.0f)
-            st.click_flash_timer -= dt;
-        gui_anim_tick(&st.row_highlight, dt);
-        gui_anim_tick(&st.transition, dt);
+        gui_tick_runtime_state(&st, dt);
 
-        /* ── Layout (todo escalado por DPI) ───── */
+        /* ── Layout (completamente escalado por DPI) ───── */
         Rectangle header = gui_lay_header(scale, sw);
         Rectangle sidebar = gui_lay_sidebar(scale, sw, sh);
-        Rectangle list = gui_lay_list(scale, sw, sh, sidebar);
-        Rectangle search = gui_lay_search(scale, sw, sidebar);
-        Rectangle toast_r = gui_lay_toast(scale, sw);
-        Rectangle hist_r = gui_lay_history(scale, sh, sidebar);
-        Rectangle action_btns[3];
+        frame_ctx.list = gui_lay_list(scale, sw, sh, sidebar);
+        frame_ctx.search = gui_lay_search(scale, sw, sidebar);
+        frame_ctx.toast_r = gui_lay_toast(scale, sw);
+        frame_ctx.hist_r = gui_lay_history(scale, sh, sidebar);
         for (int i = 0; i < 3; i++)
-            action_btns[i] = gui_lay_action_btn(scale, sh, sidebar, i);
+            frame_ctx.action_btns[i] = gui_lay_action_btn(scale, sh, sidebar, i);
 
         /* ── Fase 1: recolectar input ─────────── */
         st.events.count = 0;
         collect_keyboard_events(&st);
-        handle_mouse_focus(&st, search, list, action_btns);
+        handle_mouse_focus(&st, frame_ctx.search, frame_ctx.list, frame_ctx.action_btns);
 
         /* ── Fase 2: procesar eventos keyboard ── */
         process_state_events(&st);
         rebuild_if_needed(&st);
 
         /* ── Fase 3: navegacion de lista ──────── */
-        update_list_navigation(&st, list, row_h);
+        update_list_navigation(&st, frame_ctx.list, frame_ctx.row_h);
 
         /* ── Fase 4: dibujo ───────────────────── */
         BeginDrawing();
@@ -984,217 +1467,14 @@ int run_raylib_gui(const MenuItem *items, int count)
 
         /* Tab bar (filtros clickeables) */
         /* Aplicar desplazamiento de 'slide' durante transiciones entre pantallas */
-        float slide_offset = 0.0f;
-        if (st.transition.value < 0.999f) {
-            int dir = 0; /* -1 = entra desde derecha (slide left), +1 = vuelve desde la izquierda */
-            if (st.current_screen == GUI_SCREEN_DETAIL) dir = -1;
-            else if (st.prev_screen == GUI_SCREEN_DETAIL) dir = 1;
-            /* suavizado (ease) para el movimiento */
-            float s = 1.0f - st.transition.value; /* 1 -> al inicio de la transicion */
-            float eased = s * s * (3.0f - 2.0f * s); /* smoothstep */
-            slide_offset = eased * (float)sw * (float)dir;
-        }
-        float content_x = sidebar.width + GS(30) + slide_offset;
-        draw_stat_cards(&st, content_x);
-
-        /* Breadcrumb */
         {
-            const char *crumbs[3];
-            int nc = 0;
-            crumbs[nc++] = "Inicio";
-            if (st.current_screen != GUI_SCREEN_HOME)
-                crumbs[nc++] = gui_get_module_info(st.active_filter)->title;
-            gui_breadcrumb_draw(&st, content_x, GS(122), crumbs, nc);
+            float slide_offset = gui_compute_slide_offset(&st, sw);
+            frame_ctx.content_x = sidebar.width + GS(30) + slide_offset;
         }
-        /* ── Contenido principal: Detalle / Lista ── */
-        if (st.current_screen == GUI_SCREEN_DETAIL) {
-            const MenuItem *sel_item = NULL;
-            if (st.selected_global >= 0 && st.selected_global < count)
-                sel_item = &items[st.selected_global];
-            Rectangle detail_area = {search.x, search.y,
-                                     list.width,
-                                     (list.y + list.height) - search.y};
-            gui_detail_screen_draw(&st, detail_area, sel_item,
-                                   (const char (*)[96])st.history,
-                                   st.history_count);
-            if (gui_btn_primary(&st, action_btns[0], "Ejecutar"))
-                gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-            if (gui_btn(&st, action_btns[1], "Volver (ESC)"))
-                gui_evt_push(&st.events, GUI_EVT_GO_BACK, 0);
-        } else {
-        /* Barra de busqueda */
-        gui_searchbox_draw(&st, search, st.search_query,
-                           st.focus == FOCUS_SEARCH, st.cursor_blink);
-
-        /* Boton limpiar filtro */
-        if (gui_btn(&st,
-                    (Rectangle){search.x + search.width + GS(8), search.y,
-                                GS(110), GS(30)},
-                    "Limpiar"))
-        {
-            gui_evt_push(&st.events, GUI_EVT_CLEAR_FILTER, 0);
-        }
-
-        /* Acciones rapidas (arriba de la lista) */
-        gui_text("Acciones rapidas:",
-                 content_x, GS(184), FONT_SMALL,
-                 st.theme->text_secondary);
-        {
-            int qn = st.visible_count < 3 ? st.visible_count : 3;
-            for (int i = 0; i < qn; i++)
-            {
-                int idx = st.visible_indices[i];
-                char qlabel[64];
-                snprintf(qlabel, sizeof(qlabel), "(%d) %s",
-                         i + 1,
-                         items[idx].texto ? items[idx].texto : "(sin texto)");
-                Rectangle quick_btn_rect = {
-                    content_x + GS(130) + (float)i * GS(200),
-                    GS(180), GS(190), GS(26)};
-                if (gui_btn(&st, quick_btn_rect, qlabel))
-                {
-                    st.selected_global = idx;
-                    gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-                }
-
-                if (input_register_click(200 + i,
-                                         CheckCollisionPointRec(st.input.mouse, quick_btn_rect)))
-                {
-                    st.selected_global = idx;
-                    gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-                    gui_sound_click();
-                }
-            }
-        }
-
-        /* Area de lista */
-        DrawRectangleRec(list, st.theme->bg_list);
-        if (st.focus == FOCUS_LIST)
-            DrawRectangleLinesEx(list, 1.5f, st.theme->list_focus);
-
-        /* Lista virtualizada */
-        GuiListResult lr = gui_list_draw(
-            &st, list, items, count,
-            st.visible_indices, st.visible_count,
-            st.selected_global, st.scroll_anim.value,
-            row_h, &st.query_tokens);
-
-        if (lr.clicked_global >= 0)
-        {
-            if (lr.clicked_global == st.selected_global)
-                gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-            st.selected_global = lr.clicked_global;
-            st.click_flash_timer = 0.35f;
-            st.click_flash_row = lr.clicked_global;
-            gui_anim_snap(&st.row_highlight, 0.3f);
-            gui_anim_set_target(&st.row_highlight, 1.0f);
-            gui_sound_click();
-        }
-
-        /* Scrollbar */
-        int vis_rows = (int)(list.height / (float)row_h);
-        if (vis_rows < 1)
-            vis_rows = 1;
-        gui_scrollbar_draw(&st, list, st.visible_count,
-                           vis_rows, st.scroll_anim.value);
-
-        /* Botones de accion principales */
-        if (gui_btn_primary(&st, action_btns[0], "Ejecutar (Enter)"))
-        {
-            st.focus = FOCUS_BUTTON;
-            st.focused_button = 0;
-            gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-        }
-        if (input_register_click(100,
-                     CheckCollisionPointRec(st.input.mouse, action_btns[0])))
-            gui_evt_push(&st.events, GUI_EVT_RUN_SELECTED, 0);
-
-        if (gui_btn(&st, action_btns[1], "Ver detalle"))
-        {
-            st.focus = FOCUS_BUTTON;
-            st.focused_button = 1;
-            gui_evt_push(&st.events, GUI_EVT_GO_DETAIL, 0);
-        }
-        if (input_register_click(101,
-                     CheckCollisionPointRec(st.input.mouse, action_btns[1])))
-            gui_evt_push(&st.events, GUI_EVT_GO_DETAIL, 0);
-
-        if (gui_btn(&st, action_btns[2], "Salir"))
-        {
-            st.focus = FOCUS_BUTTON;
-            st.focused_button = 2;
-            gui_evt_push(&st.events, GUI_EVT_EXIT, 0);
-        }
-        if (input_register_click(102,
-                     CheckCollisionPointRec(st.input.mouse, action_btns[2])))
-            gui_evt_push(&st.events, GUI_EVT_EXIT, 0);
-
-        if (st.focus == FOCUS_BUTTON)
-            DrawRectangleLinesEx(action_btns[st.focused_button],
-                                 2.0f, st.theme->text_highlight);
-        } /* end else (list mode) */
-
-        /* Barra de estado */
-        DrawRectangle(0, sh - GSI(28), sw, GSI(28),
-                      (Color){10, 20, 15, 255});
-        {
-            const char *mode_txt = st.compact_mode ? "[Compacto]" : "[Detallado]";
-            gui_text_truncated(
-                TextFormat("%s | %s %s | Ctrl+F buscar | TAB foco | F4 tema | F5 modo | F9 debug",
-                           st.status_line, st.last_action, mode_txt),
-                GS(14), (float)sh - GS(22), FONT_SMALL,
-                (float)sw - GS(28), st.theme->text_muted);
-        }
-
-        /* Toast */
-        if (st.toast_timer > 0.0f)
-        {
-            float alpha = 1.0f;
-            if (st.toast_timer < 0.25f)
-                alpha = st.toast_timer / 0.25f;
-            /* añadir leve animacion de entrada: slide vertical basado en alpha */
-            float eased = 1.0f - powf(1.0f - (alpha > 1.0f ? 1.0f : alpha), 2.0f);
-            Rectangle toast_r2 = toast_r;
-            toast_r2.y += GS(12) * (1.0f - eased);
-            gui_toast_draw(&st, toast_r2, st.toast_text, alpha);
-        }
-
-        /* Panel de detalle del item seleccionado (sidebar) */
-        if (st.current_screen != GUI_SCREEN_DETAIL)
-        {
-            const MenuItem *sel_item = NULL;
-            if (st.selected_global >= 0 && st.selected_global < count)
-                sel_item = &items[st.selected_global];
-            gui_detail_panel_draw(&st, hist_r, sel_item,
-                                  (const char (*)[96])st.history, st.history_count);
-        }
-
-        /* Transition fade overlay */
-        if (st.transition.value < 0.97f) {
-            float fade = 1.0f - st.transition.value;
-            unsigned char alpha = (unsigned char)(fade * 200.0f);
-            DrawRectangle(0, GSI(84), sw, sh - GSI(84),
-                          (Color){st.theme->bg_main.r, st.theme->bg_main.g,
-                                  st.theme->bg_main.b, alpha});
-        }
-
-        /* Debug overlay */
-        if (st.debug_mode)
-            gui_debug_overlay(&st, sw, sh);
-
-        /* Sin confirmacion modal: ejecucion directa desde Enter/Boton */
-
-        /* Mouse cursor feedback */
-        {
-            Vector2 mp = GetMousePosition();
-            int any_hover = 0;
-            if (CheckCollisionPointRec(mp, list)) any_hover = 1;
-            for (int bi = 0; bi < 3; bi++)
-                if (CheckCollisionPointRec(mp, action_btns[bi])) any_hover = 1;
-            if (CheckCollisionPointRec(mp, search)) any_hover = 1;
-            SetMouseCursor(any_hover ? MOUSE_CURSOR_POINTING_HAND
-                                     : MOUSE_CURSOR_DEFAULT);
-        }
+        draw_stat_cards(&st, frame_ctx.content_x);
+        gui_draw_breadcrumb_for_state(&st, frame_ctx.content_x);
+        gui_draw_main_content(&st, items, &frame_ctx);
+        gui_draw_status_toast_and_overlays(&st, items, &frame_ctx);
 
         EndDrawing();
         /* ── Fase 5: post-draw (eventos de accion ya en cola) ── */
@@ -1204,17 +1484,7 @@ int run_raylib_gui(const MenuItem *items, int count)
     }
 
     /* Cierre por WindowShouldClose */
-    g_last_selected_index = st.selected_global;
-    snprintf(g_last_action_text, sizeof(g_last_action_text),
-             "%s", st.last_action);
-    gui_prefs_save(&st);
-    gui_state_cleanup(&st);
-    gui_sounds_cleanup();
-    gui_unload_font();
-    gui_release_icon_resources();
-    CloseWindow();
-    g_gui_window_initialized = 0;
-    return GUI_ACTION_EXIT;
+    return gui_shutdown(&st, GUI_ACTION_EXIT);
 }
 
 /* ═══════════════════════════════════════════════════════════

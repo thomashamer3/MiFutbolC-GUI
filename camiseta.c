@@ -1799,7 +1799,11 @@ static void configurar_visor_preferido_imagen_gui(void)
     char nuevo[64] = {0}; int cursor = 0;
     char actual[64] = {0}; obtener_visor_preferido(actual, sizeof(actual));
     /* Prefill 'nuevo' with current value */
-    if (actual[0] != '\0') strncpy(nuevo, actual, sizeof(nuevo)-1);
+    if (actual[0] != '\0')
+    {
+        (void)strncpy_s(nuevo, sizeof(nuevo), actual, _TRUNCATE);
+        cursor = (int)strlen_s(nuevo, sizeof(nuevo));
+    }
 
     while (!WindowShouldClose())
     {

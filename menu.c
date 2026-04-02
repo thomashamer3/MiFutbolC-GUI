@@ -58,62 +58,62 @@ static void abrir_modulo_gui(const char *modulo, const char *mensaje_ingreso, Me
 
 static void abrir_menu_equipos(void)
 {
-    abrir_modulo_gui("EQUIPOS", "Ingreso al modulo Equipos", menu_equipos);
+    abrir_modulo_gui("EQUIPOS", "Ingreso al modulo Equipos", &menu_equipos);
 }
 
 static void abrir_menu_partidos(void)
 {
-    abrir_modulo_gui("PARTIDOS", "Ingreso al modulo Partidos", menu_partidos);
+    abrir_modulo_gui("PARTIDOS", "Ingreso al modulo Partidos", &menu_partidos);
 }
 
 static void abrir_menu_lesiones(void)
 {
-    abrir_modulo_gui("LESIONES", "Ingreso al modulo Lesiones", menu_lesiones);
+    abrir_modulo_gui("LESIONES", "Ingreso al modulo Lesiones", &menu_lesiones);
 }
 
 static void abrir_menu_estadisticas(void)
 {
-    abrir_modulo_gui("ESTADISTICAS", "Ingreso al modulo Estadisticas", menu_estadisticas);
+    abrir_modulo_gui("ESTADISTICAS", "Ingreso al modulo Estadisticas", &menu_estadisticas);
 }
 
 static void abrir_menu_logros(void)
 {
-    abrir_modulo_gui("LOGROS", "Ingreso al modulo Logros", menu_logros);
+    abrir_modulo_gui("LOGROS", "Ingreso al modulo Logros", &menu_logros);
 }
 
 static void abrir_menu_financiamiento(void)
 {
-    abrir_modulo_gui("FINANCIAMIENTO", "Ingreso al modulo Financiamiento", menu_financiamiento);
+    abrir_modulo_gui("FINANCIAMIENTO", "Ingreso al modulo Financiamiento", &menu_financiamiento);
 }
 
 static void abrir_menu_torneos(void)
 {
-    abrir_modulo_gui("TORNEOS", "Ingreso al modulo Torneos", menu_torneos);
+    abrir_modulo_gui("TORNEOS", "Ingreso al modulo Torneos", &menu_torneos);
 }
 
 static void abrir_menu_temporadas(void)
 {
-    abrir_modulo_gui("TEMPORADA", "Ingreso al modulo Temporada", menu_temporadas);
+    abrir_modulo_gui("TEMPORADA", "Ingreso al modulo Temporada", &menu_temporadas);
 }
 
 static void abrir_menu_analisis(void)
 {
-    abrir_modulo_gui("ANALISIS", "Ingreso al modulo Analisis", mostrar_analisis);
+    abrir_modulo_gui("ANALISIS", "Ingreso al modulo Analisis", &mostrar_analisis);
 }
 
 static void abrir_menu_bienestar(void)
 {
-    abrir_modulo_gui("BIENESTAR", "Ingreso al modulo Bienestar", menu_bienestar);
+    abrir_modulo_gui("BIENESTAR", "Ingreso al modulo Bienestar", &menu_bienestar);
 }
 
 static void abrir_menu_settings(void)
 {
-    abrir_modulo_gui("SETTINGS", "Ingreso al modulo Ajustes", menu_settings);
+    abrir_modulo_gui("SETTINGS", "Ingreso al modulo Ajustes", &menu_settings);
 }
 
 static void abrir_menu_carrera(void)
 {
-    abrir_modulo_gui("CARRERA", "Ingreso al modulo Carrera Futbolistica", menu_carrera_futbolistica);
+    abrir_modulo_gui("CARRERA", "Ingreso al modulo Carrera Futbolistica", &menu_carrera_futbolistica);
 }
 
 static const MenuItem MENU_ITEMS[] =

@@ -97,11 +97,20 @@ void gui_draw_footer_hint(const char *text, float x, int screen_height);
 
 /* ── Lista virtualizada ────────────────────────────────── */
 
+typedef struct
+{
+    const MenuItem *items;
+    int item_count;
+    const int *visible_indices;
+    int visible_count;
+    int selected_global;
+    float scroll_smooth;
+    int row_h;
+    const QueryTokens *tokens;
+} GuiListDrawContext;
+
 GuiListResult gui_list_draw(const GuiState *st, Rectangle area,
-                            const MenuItem *items, int item_count,
-                            const int *visible_indices, int visible_count,
-                            int selected_global, float scroll_smooth,
-                            int row_h, const QueryTokens *tokens);
+                            const GuiListDrawContext *ctx);
 
 /* ── Layout escalado ───────────────────────────────────── */
 

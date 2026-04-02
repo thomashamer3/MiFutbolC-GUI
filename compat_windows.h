@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <time.h>
+#include <errno.h>
 
 typedef unsigned long DWORD;
 typedef unsigned short WORD;
@@ -57,7 +59,7 @@ static inline BOOL SetConsoleTextAttribute(HANDLE hConsoleOutput, WORD wAttribut
     return TRUE;
 }
 
-static inline BOOL GetCurrentConsoleFontEx(HANDLE hConsoleOutput, BOOL bMaximumWindow, CONSOLE_FONT_INFOEX *lpConsoleCurrentFontEx)
+static inline BOOL GetCurrentConsoleFontEx(HANDLE hConsoleOutput, BOOL bMaximumWindow, CONSOLE_FONT_INFOEX const *lpConsoleCurrentFontEx)
 {
     (void)hConsoleOutput;
     (void)bMaximumWindow;
@@ -65,7 +67,7 @@ static inline BOOL GetCurrentConsoleFontEx(HANDLE hConsoleOutput, BOOL bMaximumW
     return FALSE;
 }
 
-static inline BOOL SetCurrentConsoleFontEx(HANDLE hConsoleOutput, BOOL bMaximumWindow, CONSOLE_FONT_INFOEX *lpConsoleCurrentFontEx)
+static inline BOOL SetCurrentConsoleFontEx(HANDLE hConsoleOutput, BOOL bMaximumWindow, CONSOLE_FONT_INFOEX const *lpConsoleCurrentFontEx)
 {
     (void)hConsoleOutput;
     (void)bMaximumWindow;
@@ -87,7 +89,15 @@ static inline BOOL SetConsoleCP(unsigned int wCodePageID)
 
 static inline void Sleep(DWORD dwMilliseconds)
 {
-    usleep((useconds_t)dwMilliseconds * 1000U);
+    struct timespec req;
+
+    req.tv_sec = (time_t)(dwMilliseconds / 1000U);
+    req.tv_nsec = (long)((dwMilliseconds % 1000U) * 1000000UL);
+
+    while (nanosleep(&req, &req) == -1 && errno == EINTR)
+    {
+        /* Retry with remaining time after signal interruption. */
+    }
 }
 
 #endif /* COMPAT_WINDOWS_H */

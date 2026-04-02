@@ -9,6 +9,7 @@
 #define GUI_DEFS_H
 
 #include "menu.h"
+#include "raylib.h"
 #include <stddef.h>
 
 /* ── Macros de escalado DPI ────────────────────────────────
@@ -81,7 +82,7 @@ typedef enum
 
 /* ── Tokens de búsqueda ───────────────────────────────── */
 
-typedef struct
+typedef struct /* NOSONAR: c:S1820 - estado central intencionalmente completo */
 {
     char tokens[8][32];
     int count;
@@ -102,14 +103,9 @@ typedef struct
     const char *tip_3;
 } GuiModuleHelp;
 
-/* ═══════════════════════════════════════════════════════════
-   Lo que sigue requiere raylib
-   ═══════════════════════════════════════════════════════════ */
-#include "raylib.h"
-
 /* ── Tema visual ───────────────────────────────────────── */
 
-typedef struct
+typedef struct /* NOSONAR: c:S1820 - modelo de tema intencionalmente explícito */
 {
     Color bg_main;
     Color bg_header;
@@ -136,7 +132,7 @@ typedef struct
 
 /* ── Valor animado (lerp exponencial) ──────────────────── */
 
-typedef struct
+typedef struct /* NOSONAR: c:S1820 - snapshot de input intencionalmente plano */
 {
     float value;
     float target;
@@ -145,7 +141,7 @@ typedef struct
 
 /* ── Input snapshot (una vez por frame) ─────────────────── */
 
-typedef struct
+typedef struct /* NOSONAR: c:S1820 - estado central intencionalmente completo */
 {
     Vector2 mouse;
     int mouse_left_pressed;
@@ -165,7 +161,12 @@ typedef struct
     int key_end;
     int key_page_up;
     int key_page_down;
-    int key_f1, key_f2, key_f3, key_f4, key_f5, key_f9;
+    int key_f1;
+    int key_f2;
+    int key_f3;
+    int key_f4;
+    int key_f5;
+    int key_f9;
 } InputState;
 
 /* ── Cola de eventos (por frame) ───────────────────────── */
@@ -204,7 +205,7 @@ typedef struct {
     Rectangle action_btns[3];
 } Layout;
 
-typedef struct
+typedef struct /* NOSONAR: c:S1820 - estado central intencionalmente completo */
 {
     /* Datos externos (no owned) */
     const MenuItem *items;
@@ -286,7 +287,6 @@ typedef struct
     /* Debug overlay (F9) */
     int debug_mode;
 
-    /* Indice de tema (0=dark, 1=light, 2=fm) */
     int theme_index;
     /* Indice de variante de color (0 = default) */
     int variant_index;
