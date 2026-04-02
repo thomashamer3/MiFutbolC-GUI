@@ -1,0 +1,7 @@
+Wed Apr 01 21:45:59 2026: build-wrapper, version 6.79.1 (win-x86-64)
+Wed Apr 01 21:45:59 2026: isWow64: 0
+Wed Apr 01 21:45:59 2026: windows version: 10.0, service pack: 0.0, build number: 26200, product type: 1
+Wed Apr 01 21:45:59 2026: current directory: D:\ANIME\Libros\Lenguaje C\Proyectos\MiFutbolC-GUI
+Wed Apr 01 21:45:59 2026: cwd: <D:\ANIME\Libros\Lenguaje C\Proyectos\MiFutbolC-GUI>
+Wed Apr 01 21:45:59 2026: out-dir absolute path: <D:\ANIME\Libros\Lenguaje C\Proyectos\MiFutbolC-GUI\build_wrapper_output_directory>
+Wed Apr 01 21:45:59 2026: command line received: <MSBuild.exe /t:Rebuild /nodeReuse:False>
