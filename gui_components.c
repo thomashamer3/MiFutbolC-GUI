@@ -1754,6 +1754,22 @@ Rectangle gui_lay_split_v(Rectangle parent, float ratio, Rectangle *bottom)
    Persistencia de preferencias (cJSON)
    ═══════════════════════════════════════════════════════════ */
 
+static FILE *gui_fopen_safe(const char *path, const char *mode)
+{
+    if (!path || !mode)
+        return NULL;
+#if defined(_MSC_VER)
+    {
+        FILE *f = NULL;
+        if (fopen_s(&f, path, mode) != 0)
+            return NULL;
+        return f;
+    }
+#else
+    return fopen(path, mode);
+#endif
+}
+
 void gui_prefs_save(const GuiState *st)
 {
     cJSON *root = cJSON_CreateObject();
@@ -1765,7 +1781,7 @@ void gui_prefs_save(const GuiState *st)
     cJSON_AddNumberToObject(root, "last_selected", st->selected_global);
     char *json = cJSON_Print(root);
     if (json) {
-        FILE *f = fopen("gui_prefs.json", "w");
+        FILE *f = gui_fopen_safe("gui_prefs.json", "w");
         if (f) { fprintf(f, "%s", json); fclose(f); }
         free(json);
     }
@@ -1798,13 +1814,13 @@ static int gui_clamp_int(int v, int lo, int hi)
 void gui_prefs_load(GuiState *st)
 {
     int v = 0;
-    FILE *f = fopen("gui_prefs.json", "r");
+    FILE *f = gui_fopen_safe("gui_prefs.json", "r");
     if (!f) return;
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz <= 0 || sz > 4096) { fclose(f); return; }
-    char *buf = (char *)malloc((size_t)sz + 1);
+    char *buf = malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return; }
     size_t rd = fread(buf, 1, (size_t)sz, f);
     buf[rd] = '\0';

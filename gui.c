@@ -96,15 +96,12 @@ static int gui_shutdown(GuiState *st, int action_code)
 static int gui_handle_post_frame_actions(GuiState *st, const MenuItem *items, int count)
 {
     /* Ejecutar directamente al pedir ejecucion (marca pending para confirmación/ejecución) */
-    if (gui_evt_has(&st->events, GUI_EVT_RUN_SELECTED) && !st->pending_run)
+    if (gui_evt_has(&st->events, GUI_EVT_RUN_SELECTED) && !st->pending_run && st->visible_count > 0)
     {
-        if (st->visible_count > 0)
-        {
-            st->pending_run = 1;
-            st->pending_global = st->selected_global;
-            snprintf(st->status_line, sizeof(st->status_line), "Ejecutando opcion %d", items[st->selected_global].opcion);
-            gui_state_set_toast(st, TextFormat("Ejecutando: %s", items[st->selected_global].texto ? items[st->selected_global].texto : "(sin texto)"), 0.45f);
-        }
+        st->pending_run = 1;
+        st->pending_global = st->selected_global;
+        snprintf(st->status_line, sizeof(st->status_line), "Ejecutando opcion %d", items[st->selected_global].opcion);
+        gui_state_set_toast(st, TextFormat("Ejecutando: %s", items[st->selected_global].texto ? items[st->selected_global].texto : "(sin texto)"), 0.45f);
     }
 
     /* Salir inmediatamente */

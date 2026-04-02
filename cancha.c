@@ -375,7 +375,7 @@ static void cancha_gui_handle_backspace(char *buffer, int *cursor)
         return;
     }
 
-    size_t len = strlen(buffer);
+    size_t len = strlen_s(buffer, SIZE_MAX);
     if (len > 0)
     {
         buffer[len - 1] = '\0';
