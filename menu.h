@@ -95,15 +95,6 @@ MenuItem *create_filtered_menu(int *count);
  */
 void run_menu(MenuItem *filtered_items, int count);
 
-/**
- * @brief Activa/desactiva la navegacion de menus con GUI Raylib.
- *
- * Cuando esta activo, ejecutar_menu() usa la interfaz grafica para
- * todos los submenus que se construyen con MenuItem.
- */
-void menu_set_gui_enabled(int enabled);
-int menu_is_gui_enabled(void);
-
 #ifdef UNIT_TEST
 typedef struct
 {

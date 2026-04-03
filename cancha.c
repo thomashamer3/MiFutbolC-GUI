@@ -334,20 +334,6 @@ static int construir_ruta_absoluta_imagen_cancha_por_id(int id, char *ruta_absol
     return db_resolve_image_absolute_path(ruta_db, ruta_absoluta, size);
 }
 
-static void solicitar_nombre_cancha(const char *prompt, char *buffer, int size)
-{
-    while (1)
-    {
-        input_string(prompt, buffer, size);
-        trim_whitespace(buffer);
-
-        if (buffer[0] != '\0')
-            return;
-
-        printf("El nombre no puede estar vacio.\n");
-    }
-}
-
 static int cargar_imagen_para_cancha_id(int id)
 {
     return app_cargar_imagen_entidad(id, "cancha", "mifutbol_imagen_sel_cancha.txt");
@@ -380,6 +366,114 @@ static void cancha_gui_handle_backspace(char *buffer, int *cursor)
     {
         buffer[len - 1] = '\0';
         *cursor = (int)len - 1;
+    }
+}
+
+static void cancha_gui_draw_input_caret(const char *text, Rectangle input_rect)
+{
+    int blink_on = (((int)(GetTime() * 2.0)) % 2) == 0;
+    if (!blink_on)
+    {
+        return;
+    }
+
+    Vector2 text_size = gui_text_measure(text ? text : "", 18.0f);
+    float caret_x = input_rect.x + 8.0f + text_size.x + 1.0f;
+    float caret_right_limit = input_rect.x + input_rect.width - 8.0f;
+    caret_x = (caret_x > caret_right_limit) ? caret_right_limit : caret_x;
+
+    DrawLineEx((Vector2){caret_x, input_rect.y + 7.0f},
+               (Vector2){caret_x, input_rect.y + input_rect.height - 7.0f},
+               2.0f,
+               (Color){241, 252, 244, 255});
+}
+
+static void cancha_gui_draw_action_toast(int sw, int sh, const char *msg, int success)
+{
+    int toast_w = 520;
+    int toast_h = 44;
+    int toast_x = (sw - toast_w) / 2;
+    int toast_y = sh - 120;
+    Color bg = success ? (Color){28, 94, 52, 240} : (Color){120, 45, 38, 240};
+
+    DrawRectangle(toast_x, toast_y, toast_w, toast_h, bg);
+    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198, 230, 205, 255});
+    gui_text(msg ? msg : "Operacion completada", (float)toast_x + 14.0f, (float)toast_y + 12.0f,
+             18.0f, (Color){241, 252, 244, 255});
+}
+
+static int cancha_gui_tick_toast(float *timer)
+{
+    if (!timer || *timer <= 0.0f)
+    {
+        return 0;
+    }
+
+    *timer -= GetFrameTime();
+    return *timer <= 0.0f;
+}
+
+static int cancha_gui_draw_action_button(Rectangle rect, const char *label, int primary)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    int hovered = CheckCollisionPointRec(GetMousePosition(), rect);
+    Color fill = primary ? theme->accent_primary : theme->bg_sidebar;
+    Color border = primary ? theme->accent_primary_hv : theme->border;
+    Color text = primary ? (Color){255, 255, 255, 255} : theme->text_primary;
+
+    if (hovered)
+    {
+        fill = primary ? theme->accent_primary_hv : theme->row_hover;
+    }
+
+    DrawRectangleRec(rect, fill);
+    DrawRectangleLinesEx(rect, 1.0f, border);
+
+    {
+        Vector2 m = gui_text_measure(label ? label : "", 18.0f);
+        float tx = rect.x + (rect.width - m.x) * 0.5f;
+        float ty = rect.y + (rect.height - m.y) * 0.5f;
+        gui_text(label ? label : "", tx, ty, 18.0f, text);
+    }
+
+    return hovered;
+}
+
+static void cancha_gui_button_rects(int panel_x, int panel_y, int panel_w, int panel_h,
+                                    Rectangle *btn_primary, Rectangle *btn_secondary)
+{
+    float btn_w = 168.0f;
+    float btn_h = 38.0f;
+    float y = (float)(panel_y + panel_h) - btn_h - 16.0f;
+    if (btn_primary)
+    {
+        *btn_primary = (Rectangle){(float)(panel_x + panel_w) - (btn_w * 2.0f) - 28.0f, y, btn_w, btn_h};
+    }
+    if (btn_secondary)
+    {
+        *btn_secondary = (Rectangle){(float)(panel_x + panel_w) - btn_w - 14.0f, y, btn_w, btn_h};
+    }
+}
+
+static void cancha_gui_show_action_feedback(const char *title, const char *msg, int success)
+{
+    float timer = 1.15f;
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(title ? title : "CANCHAS", sw);
+        cancha_gui_draw_action_toast(sw, sh, msg, success);
+        gui_draw_footer_hint("Continuando...", 40.0f, sh);
+        EndDrawing();
+
+        if (cancha_gui_tick_toast(&timer))
+        {
+            return;
+        }
     }
 }
 
@@ -544,6 +638,9 @@ static int crear_cancha_gui(void)
 {
     char nombre[128] = {0};
     int cursor = 0;
+    float toast_timer = 0.0f;
+    int toast_ok = 0;
+    char toast_msg[96] = {0};
 
     input_consume_key(KEY_ESCAPE);
     input_consume_key(KEY_ENTER);
@@ -575,8 +672,31 @@ static int crear_cancha_gui(void)
                            (Color){55, 100, 72, 255});
         gui_text(nombre, input_rect.x + 8.0f, input_rect.y + 8.0f, 18.0f, (Color){233, 247, 236, 255});
 
+        if (toast_timer <= 0.0f)
+        {
+            cancha_gui_draw_input_caret(nombre, input_rect);
+        }
+
+        if (toast_timer > 0.0f)
+        {
+            cancha_gui_draw_action_toast(sw, sh, toast_msg, toast_ok);
+        }
+
         gui_draw_footer_hint("ENTER: Guardar | ESC: Volver", (float)panel_x, sh);
         EndDrawing();
+
+        if (cancha_gui_tick_toast(&toast_timer))
+        {
+            if (toast_ok)
+            {
+                return 1;
+            }
+        }
+
+        if (toast_timer > 0.0f)
+        {
+            continue;
+        }
 
         cancha_gui_append_printable_ascii(nombre, &cursor, sizeof(nombre));
         cancha_gui_handle_backspace(nombre, &cursor);
@@ -595,7 +715,15 @@ static int crear_cancha_gui(void)
 
             if (nombre[0] != '\0' && guardar_nueva_cancha_gui(nombre, &id_nueva_cancha))
             {
-                return 1;
+                toast_ok = 1;
+                snprintf(toast_msg, sizeof(toast_msg), "Cancha creada correctamente");
+                toast_timer = 1.1f;
+            }
+            else if (nombre[0] != '\0')
+            {
+                toast_ok = 0;
+                snprintf(toast_msg, sizeof(toast_msg), "No se pudo crear la cancha");
+                toast_timer = 1.3f;
             }
         }
     }
@@ -625,10 +753,44 @@ static int guardar_nombre_editado_cancha_gui(int id, const char *nombre_nuevo)
     return 1;
 }
 
+static void cancha_gui_submit_editar_nombre(int id,
+                                            char *nombre_nuevo,
+                                            int *toast_ok,
+                                            char *toast_msg,
+                                            size_t toast_msg_size,
+                                            float *toast_timer)
+{
+    if (!nombre_nuevo || !toast_ok || !toast_msg || toast_msg_size == 0 || !toast_timer)
+    {
+        return;
+    }
+
+    trim_whitespace(nombre_nuevo);
+    if (nombre_nuevo[0] == '\0')
+    {
+        return;
+    }
+
+    if (guardar_nombre_editado_cancha_gui(id, nombre_nuevo))
+    {
+        *toast_ok = 1;
+        snprintf(toast_msg, toast_msg_size, "Cancha modificada correctamente");
+        *toast_timer = 1.1f;
+        return;
+    }
+
+    *toast_ok = 0;
+    snprintf(toast_msg, toast_msg_size, "No se pudo modificar la cancha");
+    *toast_timer = 1.3f;
+}
+
 static int modal_editar_nombre_cancha_gui(int id)
 {
     char nombre_nuevo[128] = {0};
     int cursor = 0;
+    float toast_timer = 0.0f;
+    int toast_ok = 0;
+    char toast_msg[96] = {0};
 
     input_consume_key(KEY_ESCAPE);
     input_consume_key(KEY_ENTER);
@@ -660,8 +822,28 @@ static int modal_editar_nombre_cancha_gui(int id)
                            (Color){55, 100, 72, 255});
         gui_text(nombre_nuevo, input_rect.x + 8.0f, input_rect.y + 8.0f, 18.0f, (Color){233, 247, 236, 255});
 
+        if (toast_timer <= 0.0f)
+        {
+            cancha_gui_draw_input_caret(nombre_nuevo, input_rect);
+        }
+
+        if (toast_timer > 0.0f)
+        {
+            cancha_gui_draw_action_toast(sw, sh, toast_msg, toast_ok);
+        }
+
         gui_draw_footer_hint("ENTER: Guardar | ESC: Volver", (float)panel_x, sh);
         EndDrawing();
+
+        if (cancha_gui_tick_toast(&toast_timer) && toast_ok)
+        {
+            return 1;
+        }
+
+        if (toast_timer > 0.0f)
+        {
+            continue;
+        }
 
         cancha_gui_append_printable_ascii(nombre_nuevo, &cursor, sizeof(nombre_nuevo));
         cancha_gui_handle_backspace(nombre_nuevo, &cursor);
@@ -675,12 +857,12 @@ static int modal_editar_nombre_cancha_gui(int id)
         if (IsKeyPressed(KEY_ENTER))
         {
             input_consume_key(KEY_ENTER);
-            trim_whitespace(nombre_nuevo);
-            if (nombre_nuevo[0] != '\0')
-            {
-                guardar_nombre_editado_cancha_gui(id, nombre_nuevo);
-                return 1;
-            }
+            cancha_gui_submit_editar_nombre(id,
+                                            nombre_nuevo,
+                                            &toast_ok,
+                                            toast_msg,
+                                            sizeof(toast_msg),
+                                            &toast_timer);
         }
     }
 
@@ -734,21 +916,45 @@ static int modal_confirmar_eliminar_cancha_gui(int id)
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 700 : sw - 40;
+        int panel_h = 210;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_confirm;
+        Rectangle btn_cancel;
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        const GuiTheme *theme = gui_get_active_theme();
+
+        cancha_gui_button_rects(panel_x, panel_y, panel_w, panel_h, &btn_confirm, &btn_cancel);
 
         BeginDrawing();
-        ClearBackground((Color){14, 27, 20, 255});
+        ClearBackground(theme->bg_main);
         gui_draw_module_header("CONFIRMAR ELIMINACION", sw);
-        gui_text(TextFormat("Eliminar cancha %d?", id), 80.0f, 140.0f, 28.0f, (Color){241, 252, 244, 255});
-        gui_draw_footer_hint("Y: confirmar | N o ESC: cancelar", 80.0f, sh);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
+
+        gui_text(TextFormat("Eliminar cancha ID %d?", id), (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f, 24.0f, theme->text_primary);
+        gui_text("Usa botones o teclas ENTER/ESC", (float)panel_x + 24.0f,
+                 (float)panel_y + 92.0f, 18.0f, theme->text_secondary);
+
+        cancha_gui_draw_action_button(btn_confirm, "Eliminar", 1);
+        cancha_gui_draw_action_button(btn_cancel, "Cancelar", 0);
+
+        gui_draw_footer_hint("Esta accion no se puede deshacer", (float)panel_x, sh);
         EndDrawing();
 
-        if (IsKeyPressed(KEY_Y))
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_confirm)) ||
+            IsKeyPressed(KEY_Y) || IsKeyPressed(KEY_ENTER))
         {
             input_consume_key(KEY_Y);
+            input_consume_key(KEY_ENTER);
             return eliminar_cancha_por_id_gui(id);
         }
 
-        if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE))
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) ||
+            IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE))
         {
             input_consume_key(KEY_N);
             input_consume_key(KEY_ESCAPE);
@@ -774,8 +980,11 @@ static int eliminar_cancha_gui(void)
 
     if (!modal_confirmar_eliminar_cancha_gui(id))
     {
+        cancha_gui_show_action_feedback("ELIMINAR CANCHA", "Eliminacion cancelada", 0);
         return 1;
     }
+
+    cancha_gui_show_action_feedback("ELIMINAR CANCHA", "Cancha eliminada correctamente", 1);
 
     return 1;
 }
@@ -801,7 +1010,14 @@ static int cargar_imagen_cancha_gui(void)
 
     if (id > 0)
     {
-        cargar_imagen_para_cancha_id(id);
+        if (cargar_imagen_para_cancha_id(id))
+        {
+            cancha_gui_show_action_feedback("CARGAR IMAGEN", "Imagen cargada correctamente", 1);
+        }
+        else
+        {
+            cancha_gui_show_action_feedback("CARGAR IMAGEN", "No se pudo cargar la imagen", 0);
+        }
     }
 
     return 1;
@@ -817,7 +1033,14 @@ static int ver_imagen_cancha_gui(void)
 
     if (id > 0)
     {
-        abrir_imagen_cancha_por_id_gui(id);
+        if (abrir_imagen_cancha_por_id_gui(id))
+        {
+            cancha_gui_show_action_feedback("VER IMAGEN", "Imagen abierta correctamente", 1);
+        }
+        else
+        {
+            cancha_gui_show_action_feedback("VER IMAGEN", "No se pudo abrir la imagen", 0);
+        }
     }
 
     return 1;
@@ -825,91 +1048,12 @@ static int ver_imagen_cancha_gui(void)
 
 void cargar_imagen_cancha()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (cargar_imagen_cancha_gui())
-            return;
-    }
-
-    mostrar_pantalla("CARGAR IMAGEN DE CANCHA");
-
-    if (!hay_registros("cancha"))
-    {
-        mostrar_no_hay_registros("canchas");
-        pause_console();
-        return;
-    }
-
-    listar_canchas();
-    int id = input_int("\nID de cancha (0 para cancelar): ");
-    if (id == 0)
-    {
-        return;
-    }
-
-    if (!existe_id("cancha", id))
-    {
-        printf("ID inexistente.\n");
-        pause_console();
-        return;
-    }
-
-    if (!cargar_imagen_para_cancha_id(id))
-    {
-        printf("No se pudo completar la carga de imagen.\n");
-    }
-
-    pause_console();
+    (void)cargar_imagen_cancha_gui();
 }
 
 void ver_imagen_cancha()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (ver_imagen_cancha_gui())
-            return;
-    }
-
-    mostrar_pantalla("VER IMAGEN DE CANCHA");
-
-    if (!hay_registros("cancha"))
-    {
-        mostrar_no_hay_registros("canchas");
-        pause_console();
-        return;
-    }
-
-    listar_canchas();
-    int id = input_int("\nID de cancha (0 para cancelar): ");
-    if (id == 0)
-    {
-        return;
-    }
-
-    if (!existe_id("cancha", id))
-    {
-        printf("ID inexistente.\n");
-        pause_console();
-        return;
-    }
-
-    char ruta_absoluta[1200] = {0};
-    if (!construir_ruta_absoluta_imagen_cancha_por_id(id, ruta_absoluta, sizeof(ruta_absoluta)))
-    {
-        printf("No se encontro imagen cargada para esa cancha.\n");
-        pause_console();
-        return;
-    }
-
-    if (!abrir_imagen_en_sistema(ruta_absoluta))
-    {
-        printf("No se pudo abrir la imagen en el sistema.\n");
-        pause_console();
-        return;
-    }
-
-    printf("Abriendo imagen...\n");
-    pause_console();
+    (void)ver_imagen_cancha_gui();
 }
 
 
@@ -922,51 +1066,7 @@ void ver_imagen_cancha()
  */
 void crear_cancha()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (crear_cancha_gui())
-            return;
-    }
-
-    char nombre[100];
-    solicitar_nombre_cancha("Nombre de la cancha: ", nombre, sizeof(nombre));
-
-    long long id = obtener_siguiente_id("cancha");
-
-    sqlite3_stmt *stmt;
-    if (!preparar_stmt(&stmt, "INSERT INTO cancha(id, nombre) VALUES(?, ?)") )
-    {
-        printf("Error al crear la cancha.\n");
-        pause_console();
-        return;
-    }
-
-    sqlite3_bind_int(stmt, 1, (int)id);
-    sqlite3_bind_text(stmt, 2, nombre, -1, SQLITE_TRANSIENT);
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if (rc == SQLITE_DONE)
-    {
-        char log_msg[256];
-        snprintf(log_msg, sizeof(log_msg), "Creada cancha id=%lld nombre=%.180s", id, nombre);
-        app_log_event("CANCHA", log_msg);
-        if (confirmar("Desea cargar imagen para esta cancha ahora?") &&
-                !cargar_imagen_para_cancha_id((int)id))
-        {
-            printf("No se pudo cargar la imagen en este momento.\n");
-        }
-        printf("Cancha creada correctamente\n");
-    }
-    else
-    {
-        char log_msg[256];
-        snprintf(log_msg, sizeof(log_msg), "Error al crear cancha nombre=%.180s", nombre);
-        app_log_event("CANCHA", log_msg);
-        printf("Error al crear la cancha.\n");
-    }
-
-    pause_console();
+    (void)crear_cancha_gui();
 }
 
 /**
@@ -979,13 +1079,7 @@ void listar_canchas()
 {
     app_log_event("CANCHA", "Listado de canchas consultado");
 
-    if (menu_is_gui_enabled())
-    {
-        if (listar_canchas_gui())
-            return;
-    }
-
-    listar_entidades("cancha", "LISTADO DE CANCHAS", "No hay canchas cargadas.");
+    (void)listar_canchas_gui();
 }
 
 /**
@@ -996,49 +1090,7 @@ void listar_canchas()
  */
 void eliminar_cancha()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (eliminar_cancha_gui())
-            return;
-    }
-
-    mostrar_pantalla("ELIMINAR CANCHA");
-
-    if (!hay_registros("cancha"))
-    {
-        mostrar_no_hay_registros("canchas");
-        pause_console();
-        return;
-    }
-
-    listar_canchas();
-    printf("\n");
-
-    int id = input_int("ID Cancha a Eliminar (0 para cancelar): ");
-
-    if (!existe_id("cancha", id))
-    {
-        mostrar_no_existe("cancha");
-        return;
-    }
-
-    if (!confirmar("Seguro que desea eliminar esta cancha?"))
-        return;
-
-    sqlite3_stmt *stmt;
-    if (!preparar_stmt(&stmt, "DELETE FROM cancha WHERE id = ?"))
-    {
-        printf("Error al eliminar la cancha.\n");
-        pause_console();
-        return;
-    }
-
-    sqlite3_bind_int(stmt, 1, id);
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    printf("Cancha Eliminada Correctamente\n");
-    pause_console();
+    (void)eliminar_cancha_gui();
 }
 
 /**
@@ -1049,53 +1101,7 @@ void eliminar_cancha()
  */
 void modificar_cancha()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (modificar_cancha_gui())
-            return;
-    }
-
-    mostrar_pantalla("MODIFICAR CANCHA");
-
-    if (!hay_registros("cancha"))
-    {
-        mostrar_no_hay_registros("canchas");
-        pause_console();
-        return;
-    }
-
-    listar_canchas();
-    printf("\n");
-
-    int id = input_int("ID Cancha a Modificar (0 para cancelar): ");
-    if (id == 0)
-        return;
-
-    if (!existe_id("cancha", id))
-    {
-        mostrar_no_existe("cancha");
-        return;
-    }
-
-    char nombre[100];
-    solicitar_nombre_cancha("Nuevo nombre de la cancha: ", nombre, sizeof(nombre));
-
-    sqlite3_stmt *stmt;
-    if (!preparar_stmt(&stmt, "UPDATE cancha SET nombre = ? WHERE id = ?"))
-    {
-        printf("Error al modificar la cancha.\n");
-        pause_console();
-        return;
-    }
-
-    sqlite3_bind_text(stmt, 1, nombre, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 2, id);
-
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    printf("Cancha Modificada Correctamente\n");
-    pause_console();
+    (void)modificar_cancha_gui();
 }
 
 /**

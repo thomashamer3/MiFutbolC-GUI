@@ -26,7 +26,7 @@ export.c export_all.c export_all_mejorado.c export_camisetas.c export_camisetas_
 import.c lesion.c logros.c main.c menu.c partido.c records_rankings.c pdfgen.c sqlite3.c utils.c equipo.c torneo.c temporada.c financiamiento.c settings.c entrenador_ia.c carrera.c input.c gui.c gui_components.c ^
 %RES_FILE% ^
 -LC:/msys64/mingw64/lib ^
--lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 ^
+-lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lcomdlg32 ^
 -Wl,--gc-sections ^
 -mwindows ^
 -o bin/Debug/MiFutbolC_GUI.exe

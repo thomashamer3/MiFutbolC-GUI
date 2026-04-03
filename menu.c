@@ -47,18 +47,17 @@ static void abrir_modulo_gui(const char *modulo, const char *mensaje_ingreso, Me
 
     app_log_event(modulo, mensaje_ingreso);
 
-    if (!menu_is_gui_enabled())
-    {
-        app_log_event("MENU", "Modo GUI reactivado automaticamente");
-        menu_set_gui_enabled(1);
-    }
-
     accion();
 }
 
 static void abrir_menu_equipos(void)
 {
     abrir_modulo_gui("EQUIPOS", "Ingreso al modulo Equipos", &menu_equipos);
+}
+
+static void abrir_menu_canchas(void)
+{
+    abrir_modulo_gui("CANCHAS", "Ingreso al modulo Canchas", &menu_canchas);
 }
 
 static void abrir_menu_partidos(void)
@@ -119,7 +118,7 @@ static void abrir_menu_carrera(void)
 static const MenuItem MENU_ITEMS[] =
 {
     {1, "Camisetas", &menu_camisetas, MENU_CATEGORY_GESTION},
-    {2, "Canchas", &menu_canchas, MENU_CATEGORY_GESTION},
+    {2, "Canchas", &abrir_menu_canchas, MENU_CATEGORY_GESTION},
     {3, "Equipos", &abrir_menu_equipos, MENU_CATEGORY_GESTION},
     {4, "Partidos", &abrir_menu_partidos, MENU_CATEGORY_GESTION},
     {5, "Lesiones", &abrir_menu_lesiones, MENU_CATEGORY_GESTION},
@@ -138,30 +137,6 @@ static const MenuItem MENU_ITEMS[] =
 // Numero de items en el menu principal
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 static const size_t MENU_ITEM_COUNT = ARRAY_SIZE(MENU_ITEMS);
-static int g_gui_menus_enabled = 0;
-
-void menu_set_gui_enabled(int enabled)
-{
-    g_gui_menus_enabled = (enabled != 0);
-}
-
-int menu_is_gui_enabled(void)
-{
-    return g_gui_menus_enabled;
-}
-
-static const MenuItem *buscar_item(const MenuItem *items, int cantidad, int opcion)
-{
-    for (int i = 0; i < cantidad; i++)
-    {
-        if (items[i].opcion == opcion)
-        {
-            return &items[i];
-        }
-    }
-    return NULL;
-}
-
 
 #ifdef UNIT_TEST
 static MenuTestCapture *g_menu_test_capture = NULL;
@@ -178,7 +153,14 @@ const MenuItem *menu_get_items(void)
 
 const MenuItem *menu_buscar_item(const MenuItem *items, int cantidad, int opcion)
 {
-    return buscar_item(items, cantidad, opcion);
+    for (int i = 0; i < cantidad; i++)
+    {
+        if (items[i].opcion == opcion)
+        {
+            return &items[i];
+        }
+    }
+    return NULL;
 }
 
 void menu_test_set_capture(MenuTestCapture *capture)
@@ -315,31 +297,6 @@ static int manejar_captura_test_menu(const char *titulo, const MenuItem *items, 
 }
 #endif
 
-static void log_menu_opcion_invalida(const char *titulo, int opcion, char *log_msg, size_t log_size)
-{
-    snprintf(log_msg, log_size, "Menu %.120s -> opcion invalida: %d", menu_safe_title(titulo), opcion);
-    app_log_event("MENU", log_msg);
-}
-
-static int ejecutar_accion_menu(const char *titulo, const MenuItem *selected, char *log_msg, size_t log_size)
-{
-    snprintf(log_msg, log_size, "Menu %.120s -> opcion %d (%.120s)",
-             menu_safe_title(titulo),
-             selected->opcion,
-             selected->texto ? selected->texto : "(sin texto)");
-    app_log_event("MENU", log_msg);
-
-    if (!selected->accion)
-    {
-        snprintf(log_msg, log_size, "Salida del menu: %.180s", menu_safe_title(titulo));
-        app_log_event("MENU", log_msg);
-        return 0;
-    }
-
-    selected->accion();
-    return 1;
-}
-
 static int ejecutar_opcion_gui_seleccionada(const MenuItem *items, int cantidad, int selected_index)
 {
     if (selected_index < 0 || selected_index >= cantidad)
@@ -380,40 +337,6 @@ static void ejecutar_menu_gui(const char *titulo, const MenuItem *items, int can
     }
 }
 
-static int procesar_iteracion_menu_consola(const char *titulo,
-                                           const MenuItem *items,
-                                           int cantidad,
-                                           char *log_msg,
-                                           size_t log_size)
-{
-    clear_screen();
-    print_header(titulo);
-
-    for (int i = 0; i < cantidad; i++)
-    {
-        printf("%d.%s\n", items[i].opcion, items[i].texto);
-    }
-
-    int opcion = input_int(">");
-    if (opcion == -1)
-    {
-        snprintf(log_msg, log_size,
-                 "Menu %.120s -> entrada no valida repetida/EOF, salida preventiva",
-                 menu_safe_title(titulo));
-        app_log_event("MENU", log_msg);
-        return 0;
-    }
-
-    const MenuItem *selected = buscar_item(items, cantidad, opcion);
-    if (!selected)
-    {
-        log_menu_opcion_invalida(titulo, opcion, log_msg, log_size);
-        return 1;
-    }
-
-    return ejecutar_accion_menu(titulo, selected, log_msg, log_size);
-}
-
 /**
  * @brief Ejecuta un menu interactivo en la consola
  *
@@ -428,19 +351,5 @@ void ejecutar_menu(const char *titulo, const MenuItem *items, int cantidad)
         return;
 #endif
 
-    if (g_gui_menus_enabled)
-    {
-        ejecutar_menu_gui(titulo, items, cantidad);
-        return;
-    }
-
-    char log_msg[512];
-    snprintf(log_msg, sizeof(log_msg), "Ingreso al menu: %.180s", menu_safe_title(titulo));
-    app_log_event("MENU", log_msg);
-
-    while (1)
-    {
-        if (!procesar_iteracion_menu_consola(titulo, items, cantidad, log_msg, sizeof(log_msg)))
-            return;
-    }
+    ejecutar_menu_gui(titulo, items, cantidad);
 }

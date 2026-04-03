@@ -4,6 +4,7 @@
  */
 #include "gui_components.h"
 #include "gui_config.h"
+#include "utils.h"
 
 #include "cJSON.h"
 #include <ctype.h>

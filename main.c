@@ -136,6 +136,5 @@ int main(int argc, char **argv)
     int count;
     MenuItem* filtered_items = create_filtered_menu(&count);
 
-    menu_set_gui_enabled(1);
     return run_gui_flow(filtered_items, count);
 }

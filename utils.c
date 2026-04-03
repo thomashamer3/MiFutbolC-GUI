@@ -35,6 +35,7 @@
 #define MKDIR(path) _mkdir(path)
 #ifdef _WIN32
 #include <windows.h>
+#include <commdlg.h>
 #else
 #include "compat_windows.h"
 #endif
@@ -3279,35 +3280,6 @@ void extraer_estadistica_anio(sqlite3_stmt *stmt, EstadisticaAnio *stats)
     stats->avg_asistencias = sqlite3_column_double(stmt, 6);
 }
 
-static void app_escape_single_quotes_ps(const char *src, char *dst, size_t dst_size)
-{
-    if (!src || !dst || dst_size == 0)
-    {
-        return;
-    }
-
-    size_t j = 0;
-    const char *p = src;
-    while (*p != '\0' && j + 1 < dst_size)
-    {
-        if (*p == '\'')
-        {
-            if (j + 2 >= dst_size)
-            {
-                break;
-            }
-            dst[j++] = '\'';
-            dst[j++] = '\'';
-        }
-        else
-        {
-            dst[j++] = *p;
-        }
-        p++;
-    }
-    dst[j] = '\0';
-}
-
 int app_command_exists(const char *cmd)
 {
     if (!cmd || cmd[0] == '\0')
@@ -3402,39 +3374,7 @@ int app_optimize_image_file(const char *source_path, const char *dest_path)
             return 1;
         }
     }
-
-    char src_ps[2200] = {0};
-    char dst_ps[2200] = {0};
-    app_escape_single_quotes_ps(source_path, src_ps, sizeof(src_ps));
-    app_escape_single_quotes_ps(dest_path, dst_ps, sizeof(dst_ps));
-
-    char cmd_ps[9000];
-    snprintf(cmd_ps,
-             sizeof(cmd_ps),
-             "powershell -NoProfile -Command \"$ErrorActionPreference='Stop';"
-             "Add-Type -AssemblyName System.Drawing;"
-             "$src='%s';$dst='%s';"
-             "$img=[System.Drawing.Image]::FromFile($src);"
-             "try{"
-             "$max=1280;$w=$img.Width;$h=$img.Height;"
-             "if($w -gt $h){$nw=[Math]::Min($w,$max);$nh=[int]($h*$nw/$w)}"
-             "else{$nh=[Math]::Min($h,$max);$nw=[int]($w*$nh/$h)};"
-             "$bmp=New-Object System.Drawing.Bitmap $nw,$nh;"
-             "$g=[System.Drawing.Graphics]::FromImage($bmp);"
-             "$g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic;"
-             "$g.SmoothingMode=[System.Drawing.Drawing2D.SmoothingMode]::HighQuality;"
-             "$g.PixelOffsetMode=[System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality;"
-             "$g.DrawImage($img,0,0,$nw,$nh);"
-             "$enc=[System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders()|Where-Object{$_.MimeType -eq 'image/jpeg'}|Select-Object -First 1;"
-             "$ep=New-Object System.Drawing.Imaging.EncoderParameters 1;"
-             "$ep.Param[0]=New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality,92L);"
-             "$bmp.Save($dst,$enc,$ep);"
-             "$g.Dispose();$bmp.Dispose();"
-             "}finally{$img.Dispose()}\"",
-             src_ps,
-             dst_ps);
-
-    return system(cmd_ps) == 0;
+    return 0;
 #else
     char cmd[2600];
     if (app_command_exists("magick"))
@@ -3506,36 +3446,48 @@ int app_select_image_from_user(char *ruta_origen, size_t size, const char *temp_
     }
 
 #ifdef _WIN32
-    const char *archivo_temp = temp_filename ? temp_filename : "mifutbol_imagen_sel.txt";
-    remove(archivo_temp);
+    (void)temp_filename;
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd),
-             "powershell -NoProfile -Command \"Add-Type -AssemblyName System.Windows.Forms; "
-             "$dlg = New-Object System.Windows.Forms.OpenFileDialog; "
-             "$dlg.InitialDirectory = [System.IO.Path]::Combine($env:USERPROFILE, 'Downloads'); "
-             "$dlg.Filter = 'Imagenes|*.jpg;*.jpeg;*.png;*.bmp;*.webp|Todos|*.*'; "
-             "if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [System.IO.File]::WriteAllText('%s', $dlg.FileName) }\"",
-             archivo_temp);
+    OPENFILENAMEA ofn;
+    char selected_path[MAX_PATH] = {0};
+    char initial_dir[MAX_PATH] = {0};
+    char cwd_before[MAX_PATH] = {0};
+    DWORD cwd_len = GetCurrentDirectoryA((DWORD)sizeof(cwd_before), cwd_before);
 
-    int rc = system(cmd);
-    (void)rc;
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = selected_path;
+    ofn.nMaxFile = (DWORD)sizeof(selected_path);
+    ofn.lpstrFilter = "Imagenes\0*.jpg;*.jpeg;*.png;*.bmp;*.webp\0Todos\0*.*\0\0";
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+    ofn.lpstrTitle = "Seleccionar imagen";
 
-    FILE *f = NULL;
-    if (fopen_s(&f, archivo_temp, "r") != 0 || !f)
+    if (GetEnvironmentVariableA("USERPROFILE", initial_dir, (DWORD)sizeof(initial_dir)) > 0)
+    {
+        ofn.lpstrInitialDir = initial_dir;
+    }
+
+    if (!GetOpenFileNameA(&ofn))
+    {
+        if (cwd_len > 0 && cwd_len < (DWORD)sizeof(cwd_before))
+        {
+            SetCurrentDirectoryA(cwd_before);
+        }
+        return 0;
+    }
+
+    if (cwd_len > 0 && cwd_len < (DWORD)sizeof(cwd_before))
+    {
+        SetCurrentDirectoryA(cwd_before);
+    }
+
+    if (strncpy_s(ruta_origen, size, selected_path, _TRUNCATE) != 0)
     {
         return 0;
     }
 
-    if (!fgets(ruta_origen, (int)size, f))
-    {
-        fclose(f);
-        remove(archivo_temp);
-        return 0;
-    }
-
-    fclose(f);
-    remove(archivo_temp);
     trim_whitespace(ruta_origen);
     return ruta_origen[0] != '\0';
 #else

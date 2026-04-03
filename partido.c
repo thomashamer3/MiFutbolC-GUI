@@ -841,33 +841,7 @@ static int listar_partidos_gui(void)
 
 void listar_partidos()
 {
-    if (menu_is_gui_enabled())
-    {
-        if (listar_partidos_gui())
-            return;
-    }
-    clear_screen();
-    print_header("LISTADO DE PARTIDOS");
-
-    sqlite3_stmt *stmt;
-    if (!preparar_stmt(
-                "SELECT p.id, can.nombre, fecha_hora, goles, asistencias, c.nombre, resultado, rendimiento_general, cansancio, estado_animo, comentario_personal, clima, dia, precio "
-                "FROM partido p JOIN camiseta c ON p.camiseta_id = c.id "
-                "JOIN cancha can ON p.cancha_id = can.id ORDER BY p.id ASC",
-                &stmt))
-    {
-        pause_console();
-        return;
-    }
-
-
-    int hay = mostrar_partidos_desde_stmt(stmt);
-
-    if (!hay)
-        ui_printf_centered_line("No hay partidos cargados.");
-
-    sqlite3_finalize(stmt);
-    pause_console();
+    (void)listar_partidos_gui();
 }
 
 /**

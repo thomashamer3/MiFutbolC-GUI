@@ -20,7 +20,7 @@ CFLAGS += -I. -include compat_port.h
 LDFLAGS ?= -lhpdf -lz -lpng -lm
 
 ifeq ($(OS),Windows_NT)
-  GUI_LDFLAGS ?= -lraylib -lopengl32 -lgdi32 -lwinmm
+  GUI_LDFLAGS ?= -lraylib -lopengl32 -lgdi32 -lwinmm -lcomdlg32
 else
   GUI_CFLAGS ?= $(shell pkg-config --cflags raylib 2>/dev/null)
   GUI_LDFLAGS ?= $(shell pkg-config --libs raylib 2>/dev/null)
