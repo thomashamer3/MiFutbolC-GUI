@@ -22,6 +22,7 @@ int run_raylib_gui(const MenuItem *items, int count);
 int gui_get_last_selected_index(void);
 int gui_is_compiled(void);
 void gui_set_context_title(const char *title);
+const char *gui_get_context_title(void);
 void gui_request_escape_cooldown(void);
 
 #endif

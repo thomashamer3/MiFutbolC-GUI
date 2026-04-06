@@ -1508,6 +1508,11 @@ void gui_set_context_title(const char *title)
     snprintf(g_context_title, sizeof(g_context_title), "%s", title);
 }
 
+const char *gui_get_context_title(void)
+{
+    return g_context_title;
+}
+
 void gui_request_escape_cooldown(void)
 {
     g_ignore_escape_frames = 1;

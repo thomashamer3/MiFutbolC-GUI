@@ -49,6 +49,10 @@ static void abrir_modulo_gui(const char *modulo, const char *mensaje_ingreso, Me
 
     accion();
 }
+static void abrir_menu_camisetas(void)
+{
+    abrir_modulo_gui("CAMISETAS", "Ingreso al modulo Camisetas", &menu_camisetas);
+}
 
 static void abrir_menu_equipos(void)
 {
@@ -116,23 +120,22 @@ static void abrir_menu_carrera(void)
 }
 
 static const MenuItem MENU_ITEMS[] =
-{
-    {1, "Camisetas", &menu_camisetas, MENU_CATEGORY_GESTION},
-    {2, "Canchas", &abrir_menu_canchas, MENU_CATEGORY_GESTION},
-    {3, "Equipos", &abrir_menu_equipos, MENU_CATEGORY_GESTION},
-    {4, "Partidos", &abrir_menu_partidos, MENU_CATEGORY_GESTION},
-    {5, "Lesiones", &abrir_menu_lesiones, MENU_CATEGORY_GESTION},
-    {6, "Estadisticas", &abrir_menu_estadisticas, MENU_CATEGORY_ANALISIS},
-    {7, "Logros", &abrir_menu_logros, MENU_CATEGORY_ANALISIS},
-    {9, "Financiamiento", &abrir_menu_financiamiento, MENU_CATEGORY_ADMIN},
-    {10, "Torneos", &abrir_menu_torneos, MENU_CATEGORY_COMPETENCIA},
-    {11, "Temporada", &abrir_menu_temporadas, MENU_CATEGORY_COMPETENCIA},
-    {12, "Analisis", &abrir_menu_analisis, MENU_CATEGORY_ANALISIS},
-    {13, "Bienestar", &abrir_menu_bienestar, MENU_CATEGORY_ANALISIS},
-    {14, "Carrera Futbolistica", &abrir_menu_carrera, MENU_CATEGORY_COMPETENCIA},
-    {15, "Ajustes", &abrir_menu_settings, MENU_CATEGORY_ADMIN},
-    {0, "Salir", NULL, MENU_CATEGORY_ADMIN}
-};
+    {
+        {1, "Camisetas", &menu_camisetas, MENU_CATEGORY_GESTION},
+        {2, "Canchas", &abrir_menu_canchas, MENU_CATEGORY_GESTION},
+        {3, "Equipos", &abrir_menu_equipos, MENU_CATEGORY_GESTION},
+        {4, "Partidos", &abrir_menu_partidos, MENU_CATEGORY_GESTION},
+        {5, "Lesiones", &abrir_menu_lesiones, MENU_CATEGORY_GESTION},
+        {6, "Estadisticas", &abrir_menu_estadisticas, MENU_CATEGORY_ANALISIS},
+        {7, "Logros", &abrir_menu_logros, MENU_CATEGORY_ANALISIS},
+        {9, "Financiamiento", &abrir_menu_financiamiento, MENU_CATEGORY_ADMIN},
+        {10, "Torneos", &abrir_menu_torneos, MENU_CATEGORY_COMPETENCIA},
+        {11, "Temporada", &abrir_menu_temporadas, MENU_CATEGORY_COMPETENCIA},
+        {12, "Analisis", &abrir_menu_analisis, MENU_CATEGORY_ANALISIS},
+        {13, "Bienestar", &abrir_menu_bienestar, MENU_CATEGORY_ANALISIS},
+        {14, "Carrera Futbolistica", &abrir_menu_carrera, MENU_CATEGORY_COMPETENCIA},
+        {15, "Ajustes", &abrir_menu_settings, MENU_CATEGORY_ADMIN},
+        {0, "Salir", NULL, MENU_CATEGORY_ADMIN}};
 
 // Numero de items en el menu principal
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -193,7 +196,6 @@ void initialize_application()
 
     settings_init();
     app_log_event("APP", "Aplicacion iniciada");
-
 }
 
 /**
@@ -201,7 +203,7 @@ void initialize_application()
  */
 void handle_user_name()
 {
-    char* nombre_usuario;
+    char *nombre_usuario;
     char buffer[256];
 
     nombre_usuario = get_user_name();
@@ -227,11 +229,11 @@ void handle_user_name()
 /**
  * @brief Crea el menu filtrado dinamicamente
  */
-MenuItem* create_filtered_menu(int* count)
+MenuItem *create_filtered_menu(int *count)
 {
     *count = (int)MENU_ITEM_COUNT;
 
-    MenuItem* filtered_items = (MenuItem*)calloc((size_t)(*count), sizeof(MenuItem));
+    MenuItem *filtered_items = (MenuItem *)calloc((size_t)(*count), sizeof(MenuItem));
     if (!filtered_items)
     {
         printf("Error de memoria\n");
@@ -253,7 +255,7 @@ MenuItem* create_filtered_menu(int* count)
 /**
  * @brief Ejecuta el menu principal y libera recursos
  */
-void run_menu(MenuItem* filtered_items, int count)
+void run_menu(MenuItem *filtered_items, int count)
 {
     ejecutar_menu_estandar(get_text("menu_title"), filtered_items, count);
     free(filtered_items);
@@ -313,10 +315,9 @@ static int ejecutar_opcion_gui_seleccionada(const MenuItem *items, int cantidad,
 
 static void ejecutar_menu_gui(const char *titulo, const MenuItem *items, int cantidad)
 {
-    gui_set_context_title(menu_safe_title(titulo));
-
     while (1)
     {
+        gui_set_context_title(menu_safe_title(titulo));
         int gui_result = run_raylib_gui(items, cantidad);
         int selected_index = gui_get_last_selected_index();
 

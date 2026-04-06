@@ -79,10 +79,9 @@ static int acquire_single_instance_lock(void)
 
 static int run_gui_flow(MenuItem *filtered_items, int count)
 {
-    gui_set_context_title("Menu Principal");
-
     while (1)
     {
+        gui_set_context_title("Menu Principal");
         int gui_result = run_raylib_gui(filtered_items, count);
         int selected_index = gui_get_last_selected_index();
 

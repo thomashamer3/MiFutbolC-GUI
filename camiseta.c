@@ -32,6 +32,8 @@ static int eliminar_camiseta_gui(void);
 static int cargar_imagen_camiseta_gui(void);
 static int ver_imagen_camiseta_gui(void);
 static int configurar_visor_preferido_imagen_gui(void);
+static int ver_imagen_camiseta_card_gui(int id, const char *nombre);
+static void gui_show_camiseta_action_feedback(const char *title, const char *msg, int success);
 
 static int sortear_camiseta_gui(void);
 
@@ -547,43 +549,415 @@ static int actualizar_scroll_listado(int scroll, int count, int visible_rows, Re
     return clamp_scroll_listado(scroll, count, visible_rows);
 }
 
-static void dibujar_filas_listado_camisetas(const CamisetaGuiRow *rows,
-                                            int count,
-                                            int scroll,
-                                            int row_h,
-                                            Rectangle panel)
+typedef struct
 {
-    int panel_x = (int)panel.x;
-    int panel_y = (int)panel.y;
-    int panel_w = (int)panel.width;
-    int panel_h = (int)panel.height;
+    int id;
+    char nombre[256];
+    int partidos_jugados;
+    int goles_totales;
+    int asistencias_totales;
+    char ruta_imagen[1200];
+    Texture2D textura;
+    int textura_cargada;
+} CamisetaListadoCard;
 
-    if (count == 0)
+typedef struct
+{
+    int panel_x;
+    int panel_y;
+    int panel_w;
+    int panel_h;
+    int area_y;
+    int area_h;
+    int card_w;
+    int card_h;
+    int gap_x;
+    int gap_y;
+    int cols;
+    int total_rows;
+    int visible_rows;
+} CamisetaCardsLayout;
+
+static int resolver_ruta_fallback_camiseta(char *ruta, size_t size)
+{
+    const char *candidatas[] = {
+        "./Icons/CamisetaSinImagen.png",
+        "../../Icons/CamisetaSinImagen.png",
+        "../Icons/CamisetaSinImagen.png",
+        "Icons/CamisetaSinImagen.png",
+        NULL
+    };
+
+    if (!ruta || size == 0)
     {
-        gui_text("No hay camisetas cargadas.", panel_x + 24, panel_y + 24, 24.0f, (Color){233,247,236,255});
+        return 0;
+    }
+
+    ruta[0] = '\0';
+    for (int i = 0; candidatas[i] != NULL; i++)
+    {
+        if (FileExists(candidatas[i]))
+        {
+            return strncpy_s(ruta, size, candidatas[i], _TRUNCATE) == 0;
+        }
+    }
+
+    {
+        const char *app_dir = GetApplicationDirectory();
+        if (app_dir && app_dir[0] != '\0')
+        {
+            const char *sufijos[] = {
+                "../../Icons/CamisetaSinImagen.png",
+                "../Icons/CamisetaSinImagen.png",
+                "Icons/CamisetaSinImagen.png",
+                NULL
+            };
+            char candidata[512] = {0};
+
+            for (int i = 0; sufijos[i] != NULL; i++)
+            {
+                snprintf(candidata, sizeof(candidata), "%s%s", app_dir, sufijos[i]);
+                if (FileExists(candidata))
+                {
+                    return strncpy_s(ruta, size, candidata, _TRUNCATE) == 0;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int cargar_textura_listado_camiseta(const char *ruta, Texture2D *textura)
+{
+    Texture2D t;
+
+    if (!ruta || ruta[0] == '\0' || !textura || !FileExists(ruta))
+    {
+        return 0;
+    }
+
+    t = LoadTexture(ruta);
+    if (t.id == 0)
+    {
+        return 0;
+    }
+
+    SetTextureFilter(t, TEXTURE_FILTER_BILINEAR);
+    *textura = t;
+    return 1;
+}
+
+static int cargar_camisetas_listado_cards(CamisetaListadoCard **cards_out, int *count_out)
+{
+    sqlite3_stmt *stmt = NULL;
+    int cap = 48;
+    int count = 0;
+    CamisetaListadoCard *cards;
+
+    if (!cards_out || !count_out)
+    {
+        return 0;
+    }
+
+    cards = (CamisetaListadoCard *)calloc((size_t)cap, sizeof(CamisetaListadoCard));
+    if (!cards)
+    {
+        return 0;
+    }
+
+    if (!preparar_stmt(&stmt,
+                       "SELECT c.id, c.nombre, c.imagen_ruta, "
+                       "COUNT(p.id), IFNULL(SUM(p.goles),0), IFNULL(SUM(p.asistencias),0) "
+                       "FROM camiseta c "
+                       "LEFT JOIN partido p ON p.camiseta_id = c.id "
+                       "GROUP BY c.id, c.nombre, c.imagen_ruta "
+                       "ORDER BY c.id"))
+    {
+        free(cards);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            CamisetaListadoCard *tmp = (CamisetaListadoCard *)realloc(cards,
+                                                                       (size_t)new_cap * sizeof(CamisetaListadoCard));
+            if (!tmp)
+            {
+                sqlite3_finalize(stmt);
+                free(cards);
+                return 0;
+            }
+            memset(tmp + cap, 0, (size_t)(new_cap - cap) * sizeof(CamisetaListadoCard));
+            cards = tmp;
+            cap = new_cap;
+        }
+
+        cards[count].id = sqlite3_column_int(stmt, 0);
+    cards[count].partidos_jugados = sqlite3_column_int(stmt, 3);
+    cards[count].goles_totales = sqlite3_column_int(stmt, 4);
+    cards[count].asistencias_totales = sqlite3_column_int(stmt, 5);
+
+        {
+            const unsigned char *nombre_db = sqlite3_column_text(stmt, 1);
+            if (nombre_db)
+            {
+                latin1_to_utf8(nombre_db, cards[count].nombre, sizeof(cards[count].nombre));
+            }
+            else
+            {
+                snprintf(cards[count].nombre, sizeof(cards[count].nombre), "%s", "(sin nombre)");
+            }
+        }
+
+        {
+            const unsigned char *ruta_db = sqlite3_column_text(stmt, 2);
+            if (ruta_db && ruta_db[0] != '\0')
+            {
+                char ruta_db_buf[300] = {0};
+                if (strncpy_s(ruta_db_buf,
+                              sizeof(ruta_db_buf),
+                              (const char *)ruta_db,
+                              _TRUNCATE) == 0)
+                {
+                    (void)db_resolve_image_absolute_path(ruta_db_buf,
+                                                         cards[count].ruta_imagen,
+                                                         sizeof(cards[count].ruta_imagen));
+                }
+            }
+        }
+
+        if (cards[count].ruta_imagen[0] != '\0' &&
+            cargar_textura_listado_camiseta(cards[count].ruta_imagen, &cards[count].textura))
+        {
+            cards[count].textura_cargada = 1;
+        }
+
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    *cards_out = cards;
+    *count_out = count;
+    return 1;
+}
+
+static void liberar_camisetas_listado_cards(CamisetaListadoCard *cards, int count)
+{
+    if (!cards)
+    {
         return;
     }
 
-    BeginScissorMode(panel_x, panel_y, panel_w, panel_h);
-    for (int i = scroll; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
-        int row = i - scroll;
-        int y = panel_y + row * row_h;
-        if (y + row_h > panel_y + panel_h)
+        if (cards[i].textura_cargada && cards[i].textura.id != 0)
+        {
+            UnloadTexture(cards[i].textura);
+        }
+    }
+
+    free(cards);
+}
+
+static void calcular_layout_cards_camisetas(int sw, int sh, int count, CamisetaCardsLayout *layout)
+{
+    if (!layout)
+    {
+        return;
+    }
+
+    layout->panel_x = (sw > 1000) ? 54 : 16;
+    layout->panel_y = 112;
+    layout->panel_w = sw - (layout->panel_x * 2);
+    layout->panel_h = sh - 190;
+    if (layout->panel_w < 250)
+    {
+        layout->panel_w = 250;
+    }
+    if (layout->panel_h < 240)
+    {
+        layout->panel_h = 240;
+    }
+
+    layout->card_w = (sw > 1400) ? 276 : 248;
+    layout->card_h = 312;
+    layout->gap_x = 18;
+    layout->gap_y = 18;
+
+    layout->area_y = layout->panel_y + 16;
+    layout->area_h = layout->panel_h - 32;
+    if (layout->area_h < layout->card_h)
+    {
+        layout->area_h = layout->card_h;
+    }
+
+    layout->cols = (layout->panel_w + layout->gap_x) / (layout->card_w + layout->gap_x);
+    if (layout->cols < 1)
+    {
+        layout->cols = 1;
+    }
+
+    layout->visible_rows = (layout->area_h + layout->gap_y) / (layout->card_h + layout->gap_y);
+    if (layout->visible_rows < 1)
+    {
+        layout->visible_rows = 1;
+    }
+
+    layout->total_rows = (count + layout->cols - 1) / layout->cols;
+}
+
+static Rectangle calcular_dst_textura_en_caja(Texture2D tex, Rectangle caja)
+{
+    float sx = caja.width / (float)tex.width;
+    float sy = caja.height / (float)tex.height;
+    float scale = (sx < sy) ? sx : sy;
+    float w = (float)tex.width * scale;
+    float h = (float)tex.height * scale;
+    float x = caja.x + (caja.width - w) * 0.5f;
+    float y = caja.y + (caja.height - h) * 0.5f;
+
+    return (Rectangle){x, y, w, h};
+}
+
+static int dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
+                                           int count,
+                                           int scroll_rows,
+                                           const CamisetaCardsLayout *layout,
+                                           const Texture2D *fallback_tex,
+                                           int fallback_loaded)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    int panel_x;
+    int panel_w;
+    int area_y;
+    int area_h;
+    int x_start;
+    int clicked_id = 0;
+
+    if (!cards || !layout)
+    {
+        return 0;
+    }
+
+    panel_x = layout->panel_x;
+    panel_w = layout->panel_w;
+    area_y = layout->area_y;
+    area_h = layout->area_h;
+    x_start = panel_x + 12;
+
+    BeginScissorMode(panel_x, area_y, panel_w, area_h);
+    for (int i = 0; i < count; i++)
+    {
+        int row = i / layout->cols;
+        int col = i % layout->cols;
+        int row_on_screen = row - scroll_rows;
+        int x = x_start + col * (layout->card_w + layout->gap_x);
+        int y = area_y + row_on_screen * (layout->card_h + layout->gap_y);
+        Rectangle card;
+        Rectangle image_box;
+        int hovered;
+
+        if (row_on_screen < 0)
+        {
+            continue;
+        }
+
+        if (y >= area_y + area_h)
         {
             break;
         }
 
+        card = (Rectangle){(float)x, (float)y, (float)layout->card_w, (float)layout->card_h};
+        image_box = (Rectangle){card.x + 12.0f, card.y + 12.0f, card.width - 24.0f, 156.0f};
+        hovered = CheckCollisionPointRec(GetMousePosition(), card);
+
+        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            Rectangle fr = {(float)(panel_x + 2), (float)y, (float)(panel_w - 4), (float)(row_h - 1)};
-            int hovered = CheckCollisionPointRec(GetMousePosition(), fr);
-            gui_draw_list_row_bg(fr, row, hovered);
+            clicked_id = cards[i].id;
         }
 
-        gui_text(TextFormat("%3d", rows[i].id), panel_x + 12, y + 7, 19.0f, (Color){227,242,232,255});
-        gui_text(rows[i].nombre, panel_x + 78, y + 7, 19.0f, (Color){241,252,244,255});
+        DrawRectangleRounded(card, 0.09f, 12, hovered ? (Color){28, 55, 39, 255} : theme->card_bg);
+        DrawRectangleRoundedLines(card, 0.09f, 12,
+                                  hovered ? theme->accent_primary : theme->card_border);
+
+        DrawRectangleRec(image_box, (Color){12, 24, 17, 255});
+        DrawRectangleLinesEx(image_box, 1.0f, (Color){56, 96, 69, 255});
+
+        {
+            const Texture2D *tex = NULL;
+            if (cards[i].textura_cargada && cards[i].textura.id != 0)
+            {
+                tex = &cards[i].textura;
+            }
+            else if (fallback_loaded && fallback_tex && fallback_tex->id != 0)
+            {
+                tex = fallback_tex;
+            }
+
+            if (tex)
+            {
+                Rectangle src = {0.0f, 0.0f, (float)tex->width, (float)tex->height};
+                Rectangle dst = calcular_dst_textura_en_caja(*tex, image_box);
+                DrawTexturePro(*tex, src, dst, (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+            }
+            else
+            {
+                gui_text("Sin imagen", image_box.x + 16.0f,
+                         image_box.y + image_box.height * 0.5f - 10.0f,
+                         18.0f, theme->text_secondary);
+            }
+        }
+
+        gui_text(TextFormat("ID %d", cards[i].id), card.x + 14.0f, card.y + 176.0f,
+                 16.0f, theme->text_secondary);
+        gui_text_truncated(cards[i].nombre,
+                           card.x + 14.0f,
+                           card.y + 198.0f,
+                           19.0f,
+                           card.width - 28.0f,
+                           theme->text_primary);
+        gui_text(TextFormat("Goles: %d", cards[i].goles_totales),
+                 card.x + 14.0f,
+                 card.y + 230.0f,
+                 17.0f,
+                 theme->text_secondary);
+        gui_text(TextFormat("Asistencias: %d", cards[i].asistencias_totales),
+                 card.x + 14.0f,
+                 card.y + 252.0f,
+                 17.0f,
+                 theme->text_secondary);
+        gui_text(TextFormat("Partidos Jugados: %d", cards[i].partidos_jugados),
+                 card.x + 14.0f,
+                 card.y + 274.0f,
+                 17.0f,
+                 theme->text_secondary);
     }
     EndScissorMode();
+    return clicked_id;
+}
+
+static const char *buscar_nombre_card_listado(const CamisetaListadoCard *cards,
+                                              int count,
+                                              int id)
+{
+    if (!cards || count <= 0 || id <= 0)
+    {
+        return NULL;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        if (cards[i].id == id)
+        {
+            return cards[i].nombre;
+        }
+    }
+
+    return NULL;
 }
 
 static int listado_camisetas_should_close(void)
@@ -599,11 +973,12 @@ static int listado_camisetas_should_close(void)
 
 static int listar_camisetas_gui(void)
 {
-    CamisetaGuiRow *rows = NULL;
+    CamisetaListadoCard *cards = NULL;
     int count = 0;
-    int scroll = 0;
-    const int row_h = 34;
-    const int panel_y = 130;
+    int scroll_rows = 0;
+    Texture2D fallback_tex = (Texture2D){0};
+    int fallback_loaded = 0;
+    char fallback_path[512] = {0};
 
     /* Consumir posibles pulsaciones previas de ESC/ENTER para evitar que
         el loop modal devuelva un evento que el GUI principal vuelva a
@@ -611,52 +986,76 @@ static int listar_camisetas_gui(void)
     input_consume_key(KEY_ESCAPE);
     input_consume_key(KEY_ENTER);
 
-    if (!cargar_camisetas_gui_rows(&rows, &count))
+    if (!cargar_camisetas_listado_cards(&cards, &count))
     {
         return 0;
+    }
+
+    if (resolver_ruta_fallback_camiseta(fallback_path, sizeof(fallback_path)) &&
+        cargar_textura_listado_camiseta(fallback_path, &fallback_tex))
+    {
+        fallback_loaded = 1;
     }
 
     while (!WindowShouldClose())
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
-        int panel_x = 0;
-        int panel_w = 0;
-        int panel_h = 0;
-        int content_h = 0;
-        int visible_rows = 1;
-        calcular_panel_listado(sw, sh, &panel_x, &panel_w, &panel_h);
+        int clicked_id = 0;
+        const char *clicked_nombre = NULL;
+        CamisetaCardsLayout layout;
+        Rectangle area;
 
-        content_h = panel_h - 32;
-        if (content_h < row_h)
-        {
-            content_h = row_h;
-        }
-
-        visible_rows = content_h / row_h;
-        if (visible_rows < 1)
-        {
-            visible_rows = 1;
-        }
-
-        Rectangle area = (Rectangle){(float)panel_x, (float)(panel_y + 32), (float)panel_w, (float)content_h};
-        scroll = actualizar_scroll_listado(scroll, count, visible_rows, area);
+        calcular_layout_cards_camisetas(sw, sh, count, &layout);
+        area = (Rectangle){(float)layout.panel_x, (float)layout.area_y,
+                           (float)layout.panel_w, (float)layout.area_h};
+        scroll_rows = actualizar_scroll_listado(scroll_rows,
+                                                layout.total_rows,
+                                                layout.visible_rows,
+                                                area);
 
         BeginDrawing();
-        /* Match Home menu aesthetics */
         ClearBackground((Color){14,27,20,255});
         gui_draw_module_header("LISTADO DE CAMISETAS", sw);
-        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
-                    "ID", 12.0f,
-                    "NOMBRE", 78.0f);
 
+        DrawRectangle(layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h,
+                      (Color){19,40,27,255});
+        DrawRectangleLines(layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h,
+                           (Color){110,161,125,255});
+
+        if (count > 0)
         {
-            Rectangle content_area = {(float)panel_x, (float)(panel_y + 32), (float)panel_w, (float)content_h};
-            dibujar_filas_listado_camisetas(rows, count, scroll, row_h, content_area);
+            clicked_id = dibujar_cards_listado_camisetas(cards,
+                                                         count,
+                                                         scroll_rows,
+                                                         &layout,
+                                                         &fallback_tex,
+                                                         fallback_loaded);
+        }
+        else
+        {
+            gui_text("No hay camisetas cargadas.",
+                     (float)layout.panel_x + 24.0f,
+                     (float)layout.panel_y + 28.0f,
+                     24.0f,
+                     (Color){233,247,236,255});
         }
 
-        gui_draw_footer_hint("Rueda: scroll | ESC/Enter: volver", (float)panel_x, sh);
+        gui_draw_footer_hint("Click: agrandar imagen | Rueda: scroll | ESC/Enter: volver", (float)layout.panel_x, sh);
         EndDrawing();
+
+        if (clicked_id > 0)
+        {
+            clicked_nombre = buscar_nombre_card_listado(cards, count, clicked_id);
+
+            if (!ver_imagen_camiseta_card_gui(clicked_id, clicked_nombre))
+            {
+                gui_show_camiseta_action_feedback("VER IMAGEN",
+                                                  "No se pudo abrir la imagen",
+                                                  0);
+            }
+            continue;
+        }
 
         if (listado_camisetas_should_close())
         {
@@ -664,7 +1063,11 @@ static int listar_camisetas_gui(void)
         }
     }
 
-    free(rows);
+    if (fallback_loaded && fallback_tex.id != 0)
+    {
+        UnloadTexture(fallback_tex);
+    }
+    liberar_camisetas_listado_cards(cards, count);
     return 1;
 }
 

@@ -4,6 +4,7 @@
  */
 #include "gui_components.h"
 #include "gui_config.h"
+#include "gui.h"
 #include "utils.h"
 
 #include "cJSON.h"
@@ -37,6 +38,134 @@ static GuiIconEntry s_menu_icons[] = {
     {13, "CarreraFutbol-13.png", {0}, 0},
     {14, "Ajustes-14.png",     {0}, 0},
     {15,  "MiFutbolC.png",     {0}, 0},
+
+    /* Iconos contextuales para submenu CAMISETAS. */
+    {101, "Crear.png",              {0}, 0},
+    {102, "Listar.png",             {0}, 0},
+    {103, "Modificar.png",          {0}, 0},
+    {104, "Eliminar.png",           {0}, 0},
+    {105, "Sortear.png",            {0}, 0},
+    {106, "CargarImagen.png",       {0}, 0},
+    {107, "CamisetaSinImagen.png",  {0}, 0},
+    {108, "Ajustes-14.png",         {0}, 0},
+    {109, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu CANCHAS. */
+    {201, "Crear.png",              {0}, 0},
+    {202, "Listar.png",             {0}, 0},
+    {203, "Modificar.png",          {0}, 0},
+    {204, "Eliminar.png",           {0}, 0},
+    {205, "CargarImagen.png",       {0}, 0},
+    {206, "Canchas-2.png",          {0}, 0},
+    {207, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu EQUIPOS. */
+    {301, "Crear.png",              {0}, 0},
+    {302, "Listar.png",             {0}, 0},
+    {303, "Modificar.png",          {0}, 0},
+    {304, "Eliminar.png",           {0}, 0},
+    {305, "CargarImagen.png",       {0}, 0},
+    {306, "Equipos-3.png",          {0}, 0},
+    {307, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu PARTIDOS. */
+    {401, "Crear.png",              {0}, 0},
+    {402, "Listar.png",             {0}, 0},
+    {403, "Modificar.png",          {0}, 0},
+    {404, "Eliminar.png",           {0}, 0},
+    {405, "Partidos.png",           {0}, 0},
+    {406, "Tactica.png",            {0}, 0},
+    {407, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu LESIONES. */
+    {501, "Crear.png",              {0}, 0},
+    {502, "Listar.png",             {0}, 0},
+    {503, "Modificar.png",          {0}, 0},
+    {504, "Eliminar.png",           {0}, 0},
+    {505, "Estadisticas-6.png",     {0}, 0},
+    {506, "Comparar.png",           {0}, 0},
+    {507, "Resumen.png",            {0}, 0},
+    {508, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu ESTADISTICAS. */
+    {601, "Resumen.png",            {0}, 0},
+    {602, "Partidos.png",           {0}, 0},
+    {603, "Goles.png",              {0}, 0},
+    {604, "Asistencias.png",        {0}, 0},
+    {605, "Rendimiento.png",        {0}, 0},
+    {606, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu LOGROS. */
+    {701, "TodosLogros.png",        {0}, 0},
+    {702, "LogroCompletado.png",    {0}, 0},
+    {703, "LogroProgreso.png",      {0}, 0},
+    {704, "LogroNoCompletado.png",  {0}, 0},
+    {705, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu FINANCIAMIENTO. */
+    {801, "AgregarTransaccion.png", {0}, 0},
+    {802, "ListarTransaccion.png",  {0}, 0},
+    {803, "ModificarTransaccion.png", {0}, 0},
+    {804, "EliminarTransaccion.png", {0}, 0},
+    {805, "Resumen.png",            {0}, 0},
+    {806, "Balance.png",            {0}, 0},
+    {807, "Exportar.png",           {0}, 0},
+    {808, "Presupuesto.png",        {0}, 0},
+    {809, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu TORNEOS. */
+    {901, "Crear.png",              {0}, 0},
+    {902, "Listar.png",             {0}, 0},
+    {903, "Modificar.png",          {0}, 0},
+    {904, "Eliminar.png",           {0}, 0},
+    {905, "Salir-0.png",            {0}, 0},
+
+    /* Iconos contextuales para submenu TEMPORADAS. */
+    {1001, "CrearTemporada.png",    {0}, 0},
+    {1002, "Listar.png",            {0}, 0},
+    {1003, "Modificar.png",         {0}, 0},
+    {1004, "Eliminar.png",          {0}, 0},
+    {1005, "Administrar.png",       {0}, 0},
+    {1006, "Comparar.png",          {0}, 0},
+    {1007, "Salir-0.png",           {0}, 0},
+
+    /* Iconos contextuales para submenu ANALISIS. */
+    {1101, "Analisis.png",          {0}, 0},
+    {1102, "Comparar.png",          {0}, 0},
+    {1103, "Tactica.png",           {0}, 0},
+    {1104, "Entrenador.png",        {0}, 0},
+    {1105, "Quimica.png",           {0}, 0},
+    {1106, "Salir-0.png",           {0}, 0},
+
+    /* Iconos contextuales para submenu BIENESTAR. */
+    {1201, "Historia.png",          {0}, 0},
+    {1202, "Usuario.png",           {0}, 0},
+    {1203, "Entrenador.png",        {0}, 0},
+    {1204, "Bienestar-12.png",      {0}, 0},
+    {1205, "Analisis.png",          {0}, 0},
+    {1206, "Quimica.png",           {0}, 0},
+    {1207, "Exportar.png",          {0}, 0},
+    {1208, "Lesiones-5.png",        {0}, 0},
+    {1209, "Salir-0.png",           {0}, 0},
+
+    /* Iconos contextuales para submenu SETTINGS. */
+    {1301, "Tema.png",              {0}, 0},
+    {1302, "Idioma.png",            {0}, 0},
+    {1303, "Ajustes-14.png",        {0}, 0},
+    {1304, "Usuario.png",           {0}, 0},
+    {1305, "Resumen.png",           {0}, 0},
+    {1306, "Administrar.png",       {0}, 0},
+    {1307, "Reiniciar.png",       {0}, 0},
+    {1308, "Exportar.png",          {0}, 0},
+    {1309, "CargarImagen.png",      {0}, 0},
+    {1310, "Actualizar.png",       {0}, 0},
+    {1311, "Salir-0.png",           {0}, 0},
+
+    /* Iconos contextuales para submenu CARRERA FUTBOLISTICA. */
+    {1401, "Carrera.png",           {0}, 0},
+    {1402, "Historia.png",          {0}, 0},
+    {1403, "Resumen.png",           {0}, 0},
+    {1404, "Salir-0.png",           {0}, 0},
 };
 
 static const int s_menu_icons_count =
@@ -139,6 +268,506 @@ void gui_draw_option_icon(int option, Rectangle dst)
 
     Rectangle src = {0.0f, 0.0f, (float)tex->width, (float)tex->height};
     DrawTexturePro(*tex, src, dst, (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+}
+
+static int gui_is_camisetas_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "CAMISETAS") == 0;
+}
+
+static int gui_is_canchas_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "CANCHAS") == 0;
+}
+
+static int gui_is_equipos_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "EQUIPOS") == 0;
+}
+
+static int gui_is_partidos_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "PARTIDOS") == 0;
+}
+
+static int gui_is_lesiones_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "LESIONES") == 0;
+}
+
+static int gui_is_estadisticas_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "ESTADISTICAS") == 0;
+}
+
+static int gui_is_logros_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "LOGROS") == 0;
+}
+
+static int gui_is_financiamiento_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "FINANCIAMIENTO") == 0;
+}
+
+static int gui_is_torneos_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "TORNEOS") == 0;
+}
+
+static int gui_is_temporadas_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "TEMPORADAS") == 0;
+}
+
+static int gui_is_analisis_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    if (!context_title)
+        return 0;
+
+    return strcmp(context_title, "ANALISIS") == 0 ||
+           strcmp(context_title, "ANALISIS Y COMPARADOR") == 0;
+}
+
+static int gui_is_bienestar_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "BIENESTAR") == 0;
+}
+
+static int gui_is_settings_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    if (!context_title)
+        return 0;
+
+    return strcmp(context_title, "SETTINGS") == 0 ||
+           strcmp(context_title, "Settings") == 0 ||
+           strcmp(context_title, "AJUSTES") == 0 ||
+           strcmp(context_title, "Ajustes") == 0 ||
+           strcmp(context_title, "CONFIGURACION") == 0;
+}
+
+static int gui_is_carrera_context(void)
+{
+    const char *context_title = gui_get_context_title();
+    return context_title && strcmp(context_title, "CARRERA FUTBOLISTICA") == 0;
+}
+
+static int gui_get_camisetas_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear") == 0)
+        return 101;
+    if (strcmp(item_text, "Listar") == 0)
+        return 102;
+    if (strcmp(item_text, "Modificar") == 0)
+        return 103;
+    if (strcmp(item_text, "Eliminar") == 0)
+        return 104;
+    if (strcmp(item_text, "Sortear") == 0)
+        return 105;
+    if (strcmp(item_text, "Cargar Imagen") == 0)
+        return 106;
+    if (strcmp(item_text, "Ver Camiseta") == 0)
+        return 107;
+    if (strcmp(item_text, "Ajustes Imagen") == 0)
+        return 108;
+    if (strcmp(item_text, "Volver") == 0)
+        return 109;
+
+    return -1;
+}
+
+static int gui_get_canchas_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear") == 0)
+        return 201;
+    if (strcmp(item_text, "Listar") == 0)
+        return 202;
+    if (strcmp(item_text, "Modificar") == 0)
+        return 203;
+    if (strcmp(item_text, "Eliminar") == 0)
+        return 204;
+    if (strcmp(item_text, "Cargar Imagen") == 0)
+        return 205;
+    if (strcmp(item_text, "Ver Imagen") == 0)
+        return 206;
+    if (strcmp(item_text, "Volver") == 0)
+        return 207;
+
+    return -1;
+}
+
+static int gui_get_equipos_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear") == 0)
+        return 301;
+    if (strcmp(item_text, "Listar") == 0)
+        return 302;
+    if (strcmp(item_text, "Modificar") == 0)
+        return 303;
+    if (strcmp(item_text, "Eliminar") == 0)
+        return 304;
+    if (strcmp(item_text, "Cargar Imagen") == 0)
+        return 305;
+    if (strcmp(item_text, "Ver Imagen") == 0)
+        return 306;
+    if (strcmp(item_text, "Volver") == 0)
+        return 307;
+
+    return -1;
+}
+
+static int gui_get_partidos_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear") == 0)
+        return 401;
+    if (strcmp(item_text, "Listar") == 0)
+        return 402;
+    if (strcmp(item_text, "Modificar") == 0)
+        return 403;
+    if (strcmp(item_text, "Eliminar") == 0)
+        return 404;
+    if (strcmp(item_text, "Simular con Equipos Guardados") == 0)
+        return 405;
+    if (strcmp(item_text, "Analisis Tactico") == 0)
+        return 406;
+    if (strcmp(item_text, "Volver") == 0)
+        return 407;
+
+    return -1;
+}
+
+static int gui_get_lesiones_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear") == 0)
+        return 501;
+    if (strcmp(item_text, "Listar") == 0)
+        return 502;
+    if (strcmp(item_text, "Modificar") == 0)
+        return 503;
+    if (strcmp(item_text, "Eliminar") == 0)
+        return 504;
+    if (strcmp(item_text, "Estadisticas") == 0)
+        return 505;
+    if (strcmp(item_text, "Diferencias entre Lesiones") == 0)
+        return 506;
+    if (strcmp(item_text, "Actualizar Estados") == 0)
+        return 507;
+    if (strcmp(item_text, "Volver") == 0)
+        return 508;
+
+    return -1;
+}
+
+static int gui_get_estadisticas_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Generales") == 0)
+        return 601;
+    if (strcmp(item_text, "Partidos") == 0)
+        return 602;
+    if (strcmp(item_text, "Goles") == 0)
+        return 603;
+    if (strcmp(item_text, "Asistencias") == 0)
+        return 604;
+    if (strcmp(item_text, "Rendimiento") == 0)
+        return 605;
+    if (strcmp(item_text, "Volver") == 0)
+        return 606;
+
+    return -1;
+}
+
+static int gui_get_logros_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Ver Todos los Logros") == 0)
+        return 701;
+    if (strcmp(item_text, "Logros Completados") == 0)
+        return 702;
+    if (strcmp(item_text, "Logros en Progreso") == 0)
+        return 703;
+    if (strcmp(item_text, "Logros No Completados") == 0)
+        return 704;
+    if (strcmp(item_text, "Volver") == 0)
+        return 705;
+
+    return -1;
+}
+
+static int gui_get_financiamiento_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Agregar Transaccion") == 0)
+        return 801;
+    if (strcmp(item_text, "Listar Transacciones") == 0)
+        return 802;
+    if (strcmp(item_text, "Modificar Transaccion") == 0)
+        return 803;
+    if (strcmp(item_text, "Eliminar Transaccion") == 0)
+        return 804;
+    if (strcmp(item_text, "Ver Resumen Financiero") == 0)
+        return 805;
+    if (strcmp(item_text, "Balance General de Gastos") == 0)
+        return 806;
+    if (strcmp(item_text, "Exportar Datos") == 0)
+        return 807;
+    if (strcmp(item_text, "Presupuestos Mensuales") == 0)
+        return 808;
+    if (strcmp(item_text, "Volver") == 0)
+        return 809;
+
+    return -1;
+}
+
+static int gui_get_torneos_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear Torneo") == 0)
+        return 901;
+    if (strcmp(item_text, "Listar Torneos") == 0)
+        return 902;
+    if (strcmp(item_text, "Modificar Torneo") == 0)
+        return 903;
+    if (strcmp(item_text, "Eliminar Torneo") == 0)
+        return 904;
+    if (strcmp(item_text, "Volver") == 0)
+        return 905;
+
+    return -1;
+}
+
+static int gui_get_temporadas_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Crear Temporada") == 0)
+        return 1001;
+    if (strcmp(item_text, "Listar Temporadas") == 0)
+        return 1002;
+    if (strcmp(item_text, "Modificar Temporada") == 0)
+        return 1003;
+    if (strcmp(item_text, "Eliminar Temporada") == 0)
+        return 1004;
+    if (strcmp(item_text, "Administrar Temporada") == 0)
+        return 1005;
+    if (strcmp(item_text, "Comparar Temporadas") == 0)
+        return 1006;
+    if (strcmp(item_text, "Volver") == 0)
+        return 1007;
+
+    return -1;
+}
+
+static int gui_get_analisis_item_icon_option(const MenuItem *item)
+{
+    if (!item)
+        return -1;
+
+    if (item->opcion == 1)
+        return 1101;
+    if (item->opcion == 2)
+        return 1102;
+    if (item->opcion == 3)
+        return 1103;
+    if (item->opcion == 4)
+        return 1104;
+    if (item->opcion == 5)
+        return 1105;
+    if (item->opcion == 0)
+        return 1106;
+
+    return -1;
+}
+
+static int gui_get_bienestar_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Planificacion Personal") == 0)
+        return 1201;
+    if (strcmp(item_text, "Mentalidad y Habitos") == 0)
+        return 1202;
+    if (strcmp(item_text, "Entrenamiento") == 0)
+        return 1203;
+    if (strcmp(item_text, "Alimentacion") == 0)
+        return 1204;
+    if (strcmp(item_text, "Asistente Entrenamientos Personalizados") == 0)
+        return 1205;
+    if (strcmp(item_text, "Mental") == 0)
+        return 1206;
+    if (strcmp(item_text, "Informe Personal Mensual (PDF)") == 0)
+        return 1207;
+    if (strcmp(item_text, "Salud") == 0)
+        return 1208;
+    if (strcmp(item_text, "Volver") == 0)
+        return 1209;
+
+    return -1;
+}
+
+static int gui_get_settings_item_icon_option(const MenuItem *item)
+{
+    if (!item)
+        return -1;
+
+    if (item->opcion == 1)
+        return 1301;
+    if (item->opcion == 2)
+        return 1302;
+    if (item->opcion == 3)
+        return 1303;
+    if (item->opcion == 4)
+        return 1304;
+    if (item->opcion == 5)
+        return 1305;
+    if (item->opcion == 6)
+        return 1306;
+    if (item->opcion == 7)
+        return 1307;
+    if (item->opcion == 8)
+        return 1308;
+    if (item->opcion == 9)
+        return 1309;
+    if (item->opcion == 10)
+        return 1310;
+    if (item->opcion == 0)
+        return 1311;
+
+    return -1;
+}
+
+static int gui_get_carrera_item_icon_option(const char *item_text)
+{
+    if (!item_text)
+        return -1;
+
+    if (strcmp(item_text, "Carrera Futbolistica") == 0)
+        return 1401;
+    if (strcmp(item_text, "Tu Historia Futbolistica") == 0)
+        return 1402;
+    if (strcmp(item_text, "Resumen General de Carrera") == 0)
+        return 1403;
+    if (strcmp(item_text, "Volver") == 0)
+        return 1404;
+
+    return -1;
+}
+
+typedef int (*GuiContextDetector)(void);
+typedef int (*GuiContextIconResolver)(const char *item_text);
+
+typedef struct GuiContextIconMapping {
+    GuiContextDetector is_context;
+    GuiContextIconResolver resolve_icon;
+} GuiContextIconMapping;
+
+static const GuiContextIconMapping s_context_icon_mappings[] = {
+    {gui_is_camisetas_context, gui_get_camisetas_item_icon_option},
+    {gui_is_canchas_context, gui_get_canchas_item_icon_option},
+    {gui_is_equipos_context, gui_get_equipos_item_icon_option},
+    {gui_is_partidos_context, gui_get_partidos_item_icon_option},
+    {gui_is_lesiones_context, gui_get_lesiones_item_icon_option},
+    {gui_is_estadisticas_context, gui_get_estadisticas_item_icon_option},
+    {gui_is_logros_context, gui_get_logros_item_icon_option},
+    {gui_is_financiamiento_context, gui_get_financiamiento_item_icon_option},
+    {gui_is_torneos_context, gui_get_torneos_item_icon_option},
+    {gui_is_temporadas_context, gui_get_temporadas_item_icon_option},
+    {gui_is_bienestar_context, gui_get_bienestar_item_icon_option},
+    {gui_is_carrera_context, gui_get_carrera_item_icon_option},
+};
+
+static int gui_try_context_icon_mapping(const MenuItem *item)
+{
+    int mapping_count = (int)(sizeof(s_context_icon_mappings) / sizeof(s_context_icon_mappings[0]));
+
+    for (int i = 0; i < mapping_count; i++)
+    {
+        int mapped_icon_option;
+
+        if (!s_context_icon_mappings[i].is_context())
+            continue;
+
+        mapped_icon_option = s_context_icon_mappings[i].resolve_icon(item->texto);
+        if (mapped_icon_option >= 0)
+            return mapped_icon_option;
+    }
+
+    return -1;
+}
+
+static int gui_get_menu_item_icon_option(const MenuItem *item)
+{
+    if (!item)
+        return -1;
+
+    if (gui_is_analisis_context())
+    {
+        int mapped_icon_option = gui_get_analisis_item_icon_option(item);
+        if (mapped_icon_option >= 0)
+            return mapped_icon_option;
+    }
+
+    if (gui_is_settings_context())
+    {
+        int mapped_icon_option = gui_get_settings_item_icon_option(item);
+        if (mapped_icon_option >= 0)
+            return mapped_icon_option;
+    }
+
+    {
+        int mapped_icon_option = gui_try_context_icon_mapping(item);
+        if (mapped_icon_option >= 0)
+            return mapped_icon_option;
+    }
+
+    return item->opcion;
+}
+
+static void gui_draw_menu_item_icon(const MenuItem *item, Rectangle dst)
+{
+    int icon_option = gui_get_menu_item_icon_option(item);
+    if (icon_option < 0)
+        return;
+
+    gui_draw_option_icon(icon_option, dst);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1384,7 +2013,7 @@ void gui_detail_panel_draw(const GuiState *st, Rectangle rect,
              FONT_TINY, st->theme->text_muted);
 
     Rectangle icon_rect = {rect.x + GS(10), rect.y + GS(22), GS(30), GS(30)};
-    gui_draw_option_icon(item->opcion, icon_rect);
+    gui_draw_menu_item_icon(item, icon_rect);
 
     /* Item name */
     gui_text_truncated(item->texto ? item->texto : "(sin texto)",
@@ -1570,7 +2199,7 @@ static void gui_list_draw_row_content(const GuiState *st,
             icon_rect.width += boost;
             icon_rect.height += boost;
         }
-        gui_draw_option_icon(ctx->items[gidx].opcion, icon_rect);
+        gui_draw_menu_item_icon(&ctx->items[gidx], icon_rect);
     }
 
     gui_text(TextFormat("%2d", ctx->items[gidx].opcion),
@@ -2013,7 +2642,7 @@ void gui_detail_screen_draw(const GuiState *st, Rectangle area,
     Rectangle inner = gui_lay_pad(area, GS(20));
 
     Rectangle hero_icon = {inner.x, inner.y, GS(56), GS(56)};
-    gui_draw_option_icon(item->opcion, hero_icon);
+    gui_draw_menu_item_icon(item, hero_icon);
 
     /* Title */
     gui_text_truncated(item->texto ? item->texto : "(sin texto)",
