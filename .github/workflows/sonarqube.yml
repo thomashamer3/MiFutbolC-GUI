@@ -20,5 +20,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=thomashamer_MiFutbolC-GUI
-            -Dsonar.organization=thomashamer
+            -Dsonar.projectKey=thomashamer3_MiFutbolC-GUI
+            -Dsonar.organization=thomashamer3
