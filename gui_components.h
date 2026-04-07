@@ -95,6 +95,31 @@ Rectangle gui_draw_list_shell(Rectangle panel,
 void gui_draw_list_row_bg(Rectangle row_rect, int row_index, int hovered);
 void gui_draw_footer_hint(const char *text, float x, int screen_height);
 
+/* ── Interaccion estandar de cards ───────────────────── */
+
+typedef struct
+{
+    int count;
+    int scroll_rows;
+    int cols;
+    int card_w;
+    int card_h;
+    int gap_x;
+    int gap_y;
+    int base_x;
+    int area_y;
+    int area_h;
+} GuiCardsHitTestConfig;
+
+enum
+{
+    GUI_CARDS_FLOW_CONTINUE = 0,
+    GUI_CARDS_FLOW_EXIT = 1
+};
+
+int gui_cards_detect_click_index(const GuiCardsHitTestConfig *config);
+int gui_cards_handle_preview_selection(int *selected_index, int clicked_index);
+
 /* ── Lista virtualizada ────────────────────────────────── */
 
 typedef struct

@@ -5,6 +5,7 @@
 #include "gui_components.h"
 #include "gui_config.h"
 #include "gui.h"
+#include "input.h"
 #include "utils.h"
 
 #include "cJSON.h"
@@ -2848,4 +2849,81 @@ int gui_input_search(char *query, int max_len, int focused)
     }
 
     return changed;
+}
+
+int gui_cards_detect_click_index(const GuiCardsHitTestConfig *config)
+{
+    Vector2 mouse;
+
+    if (!config || config->count <= 0 || config->cols <= 0 ||
+        config->card_w <= 0 || config->card_h <= 0 || !IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        return -1;
+    }
+
+    mouse = GetMousePosition();
+
+    for (int i = 0; i < config->count; i++)
+    {
+        int row = i / config->cols;
+        int col = i % config->cols;
+        int row_on_screen = row - config->scroll_rows;
+        int x = config->base_x + col * (config->card_w + config->gap_x);
+        int y = config->area_y + row_on_screen * (config->card_h + config->gap_y);
+        Rectangle card;
+
+        if (row_on_screen < 0)
+        {
+            continue;
+        }
+
+        if (y >= config->area_y + config->area_h)
+        {
+            break;
+        }
+
+        card = (Rectangle){(float)x, (float)y, (float)config->card_w, (float)config->card_h};
+        if (CheckCollisionPointRec(mouse, card))
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int gui_cards_handle_preview_selection(int *selected_index, int clicked_index)
+{
+    if (!selected_index)
+    {
+        return GUI_CARDS_FLOW_EXIT;
+    }
+
+    if (*selected_index < 0 && clicked_index >= 0)
+    {
+        *selected_index = clicked_index;
+        return GUI_CARDS_FLOW_CONTINUE;
+    }
+
+    if (*selected_index >= 0)
+    {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+            IsKeyPressed(KEY_ESCAPE) ||
+            IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_ESCAPE);
+            input_consume_key(KEY_ENTER);
+            *selected_index = -1;
+        }
+        return GUI_CARDS_FLOW_CONTINUE;
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+    {
+        input_consume_key(KEY_ESCAPE);
+        input_consume_key(KEY_ENTER);
+        return GUI_CARDS_FLOW_EXIT;
+    }
+
+    return GUI_CARDS_FLOW_CONTINUE;
 }

@@ -16,13 +16,12 @@
 #endif
 #include <ctype.h>
 #include <limits.h>
-
-
-#define MAX_CAMISETAS_SORTEO 150
-
-#include "raylib.h"
 #include "gui_components.h"
 #include "input.h"
+
+#ifndef MAX_CAMISETAS_SORTEO
+#define MAX_CAMISETAS_SORTEO 1024
+#endif
 
 /* Prototipos para funciones definidas más abajo (evita implicit-declaration) */
 static int listar_camisetas_gui(void);
@@ -31,7 +30,6 @@ static int editar_camiseta_gui(void);
 static int eliminar_camiseta_gui(void);
 static int cargar_imagen_camiseta_gui(void);
 static int ver_imagen_camiseta_gui(void);
-static int configurar_visor_preferido_imagen_gui(void);
 static int ver_imagen_camiseta_card_gui(int id, const char *nombre);
 static void gui_show_camiseta_action_feedback(const char *title, const char *msg, int success);
 
@@ -39,7 +37,7 @@ static int sortear_camiseta_gui(void);
 
 /* Prototipos de helpers usados por GUI antes de su definición */
 static void marcar_camiseta_sorteada(int id);
-static char* obtener_nombre_camiseta(int id);
+static char *obtener_nombre_camiseta(int id);
 
 static int preparar_stmt(sqlite3_stmt **stmt, const char *sql);
 static int cargar_imagen_para_camiseta_id(int id);
@@ -127,22 +125,6 @@ static int obtener_visor_preferido(char *buffer, size_t size)
     return ok;
 }
 
-static int guardar_visor_preferido(const char *viewer)
-{
-    asegurar_fila_settings();
-
-    sqlite3_stmt *stmt;
-    if (!preparar_stmt(&stmt, "UPDATE settings SET image_viewer = ? WHERE id = 1"))
-    {
-        return 0;
-    }
-
-    sqlite3_bind_text(stmt, 1, viewer ? viewer : "", -1, SQLITE_TRANSIENT);
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    return rc == SQLITE_DONE;
-}
-
 #ifndef _WIN32
 static int instalar_paquete_linux(const char *package_name)
 {
@@ -192,7 +174,6 @@ static int construir_ruta_absoluta_imagen_por_id(int id, char *ruta_absoluta, si
 
     return db_resolve_image_absolute_path(ruta_db, ruta_absoluta, size);
 }
-
 
 static int abrir_imagen_en_sistema(const char *ruta)
 {
@@ -297,11 +278,6 @@ static int abrir_imagen_en_sistema(const char *ruta)
 
     return system(cmd_open) == 0;
 #endif
-}
-
-static void menu_ajustes_imagen_camiseta()
-{
-    (void)configurar_visor_preferido_imagen_gui();
 }
 
 static int preparar_stmt(sqlite3_stmt **stmt, const char *sql)
@@ -585,8 +561,7 @@ static int resolver_ruta_fallback_camiseta(char *ruta, size_t size)
         "../../Icons/CamisetaSinImagen.png",
         "../Icons/CamisetaSinImagen.png",
         "Icons/CamisetaSinImagen.png",
-        NULL
-    };
+        NULL};
 
     if (!ruta || size == 0)
     {
@@ -610,8 +585,7 @@ static int resolver_ruta_fallback_camiseta(char *ruta, size_t size)
                 "../../Icons/CamisetaSinImagen.png",
                 "../Icons/CamisetaSinImagen.png",
                 "Icons/CamisetaSinImagen.png",
-                NULL
-            };
+                NULL};
             char candidata[512] = {0};
 
             for (int i = 0; sufijos[i] != NULL; i++)
@@ -684,7 +658,7 @@ static int cargar_camisetas_listado_cards(CamisetaListadoCard **cards_out, int *
         {
             int new_cap = cap * 2;
             CamisetaListadoCard *tmp = (CamisetaListadoCard *)realloc(cards,
-                                                                       (size_t)new_cap * sizeof(CamisetaListadoCard));
+                                                                      (size_t)new_cap * sizeof(CamisetaListadoCard));
             if (!tmp)
             {
                 sqlite3_finalize(stmt);
@@ -697,9 +671,9 @@ static int cargar_camisetas_listado_cards(CamisetaListadoCard **cards_out, int *
         }
 
         cards[count].id = sqlite3_column_int(stmt, 0);
-    cards[count].partidos_jugados = sqlite3_column_int(stmt, 3);
-    cards[count].goles_totales = sqlite3_column_int(stmt, 4);
-    cards[count].asistencias_totales = sqlite3_column_int(stmt, 5);
+        cards[count].partidos_jugados = sqlite3_column_int(stmt, 3);
+        cards[count].goles_totales = sqlite3_column_int(stmt, 4);
+        cards[count].asistencias_totales = sqlite3_column_int(stmt, 5);
 
         {
             const unsigned char *nombre_db = sqlite3_column_text(stmt, 1);
@@ -823,12 +797,12 @@ static Rectangle calcular_dst_textura_en_caja(Texture2D tex, Rectangle caja)
     return (Rectangle){x, y, w, h};
 }
 
-static int dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
-                                           int count,
-                                           int scroll_rows,
-                                           const CamisetaCardsLayout *layout,
-                                           const Texture2D *fallback_tex,
-                                           int fallback_loaded)
+static void dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
+                                            int count,
+                                            int scroll_rows,
+                                            const CamisetaCardsLayout *layout,
+                                            const Texture2D *fallback_tex,
+                                            int fallback_loaded)
 {
     const GuiTheme *theme = gui_get_active_theme();
     int panel_x;
@@ -836,11 +810,10 @@ static int dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
     int area_y;
     int area_h;
     int x_start;
-    int clicked_id = 0;
 
     if (!cards || !layout)
     {
-        return 0;
+        return;
     }
 
     panel_x = layout->panel_x;
@@ -874,11 +847,6 @@ static int dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
         card = (Rectangle){(float)x, (float)y, (float)layout->card_w, (float)layout->card_h};
         image_box = (Rectangle){card.x + 12.0f, card.y + 12.0f, card.width - 24.0f, 156.0f};
         hovered = CheckCollisionPointRec(GetMousePosition(), card);
-
-        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            clicked_id = cards[i].id;
-        }
 
         DrawRectangleRounded(card, 0.09f, 12, hovered ? (Color){28, 55, 39, 255} : theme->card_bg);
         DrawRectangleRoundedLines(card, 0.09f, 12,
@@ -937,38 +905,110 @@ static int dibujar_cards_listado_camisetas(const CamisetaListadoCard *cards,
                  theme->text_secondary);
     }
     EndScissorMode();
-    return clicked_id;
 }
 
-static const char *buscar_nombre_card_listado(const CamisetaListadoCard *cards,
-                                              int count,
-                                              int id)
+static void dibujar_preview_card_camiseta(const CamisetaListadoCard *card,
+                                          const Texture2D *fallback_tex,
+                                          int fallback_loaded)
 {
-    if (!cards || count <= 0 || id <= 0)
+    const GuiTheme *theme = gui_get_active_theme();
+    int sw = GetScreenWidth();
+    int sh = GetScreenHeight();
+    int panel_w;
+    int panel_h;
+    int panel_x;
+    int panel_y;
+    Rectangle image_box;
+
+    if (!card)
     {
-        return NULL;
+        return;
     }
 
-    for (int i = 0; i < count; i++)
+    panel_w = (sw > 1200) ? 900 : (sw - 44);
+    panel_h = (sh > 780) ? 680 : (sh - 56);
+    if (panel_w < 320)
     {
-        if (cards[i].id == id)
+        panel_w = 320;
+    }
+    if (panel_h < 260)
+    {
+        panel_h = 260;
+    }
+
+    panel_x = (sw - panel_w) / 2;
+    panel_y = (sh - panel_h) / 2;
+    image_box = (Rectangle){(float)panel_x + 18.0f,
+                            (float)panel_y + 72.0f,
+                            (float)panel_w - 36.0f,
+                            (float)panel_h - 220.0f};
+
+    DrawRectangle(0, 0, sw, sh, (Color){0, 0, 0, 176});
+    DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
+    DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->accent_primary);
+
+    gui_text(TextFormat("CAMISETA %d", card->id),
+             (float)panel_x + 20.0f,
+             (float)panel_y + 20.0f,
+             24.0f,
+             theme->text_primary);
+    gui_text_truncated(card->nombre,
+                       (float)panel_x + 20.0f,
+                       (float)panel_y + 46.0f,
+                       20.0f,
+                       (float)panel_w - 40.0f,
+                       theme->text_secondary);
+
+    DrawRectangleRec(image_box, (Color){12, 24, 17, 255});
+    DrawRectangleLinesEx(image_box, 1.0f, (Color){56, 96, 69, 255});
+
+    {
+        const Texture2D *tex = NULL;
+        if (card->textura_cargada && card->textura.id != 0)
         {
-            return cards[i].nombre;
+            tex = &card->textura;
+        }
+        else if (fallback_loaded && fallback_tex && fallback_tex->id != 0)
+        {
+            tex = fallback_tex;
+        }
+
+        if (tex)
+        {
+            Rectangle src = {0.0f, 0.0f, (float)tex->width, (float)tex->height};
+            Rectangle dst = calcular_dst_textura_en_caja(*tex, image_box);
+            DrawTexturePro(*tex, src, dst, (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+        }
+        else
+        {
+            gui_text("Sin imagen disponible",
+                     image_box.x + 24.0f,
+                     image_box.y + image_box.height * 0.5f - 10.0f,
+                     20.0f,
+                     theme->text_secondary);
         }
     }
 
-    return NULL;
-}
-
-static int listado_camisetas_should_close(void)
-{
-    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
-    {
-        input_consume_key(KEY_ESCAPE);
-        input_consume_key(KEY_ENTER);
-        return 1;
-    }
-    return 0;
+    gui_text(TextFormat("Partidos Jugados: %d", card->partidos_jugados),
+             (float)panel_x + 20.0f,
+             (float)panel_y + (float)panel_h - 118.0f,
+             20.0f,
+             theme->text_primary);
+    gui_text(TextFormat("Goles: %d", card->goles_totales),
+             (float)panel_x + 20.0f,
+             (float)panel_y + (float)panel_h - 88.0f,
+             19.0f,
+             theme->text_secondary);
+    gui_text(TextFormat("Asistencias: %d", card->asistencias_totales),
+             (float)panel_x + 20.0f,
+             (float)panel_y + (float)panel_h - 60.0f,
+             19.0f,
+             theme->text_secondary);
+    gui_text("Click / ESC / ENTER para cerrar",
+             (float)panel_x + 20.0f,
+             (float)panel_y + (float)panel_h - 32.0f,
+             18.0f,
+             theme->text_secondary);
 }
 
 static int listar_camisetas_gui(void)
@@ -976,6 +1016,7 @@ static int listar_camisetas_gui(void)
     CamisetaListadoCard *cards = NULL;
     int count = 0;
     int scroll_rows = 0;
+    int card_seleccionada = -1;
     Texture2D fallback_tex = (Texture2D){0};
     int fallback_loaded = 0;
     char fallback_path[512] = {0};
@@ -1001,8 +1042,8 @@ static int listar_camisetas_gui(void)
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
-        int clicked_id = 0;
-        const char *clicked_nombre = NULL;
+        int accion = GUI_CARDS_FLOW_CONTINUE;
+        int click_card = -1;
         CamisetaCardsLayout layout;
         Rectangle area;
 
@@ -1014,23 +1055,39 @@ static int listar_camisetas_gui(void)
                                                 layout.visible_rows,
                                                 area);
 
+        if (card_seleccionada < 0)
+        {
+            GuiCardsHitTestConfig hit_cfg = {
+                count,
+                scroll_rows,
+                layout.cols,
+                layout.card_w,
+                layout.card_h,
+                layout.gap_x,
+                layout.gap_y,
+                layout.panel_x + 12,
+                layout.area_y,
+                layout.area_h};
+            click_card = gui_cards_detect_click_index(&hit_cfg);
+        }
+
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header("LISTADO DE CAMISETAS", sw);
 
         DrawRectangle(layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h,
-                      (Color){19,40,27,255});
+                      (Color){19, 40, 27, 255});
         DrawRectangleLines(layout.panel_x, layout.panel_y, layout.panel_w, layout.panel_h,
-                           (Color){110,161,125,255});
+                           (Color){110, 161, 125, 255});
 
         if (count > 0)
         {
-            clicked_id = dibujar_cards_listado_camisetas(cards,
-                                                         count,
-                                                         scroll_rows,
-                                                         &layout,
-                                                         &fallback_tex,
-                                                         fallback_loaded);
+            dibujar_cards_listado_camisetas(cards,
+                                            count,
+                                            scroll_rows,
+                                            &layout,
+                                            &fallback_tex,
+                                            fallback_loaded);
         }
         else
         {
@@ -1038,29 +1095,35 @@ static int listar_camisetas_gui(void)
                      (float)layout.panel_x + 24.0f,
                      (float)layout.panel_y + 28.0f,
                      24.0f,
-                     (Color){233,247,236,255});
+                     (Color){233, 247, 236, 255});
         }
 
-        gui_draw_footer_hint("Click: agrandar imagen | Rueda: scroll | ESC/Enter: volver", (float)layout.panel_x, sh);
+        if (card_seleccionada >= 0 && card_seleccionada < count)
+        {
+            dibujar_preview_card_camiseta(&cards[card_seleccionada],
+                                          &fallback_tex,
+                                          fallback_loaded);
+        }
+
+        if (card_seleccionada >= 0)
+        {
+            gui_draw_footer_hint("Vista ampliada activa", (float)layout.panel_x, sh);
+        }
+        else
+        {
+            gui_draw_footer_hint("Click en una card: ampliar imagen | Rueda: scroll | ESC/Enter: volver",
+                                (float)layout.panel_x,
+                                sh);
+        }
         EndDrawing();
 
-        if (clicked_id > 0)
-        {
-            clicked_nombre = buscar_nombre_card_listado(cards, count, clicked_id);
-
-            if (!ver_imagen_camiseta_card_gui(clicked_id, clicked_nombre))
-            {
-                gui_show_camiseta_action_feedback("VER IMAGEN",
-                                                  "No se pudo abrir la imagen",
-                                                  0);
-            }
-            continue;
-        }
-
-        if (listado_camisetas_should_close())
+        accion = gui_cards_handle_preview_selection(&card_seleccionada, click_card);
+        if (accion == GUI_CARDS_FLOW_EXIT)
         {
             break;
         }
+
+        continue;
     }
 
     if (fallback_loaded && fallback_tex.id != 0)
@@ -1147,7 +1210,7 @@ static void gui_draw_input_caret(const char *text, Rectangle input_rect)
     DrawLineEx((Vector2){caret_x, input_rect.y + 7.0f},
                (Vector2){caret_x, input_rect.y + input_rect.height - 7.0f},
                2.0f,
-               (Color){241,252,244,255});
+               (Color){241, 252, 244, 255});
 }
 
 static void gui_draw_crear_camiseta_toast(int sw, int sh, int toast_kind)
@@ -1156,12 +1219,12 @@ static void gui_draw_crear_camiseta_toast(int sw, int sh, int toast_kind)
     int toast_h = 44;
     int toast_x = (sw - toast_w) / 2;
     int toast_y = sh - 120;
-    Color bg = (toast_kind == 1) ? (Color){28,94,52,240} : (Color){120,45,38,240};
+    Color bg = (toast_kind == 1) ? (Color){28, 94, 52, 240} : (Color){120, 45, 38, 240};
     const char *msg = "No se pudo crear la camiseta";
 
     if (toast_kind == 1)
     {
-        msg = "Camiseta creada correctamente";
+        msg = "Camiseta Creada";
     }
     else if (toast_kind == 3)
     {
@@ -1169,8 +1232,8 @@ static void gui_draw_crear_camiseta_toast(int sw, int sh, int toast_kind)
     }
 
     DrawRectangle(toast_x, toast_y, toast_w, toast_h, bg);
-    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198,230,205,255});
-    gui_text(msg, (float)toast_x + 14.0f, (float)toast_y + 12.0f, 18.0f, (Color){241,252,244,255});
+    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198, 230, 205, 255});
+    gui_text(msg, (float)toast_x + 14.0f, (float)toast_y + 12.0f, 18.0f, (Color){241, 252, 244, 255});
 }
 
 static int gui_tick_crear_camiseta_toast(float *toast_timer, int toast_kind)
@@ -1230,12 +1293,12 @@ static void gui_draw_action_toast(int sw, int sh, const char *msg, int success)
     int toast_h = 44;
     int toast_x = (sw - toast_w) / 2;
     int toast_y = sh - 120;
-    Color bg = success ? (Color){28,94,52,240} : (Color){120,45,38,240};
+    Color bg = success ? (Color){28, 94, 52, 240} : (Color){120, 45, 38, 240};
 
     DrawRectangle(toast_x, toast_y, toast_w, toast_h, bg);
-    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198,230,205,255});
+    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198, 230, 205, 255});
     gui_text(msg ? msg : "Operacion completada", (float)toast_x + 14.0f, (float)toast_y + 12.0f,
-             18.0f, (Color){241,252,244,255});
+             18.0f, (Color){241, 252, 244, 255});
 }
 
 static int gui_tick_action_toast(float *timer)
@@ -1249,137 +1312,9 @@ static int gui_tick_action_toast(float *timer)
     return *timer <= 0.0f;
 }
 
-static void gui_draw_carga_imagen_modal(int sw, int sh, const char *mensaje)
-{
-    const GuiTheme *theme = gui_get_active_theme();
-    const int panel_w = sw > 900 ? 620 : sw - 40;
-    const int panel_h = 210;
-    const int panel_x = (sw - panel_w) / 2;
-    const int panel_y = (sh - panel_h) / 2;
-    const float spinner_r = 26.0f;
-    const float base_time = (float)GetTime();
-    const int active_dot = ((int)(base_time * 12.0f)) % 12;
-    const float cx = (float)panel_x + (float)panel_w * 0.5f;
-    const float cy = (float)panel_y + 88.0f;
-
-    DrawRectangle(0, 0, sw, sh, (Color){4, 10, 7, 165});
-    DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
-    DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
-
-    gui_text("CARGANDO IMAGEN", (float)panel_x + 24.0f, (float)panel_y + 24.0f,
-             23.0f, theme->text_primary);
-    gui_text(mensaje ? mensaje : "Procesando imagen...",
-             (float)panel_x + 24.0f, (float)panel_y + 56.0f,
-             18.0f, theme->text_secondary);
-
-    for (int i = 0; i < 12; i++)
-    {
-        const float a = ((float)i / 12.0f) * (2.0f * 3.14159265f);
-        const float x = cx + cosf(a) * spinner_r;
-        const float y = cy + sinf(a) * spinner_r;
-        const int tail = (active_dot - i + 12) % 12;
-        Color dot = theme->accent_primary;
-        dot.a = (unsigned char)(50 + (12 - tail) * 16);
-        DrawCircleV((Vector2){x, y}, i == active_dot ? 4.8f : 3.7f, dot);
-    }
-
-    {
-        const float bar_x = (float)panel_x + 26.0f;
-        const float bar_y = (float)panel_y + (float)panel_h - 42.0f;
-        const float bar_w = (float)panel_w - 52.0f;
-        const float bar_h = 11.0f;
-        const float segment_w = bar_w * 0.22f;
-        const float phase = fmodf(base_time * 260.0f, bar_w + segment_w) - segment_w;
-
-        DrawRectangleRounded((Rectangle){bar_x, bar_y, bar_w, bar_h}, 0.45f, 10,
-                             (Color){22, 45, 31, 255});
-        DrawRectangleRounded((Rectangle){bar_x + phase, bar_y, segment_w, bar_h}, 0.45f, 10,
-                             theme->accent_primary);
-        DrawRectangleRoundedLines((Rectangle){bar_x, bar_y, bar_w, bar_h}, 0.45f, 10,
-                                  theme->border);
-    }
-}
-
-#ifndef _WIN32
-static void gui_spin_carga_imagen_por(float segundos, const char *mensaje)
-{
-    const double t0 = GetTime();
-
-    while (!WindowShouldClose())
-    {
-        const double dt = GetTime() - t0;
-        if (dt >= (double)segundos)
-        {
-            break;
-        }
-
-        {
-            const int sw = GetScreenWidth();
-            const int sh = GetScreenHeight();
-
-            BeginDrawing();
-            ClearBackground((Color){14,27,20,255});
-            gui_draw_module_header("CARGAR IMAGEN", sw);
-            gui_draw_carga_imagen_modal(sw, sh, mensaje);
-            EndDrawing();
-        }
-    }
-}
-#endif
-
-typedef struct
-{
-    int camiseta_id;
-    volatile int done;
-    int ok;
-} GuiCargaImagenJob;
-
-#ifdef _WIN32
-static void __cdecl gui_carga_imagen_worker(void *arg)
-{
-    GuiCargaImagenJob *job = (GuiCargaImagenJob *)arg;
-    if (!job)
-    {
-        return;
-    }
-
-    job->ok = cargar_imagen_para_camiseta_id(job->camiseta_id);
-    job->done = 1;
-}
-#endif
-
 static int gui_cargar_imagen_con_spinner(int camiseta_id)
 {
-#ifdef _WIN32
-    GuiCargaImagenJob job;
-    job.camiseta_id = camiseta_id;
-    job.done = 0;
-    job.ok = 0;
-
-    if (_beginthread(gui_carga_imagen_worker, 0, &job) == (uintptr_t)-1L)
-    {
-        return cargar_imagen_para_camiseta_id(camiseta_id);
-    }
-
-    while (!job.done)
-    {
-        int sw = GetScreenWidth();
-        int sh = GetScreenHeight();
-
-        BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
-        gui_draw_module_header("CARGAR IMAGEN", sw);
-        gui_draw_carga_imagen_modal(sw, sh,
-                                    "Selecciona imagen y espera mientras se procesa...");
-        gui_draw_footer_hint("Procesando...", 40.0f, sh);
-        EndDrawing();
-    }
-
-    return job.ok;
-#else
-    gui_spin_carga_imagen_por(0.35f, "Procesando imagen...");
     return cargar_imagen_para_camiseta_id(camiseta_id);
-#endif
 }
 
 static void gui_show_camiseta_action_feedback(const char *title, const char *msg, int success)
@@ -1391,7 +1326,7 @@ static void gui_show_camiseta_action_feedback(const char *title, const char *msg
         int sh = GetScreenHeight();
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header(title ? title : "CAMISETAS", sw);
         gui_draw_action_toast(sw, sh, msg, success);
         gui_draw_footer_hint("Continuando...", 40.0f, sh);
@@ -1503,12 +1438,71 @@ static int gui_confirmar_cargar_imagen_camiseta(int id)
     return 0;
 }
 
+static void gui_show_creacion_camiseta_resultado(int id_creada, int intento_cargar_imagen, int imagen_cargada)
+{
+    input_consume_key(KEY_ENTER);
+    input_consume_key(KEY_ESCAPE);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 230;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        const GuiTheme *theme = gui_get_active_theme();
+
+        BeginDrawing();
+        ClearBackground(theme->bg_main);
+        gui_draw_module_header("NUEVA CAMISETA", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
+
+        gui_text(TextFormat("Camiseta ID %d Creada", id_creada),
+                 (float)panel_x + 24.0f, (float)panel_y + 42.0f, 24.0f, theme->text_primary);
+
+        if (intento_cargar_imagen)
+        {
+            gui_text(imagen_cargada
+                         ? "Imagen cargada correctamente"
+                         : "No se pudo cargar la imagen (puedes cargarla luego)",
+                     (float)panel_x + 24.0f, (float)panel_y + 92.0f, 18.0f, theme->text_secondary);
+        }
+        else
+        {
+            gui_text("Puedes cargar imagen luego desde el menu de camisetas",
+                     (float)panel_x + 24.0f, (float)panel_y + 92.0f, 18.0f, theme->text_secondary);
+        }
+
+        gui_draw_action_toast(sw, sh, "Camiseta Creada", 1);
+        gui_draw_footer_hint("ENTER o ESC: volver al menu de camisetas", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ENTER);
+            input_consume_key(KEY_ESCAPE);
+            return;
+        }
+    }
+}
+
 static void gui_post_crear_camiseta(int id_creada, int preguntar_imagen)
 {
     char log_msg[256];
+    int intento_cargar_imagen = 0;
+    int imagen_cargada = 0;
 
-    if (!preguntar_imagen || id_creada <= 0)
+    if (id_creada <= 0)
     {
+        return;
+    }
+
+    if (!preguntar_imagen)
+    {
+        gui_show_creacion_camiseta_resultado(id_creada, intento_cargar_imagen, imagen_cargada);
         return;
     }
 
@@ -1517,21 +1511,24 @@ static void gui_post_crear_camiseta(int id_creada, int preguntar_imagen)
         snprintf(log_msg, sizeof(log_msg),
                  "Camiseta id=%d creada sin imagen inicial (opcional)", id_creada);
         app_log_event("CAMISETA", log_msg);
+        gui_show_creacion_camiseta_resultado(id_creada, intento_cargar_imagen, imagen_cargada);
         return;
     }
 
-    if (!cargar_imagen_para_camiseta_id(id_creada))
+    intento_cargar_imagen = 1;
+    if (!gui_cargar_imagen_con_spinner(id_creada))
     {
         snprintf(log_msg, sizeof(log_msg),
                  "Camiseta id=%d creada, pero fallo carga de imagen inicial", id_creada);
         app_log_event("CAMISETA", log_msg);
-        gui_show_camiseta_action_feedback("CARGAR IMAGEN", "No se pudo cargar la imagen", 0);
+        gui_show_creacion_camiseta_resultado(id_creada, intento_cargar_imagen, imagen_cargada);
         return;
     }
 
+    imagen_cargada = 1;
     snprintf(log_msg, sizeof(log_msg), "Camiseta id=%d creada con imagen inicial", id_creada);
     app_log_event("CAMISETA", log_msg);
-    gui_show_camiseta_action_feedback("CARGAR IMAGEN", "Imagen cargada correctamente", 1);
+    gui_show_creacion_camiseta_resultado(id_creada, intento_cargar_imagen, imagen_cargada);
 }
 
 static int gui_tick_crear_camiseta_flow(char *nombre,
@@ -1574,7 +1571,7 @@ static int crear_camiseta_gui(void)
 {
     char nombre[50] = {0};
     int cursor = 0;
-    int toast_kind = 0;     /* 0: no toast, 1: exito, 2: error */
+    int toast_kind = 0; /* 0: no toast, 1: exito, 2: error */
     float toast_timer = 0.0f;
     int id_creada = 0;
     int preguntar_imagen = 0;
@@ -1593,21 +1590,21 @@ static int crear_camiseta_gui(void)
         int panel_h = 220;
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
-        DrawRectangle(0, 0, sw, 84, (Color){17,54,33,255});
-        gui_text("MiFutbolC", 26, 20, 36.0f, (Color){241,252,244,255});
-        gui_text("CREAR CAMISETA", 230, 34, 20.0f, (Color){198,230,205,255});
+        ClearBackground((Color){14, 27, 20, 255});
+        DrawRectangle(0, 0, sw, 84, (Color){17, 54, 33, 255});
+        gui_text("MiFutbolC", 26, 20, 36.0f, (Color){241, 252, 244, 255});
+        gui_text("CREAR CAMISETA", 230, 34, 20.0f, (Color){198, 230, 205, 255});
 
-        DrawRectangle(panel_x, panel_y, panel_w, panel_h, (Color){19,40,27,255});
-        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, (Color){110,161,125,255});
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, (Color){19, 40, 27, 255});
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, (Color){110, 161, 125, 255});
 
-        gui_text("Nombre:", panel_x + 24, panel_y + 36, 18.0f, (Color){233,247,236,255});
+        gui_text("Nombre:", panel_x + 24, panel_y + 36, 18.0f, (Color){233, 247, 236, 255});
 
         /* input box */
-        Rectangle input_rect = { (float)(panel_x + 24), (float)(panel_y + 70), (float)(panel_w - 48), 36.0f };
-        DrawRectangleRec(input_rect, (Color){18,36,28,255});
-        DrawRectangleLines((int)input_rect.x, (int)input_rect.y, (int)input_rect.width, (int)input_rect.height, (Color){55,100,72,255});
-        gui_text(nombre, input_rect.x + 8, input_rect.y + 8, 18.0f, (Color){233,247,236,255});
+        Rectangle input_rect = {(float)(panel_x + 24), (float)(panel_y + 70), (float)(panel_w - 48), 36.0f};
+        DrawRectangleRec(input_rect, (Color){18, 36, 28, 255});
+        DrawRectangleLines((int)input_rect.x, (int)input_rect.y, (int)input_rect.width, (int)input_rect.height, (Color){55, 100, 72, 255});
+        gui_text(nombre, input_rect.x + 8, input_rect.y + 8, 18.0f, (Color){233, 247, 236, 255});
 
         if (toast_timer <= 0.0f)
         {
@@ -1619,7 +1616,7 @@ static int crear_camiseta_gui(void)
             gui_draw_crear_camiseta_toast(sw, sh, toast_kind);
         }
 
-        gui_text("ENTER \u2192 Guardar | ESC \u2192 Volver", panel_x, sh - 62, 18.0f, (Color){178,214,188,255});
+        gui_text("ENTER \u2192 Guardar | ESC \u2192 Volver", panel_x, sh - 62, 18.0f, (Color){178, 214, 188, 255});
 
         EndDrawing();
 
@@ -1719,10 +1716,10 @@ static int modal_editar_nombre_camiseta_gui(int id)
 }
 
 static int dibujar_y_detectar_click_editar_camisetas(const CamisetaGuiRow *rows,
-                                                      int count,
-                                                      int scroll,
-                                                      int row_h,
-                                                      Rectangle panel)
+                                                     int count,
+                                                     int scroll,
+                                                     int row_h,
+                                                     Rectangle panel)
 {
     int panel_x = (int)panel.x;
     int panel_y = (int)panel.y;
@@ -1763,6 +1760,104 @@ static int dibujar_y_detectar_click_editar_camisetas(const CamisetaGuiRow *rows,
     EndScissorMode();
 
     return 0;
+}
+
+enum
+{
+    CAMISETA_EDIT_ACCION_CANCELAR = 0,
+    CAMISETA_EDIT_ACCION_NOMBRE = 1,
+    CAMISETA_EDIT_ACCION_IMAGEN = 2
+};
+
+static int modal_accion_editar_camiseta_gui(int id)
+{
+    input_consume_key(KEY_ENTER);
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_N);
+    input_consume_key(KEY_I);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 220;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_nombre;
+        Rectangle btn_imagen;
+        const GuiTheme *theme = gui_get_active_theme();
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        gui_config_visor_button_rects(panel_x, panel_y, panel_w, panel_h, &btn_nombre, &btn_imagen);
+
+        BeginDrawing();
+        ClearBackground(theme->bg_main);
+        gui_draw_module_header("EDITAR CAMISETA", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
+
+        gui_text(TextFormat("ID seleccionado: %d", id),
+                 (float)panel_x + 24.0f, (float)panel_y + 44.0f, 22.0f, theme->text_primary);
+        gui_text("Elige que deseas modificar", (float)panel_x + 24.0f,
+                 (float)panel_y + 90.0f, 18.0f, theme->text_secondary);
+
+        gui_draw_action_button(btn_nombre, "Editar Nombre", 1);
+        gui_draw_action_button(btn_imagen, "Cambiar Imagen", 0);
+        gui_draw_footer_hint("N/ENTER: nombre | I: imagen | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_nombre)) ||
+            IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_N);
+            input_consume_key(KEY_ENTER);
+            return CAMISETA_EDIT_ACCION_NOMBRE;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_imagen)) || IsKeyPressed(KEY_I))
+        {
+            input_consume_key(KEY_I);
+            return CAMISETA_EDIT_ACCION_IMAGEN;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ESCAPE);
+            return CAMISETA_EDIT_ACCION_CANCELAR;
+        }
+    }
+
+    return CAMISETA_EDIT_ACCION_CANCELAR;
+}
+
+static int ejecutar_accion_editar_camiseta_gui(int clicked_id, CamisetaGuiRow *rows)
+{
+    int accion = modal_accion_editar_camiseta_gui(clicked_id);
+
+    if (accion == CAMISETA_EDIT_ACCION_NOMBRE && modal_editar_nombre_camiseta_gui(clicked_id))
+    {
+        free(rows);
+        return 1;
+    }
+
+    if (accion != CAMISETA_EDIT_ACCION_IMAGEN)
+    {
+        return 0;
+    }
+
+    if (gui_cargar_imagen_con_spinner(clicked_id))
+    {
+        gui_show_camiseta_action_feedback("EDITAR CAMISETA", "Imagen actualizada correctamente", 1);
+    }
+    else
+    {
+        gui_show_camiseta_action_feedback("EDITAR CAMISETA", "No se pudo actualizar la imagen", 0);
+    }
+
+    free(rows);
+    return 1;
 }
 
 static int editar_camiseta_gui(void)
@@ -1812,24 +1907,20 @@ static int editar_camiseta_gui(void)
         scroll = actualizar_scroll_listado(scroll, count, visible_rows, content_area);
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header("EDITAR CAMISETA", sw);
-        gui_text("Selecciona una camiseta para modificar su nombre", (float)panel_x, 92.0f, 18.0f, gui_get_active_theme()->text_secondary);
+        gui_text("Selecciona una camiseta para editar nombre o imagen", (float)panel_x, 92.0f, 18.0f, gui_get_active_theme()->text_secondary);
         gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
                             "ID", 12.0f,
                             "NOMBRE", 78.0f);
 
         clicked_id = dibujar_y_detectar_click_editar_camisetas(rows, count, scroll, row_h, content_area);
-        gui_draw_footer_hint("Click: editar | Rueda: scroll | ESC: volver", (float)panel_x, sh);
+        gui_draw_footer_hint("Click: elegir accion | Rueda: scroll | ESC: volver", (float)panel_x, sh);
         EndDrawing();
 
-        if (clicked_id > 0)
+        if (clicked_id > 0 && ejecutar_accion_editar_camiseta_gui(clicked_id, rows))
         {
-            if (modal_editar_nombre_camiseta_gui(clicked_id))
-            {
-                free(rows);
-                return 1;
-            }
+            return 1;
         }
 
         if (IsKeyPressed(KEY_ESCAPE))
@@ -1864,7 +1955,7 @@ static int eliminar_camiseta_por_id_gui(int id)
     return 1;
 }
 
-static int modal_confirmar_eliminar_camiseta_gui(int id)
+static int modal_confirmar_eliminar_camiseta_gui(int id, const char *nombre)
 {
     while (!WindowShouldClose())
     {
@@ -1888,10 +1979,16 @@ static int modal_confirmar_eliminar_camiseta_gui(int id)
         DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
         DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
 
-        gui_text(TextFormat("Confirmar eliminacion de camiseta ID %d", id),
-                 (float)panel_x + 24.0f, (float)panel_y + 44.0f, 22.0f, theme->text_primary);
+        gui_text("Confirmar eliminacion de camiseta", (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f, 22.0f, theme->text_primary);
+        gui_text_truncated(TextFormat("%d(%s)", id, nombre ? nombre : "(sin nombre)"),
+                           (float)panel_x + 24.0f,
+                           (float)panel_y + 76.0f,
+                           18.0f,
+                           (float)panel_w - 48.0f,
+                           theme->text_secondary);
         gui_text("Usa botones o teclas ENTER/ESC", (float)panel_x + 24.0f,
-                 (float)panel_y + 92.0f, 18.0f, theme->text_secondary);
+                 (float)panel_y + 108.0f, 18.0f, theme->text_secondary);
 
         gui_draw_action_button(btn_confirm, "Eliminar", 1);
         gui_draw_action_button(btn_cancel, "Cancelar", 0);
@@ -1918,7 +2015,8 @@ static int modal_confirmar_eliminar_camiseta_gui(int id)
     return 0;
 }
 
-static int dibujar_y_detectar_click_eliminar_camisetas(const CamisetaGuiRow *rows,
+static int dibujar_y_detectar_toggle_eliminar_camisetas(const CamisetaGuiRow *rows,
+                                                        const int *seleccionados,
                                                         int count,
                                                         int scroll,
                                                         int row_h,
@@ -1933,7 +2031,7 @@ static int dibujar_y_detectar_click_eliminar_camisetas(const CamisetaGuiRow *row
     if (count == 0)
     {
         gui_text("No hay camisetas.", (float)panel_x + 24.0f, (float)panel_y + 24.0f, 24.0f, theme->text_primary);
-        return 0;
+        return -1;
     }
 
     BeginScissorMode(panel_x, panel_y, panel_w, panel_h);
@@ -1953,22 +2051,456 @@ static int dibujar_y_detectar_click_eliminar_camisetas(const CamisetaGuiRow *row
         if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             EndScissorMode();
-            return rows[i].id;
+            return i;
         }
 
-        gui_text(TextFormat("%3d", rows[i].id), (float)panel_x + 12.0f, (float)y + 6.0f,
+        gui_text((seleccionados && seleccionados[i]) ? "[x]" : "[ ]", (float)panel_x + 12.0f, (float)y + 6.0f,
                  18.0f, theme->text_secondary);
-        gui_text_truncated(rows[i].nombre, (float)panel_x + 78.0f, (float)y + 6.0f, 18.0f,
-                           (float)panel_w - 96.0f, theme->text_primary);
+        gui_text(TextFormat("%3d", rows[i].id), (float)panel_x + 64.0f, (float)y + 6.0f,
+                 18.0f, theme->text_secondary);
+        gui_text_truncated(rows[i].nombre, (float)panel_x + 122.0f, (float)y + 6.0f, 18.0f,
+                           (float)panel_w - 140.0f, theme->text_primary);
     }
     EndScissorMode();
 
+    return -1;
+}
+
+static int contar_camisetas_seleccionadas(const int *seleccionados, int count)
+{
+    int total = 0;
+
+    if (!seleccionados || count <= 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        if (seleccionados[i])
+        {
+            total++;
+        }
+    }
+
+    return total;
+}
+
+static int obtener_primer_index_seleccionado(const int *seleccionados, int count)
+{
+    if (!seleccionados || count <= 0)
+    {
+        return -1;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        if (seleccionados[i])
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static void set_seleccion_camisetas(int *seleccionados, int count, int value)
+{
+    if (!seleccionados || count <= 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        seleccionados[i] = value;
+    }
+}
+
+static void construir_resumen_ids_seleccionados(const CamisetaGuiRow *rows,
+                                                const int *seleccionados,
+                                                int count,
+                                                char *buffer,
+                                                size_t buffer_size)
+{
+    if (!buffer || buffer_size == 0)
+    {
+        return;
+    }
+
+    buffer[0] = '\0';
+    if (!rows || !seleccionados || count <= 0)
+    {
+        return;
+    }
+
+    int escritos = 0;
+    int mostrados = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        if (!seleccionados[i])
+        {
+            continue;
+        }
+
+        if (mostrados >= 12)
+        {
+            (void)snprintf(buffer + escritos,
+                           (escritos < (int)buffer_size) ? buffer_size - (size_t)escritos : 0,
+                           "%s...",
+                           (mostrados == 0) ? "" : ", ");
+            return;
+        }
+
+        {
+            int n = snprintf(buffer + escritos,
+                             (escritos < (int)buffer_size) ? buffer_size - (size_t)escritos : 0,
+                             "%s%d(%s)",
+                             (mostrados == 0) ? "" : ", ",
+                             rows[i].id,
+                             rows[i].nombre[0] != '\0' ? rows[i].nombre : "(sin nombre)");
+            if (n < 0)
+            {
+                return;
+            }
+            escritos += n;
+        }
+        mostrados++;
+
+        if (escritos >= (int)buffer_size - 1)
+        {
+            return;
+        }
+    }
+}
+
+static int modal_confirmar_eliminar_varias_camisetas_gui(int cantidad, const char *ids_resumen)
+{
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 740 : sw - 40;
+        int panel_h = 210;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_confirm;
+        Rectangle btn_cancel;
+        const GuiTheme *theme = gui_get_active_theme();
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        gui_config_visor_button_rects(panel_x, panel_y, panel_w, panel_h, &btn_confirm, &btn_cancel);
+
+        BeginDrawing();
+        ClearBackground(theme->bg_main);
+        gui_draw_module_header("ELIMINAR CAMISETAS", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, theme->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, theme->card_border);
+
+        gui_text(TextFormat("Confirmar eliminacion de %d camisetas", cantidad),
+                 (float)panel_x + 24.0f, (float)panel_y + 44.0f, 22.0f, theme->text_primary);
+        gui_text_truncated(ids_resumen ? ids_resumen : "IDs: (sin seleccion)",
+                           (float)panel_x + 24.0f,
+                           (float)panel_y + 82.0f,
+                           18.0f,
+                           (float)panel_w - 48.0f,
+                           theme->text_secondary);
+        gui_text("Usa botones o teclas ENTER/ESC", (float)panel_x + 24.0f,
+                 (float)panel_y + 112.0f, 18.0f, theme->text_secondary);
+
+        gui_draw_action_button(btn_confirm, "Eliminar", 1);
+        gui_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("Esta accion no se puede deshacer", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_confirm)) ||
+            IsKeyPressed(KEY_Y) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_Y);
+            input_consume_key(KEY_ENTER);
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) ||
+            IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_N);
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+    }
+
     return 0;
+}
+
+static int eliminar_camisetas_seleccionadas_gui(const CamisetaGuiRow *rows,
+                                                const int *seleccionados,
+                                                int count,
+                                                int *eliminadas_out)
+{
+    int eliminadas = 0;
+
+    if (!rows || !seleccionados || count <= 0)
+    {
+        if (eliminadas_out)
+        {
+            *eliminadas_out = 0;
+        }
+        return 0;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        if (!seleccionados[i])
+        {
+            continue;
+        }
+
+        if (eliminar_camiseta_por_id_gui(rows[i].id))
+        {
+            eliminadas++;
+        }
+    }
+
+    if (eliminadas_out)
+    {
+        *eliminadas_out = eliminadas;
+    }
+
+    return eliminadas > 0;
+}
+
+static int recargar_estado_eliminar_camisetas(CamisetaGuiRow **rows, int *count, int **seleccionados)
+{
+    if (!rows || !count || !seleccionados)
+    {
+        return 0;
+    }
+
+    free(*rows);
+    *rows = NULL;
+    free(*seleccionados);
+    *seleccionados = NULL;
+    *count = 0;
+
+    if (!cargar_camisetas_gui_rows(rows, count))
+    {
+        return 0;
+    }
+
+    if (*count <= 0)
+    {
+        return 1;
+    }
+
+    *seleccionados = (int *)calloc((size_t)(*count), sizeof(int));
+    if (!*seleccionados)
+    {
+        free(*rows);
+        *rows = NULL;
+        *count = 0;
+        return 0;
+    }
+
+    return 1;
+}
+
+static int procesar_confirmacion_eliminacion(const CamisetaGuiRow *rows,
+                                             const int *seleccionados,
+                                             int count,
+                                             int seleccionadas,
+                                             int *confirmado,
+                                             int *eliminadas)
+{
+    char ids_resumen[256] = {0};
+
+    if (!confirmado || !eliminadas)
+    {
+        return 0;
+    }
+
+    *confirmado = 0;
+    *eliminadas = 0;
+
+    if (seleccionadas == 1)
+    {
+        int idx = obtener_primer_index_seleccionado(seleccionados, count);
+        int id = (idx >= 0 && rows) ? rows[idx].id : 0;
+        const char *nombre = (idx >= 0 && rows) ? rows[idx].nombre : NULL;
+        *confirmado = (id > 0) ? modal_confirmar_eliminar_camiseta_gui(id, nombre) : 0;
+        *eliminadas = *confirmado ? 1 : 0;
+        return 1;
+    }
+
+    construir_resumen_ids_seleccionados(rows, seleccionados, count, ids_resumen, sizeof(ids_resumen));
+    *confirmado = modal_confirmar_eliminar_varias_camisetas_gui(seleccionadas, ids_resumen);
+    if (!*confirmado)
+    {
+        return 1;
+    }
+
+    (void)eliminar_camisetas_seleccionadas_gui(rows, seleccionados, count, eliminadas);
+    return 1;
+}
+
+static void preparar_toast_eliminacion(int confirmado,
+                                       int eliminadas,
+                                       int *toast_ok,
+                                       char *toast_msg,
+                                       size_t toast_msg_size,
+                                       float *toast_timer)
+{
+    if (!toast_ok || !toast_msg || toast_msg_size == 0 || !toast_timer)
+    {
+        return;
+    }
+
+    if (!confirmado)
+    {
+        *toast_ok = 0;
+        snprintf(toast_msg, toast_msg_size, "Eliminacion cancelada");
+        *toast_timer = 1.2f;
+        return;
+    }
+
+    if (eliminadas > 0)
+    {
+        *toast_ok = 1;
+        snprintf(toast_msg, toast_msg_size, "Se eliminaron %d camisetas", eliminadas);
+        *toast_timer = 1.2f;
+        return;
+    }
+
+    *toast_ok = 0;
+    snprintf(toast_msg, toast_msg_size, "No se pudieron eliminar camisetas");
+    *toast_timer = 1.2f;
+}
+
+typedef struct
+{
+    CamisetaGuiRow **rows;
+    int *count;
+    int **seleccionados;
+    int *scroll;
+    int *toast_ok;
+    char *toast_msg;
+    size_t toast_msg_size;
+    float *toast_timer;
+} EliminarCamisetaContext;
+
+enum
+{
+    ELIMINAR_INTERACCION_CONTINUAR = 0,
+    ELIMINAR_INTERACCION_SALIR = 1,
+    ELIMINAR_INTERACCION_ERROR = -1
+};
+
+static int procesar_enter_eliminar_camisetas(EliminarCamisetaContext *ctx, int seleccionadas)
+{
+    int confirmado = 0;
+    int eliminadas = 0;
+
+    if (!ctx || !ctx->rows || !ctx->count || !ctx->seleccionados)
+    {
+        return 0;
+    }
+
+    if (seleccionadas <= 0)
+    {
+        if (ctx->toast_ok && ctx->toast_msg && ctx->toast_msg_size > 0 && ctx->toast_timer)
+        {
+            *ctx->toast_ok = 0;
+            snprintf(ctx->toast_msg, ctx->toast_msg_size, "Marca al menos una camiseta");
+            *ctx->toast_timer = 1.2f;
+        }
+        return 1;
+    }
+
+    if (!procesar_confirmacion_eliminacion(*ctx->rows,
+                                           *ctx->seleccionados,
+                                           *ctx->count,
+                                           seleccionadas,
+                                           &confirmado,
+                                           &eliminadas))
+    {
+        return 0;
+    }
+
+    preparar_toast_eliminacion(confirmado,
+                               eliminadas,
+                               ctx->toast_ok,
+                               ctx->toast_msg,
+                               ctx->toast_msg_size,
+                               ctx->toast_timer);
+
+    if (!confirmado)
+    {
+        return 1;
+    }
+
+    if (!recargar_estado_eliminar_camisetas(ctx->rows, ctx->count, ctx->seleccionados))
+    {
+        return 0;
+    }
+
+    if (ctx->scroll)
+    {
+        *ctx->scroll = 0;
+    }
+
+    return 1;
+}
+
+static int manejar_interaccion_eliminar_camisetas(EliminarCamisetaContext *ctx,
+                                                  int click,
+                                                  Rectangle btn_toggle_all,
+                                                  int all_selected,
+                                                  int toggled_index,
+                                                  int seleccionadas)
+{
+    if (!ctx || !ctx->count || !ctx->seleccionados)
+    {
+        return ELIMINAR_INTERACCION_ERROR;
+    }
+
+    if ((click && CheckCollisionPointRec(GetMousePosition(), btn_toggle_all)) || IsKeyPressed(KEY_A))
+    {
+        input_consume_key(KEY_A);
+        set_seleccion_camisetas(*ctx->seleccionados, *ctx->count, all_selected ? 0 : 1);
+        return ELIMINAR_INTERACCION_CONTINUAR;
+    }
+
+    if (toggled_index >= 0 && toggled_index < *ctx->count && *ctx->seleccionados)
+    {
+        (*ctx->seleccionados)[toggled_index] = !(*ctx->seleccionados)[toggled_index];
+        return ELIMINAR_INTERACCION_CONTINUAR;
+    }
+
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        input_consume_key(KEY_ENTER);
+        if (!procesar_enter_eliminar_camisetas(ctx, seleccionadas))
+        {
+            return ELIMINAR_INTERACCION_ERROR;
+        }
+        return ELIMINAR_INTERACCION_CONTINUAR;
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE))
+    {
+        input_consume_key(KEY_ESCAPE);
+        return ELIMINAR_INTERACCION_SALIR;
+    }
+
+    return ELIMINAR_INTERACCION_CONTINUAR;
 }
 
 static int eliminar_camiseta_gui(void)
 {
     CamisetaGuiRow *rows = NULL;
+    int *seleccionados = NULL;
     int count = 0;
     int scroll = 0;
     const int row_h = 34;
@@ -1981,7 +2513,7 @@ static int eliminar_camiseta_gui(void)
     input_consume_key(KEY_ESCAPE);
     input_consume_key(KEY_ENTER);
 
-    if (!cargar_camisetas_gui_rows(&rows, &count))
+    if (!recargar_estado_eliminar_camisetas(&rows, &count, &seleccionados))
     {
         return 0;
     }
@@ -1990,13 +2522,28 @@ static int eliminar_camiseta_gui(void)
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
         int panel_x = 0;
         int panel_w = 0;
         int panel_h = 0;
         int content_h = 0;
         int visible_rows = 1;
-        int clicked_id = 0;
+        int toggled_index = -1;
+        int seleccionadas = 0;
+        int all_selected = 0;
+        int accion = ELIMINAR_INTERACCION_CONTINUAR;
         Rectangle area;
+        Rectangle btn_toggle_all = {0};
+        char footer_msg[160] = {0};
+        EliminarCamisetaContext ctx = {
+            &rows,
+            &count,
+            &seleccionados,
+            &scroll,
+            &toast_ok,
+            toast_msg,
+            sizeof(toast_msg),
+            &toast_timer};
 
         calcular_panel_listado(sw, sh, &panel_x, &panel_w, &panel_h);
 
@@ -2014,29 +2561,42 @@ static int eliminar_camiseta_gui(void)
 
         area = (Rectangle){(float)panel_x, (float)(panel_y + 32), (float)panel_w, (float)content_h};
         scroll = actualizar_scroll_listado(scroll, count, visible_rows, area);
+        seleccionadas = contar_camisetas_seleccionadas(seleccionados, count);
+        all_selected = (count > 0 && seleccionadas == count);
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header("ELIMINAR CAMISETA", sw);
-        gui_text("Selecciona una camiseta para eliminar", (float)panel_x, 92.0f, 18.0f,
+        gui_text("Marca una o varias camisetas para eliminar", (float)panel_x, 92.0f, 18.0f,
                  gui_get_active_theme()->text_secondary);
+        btn_toggle_all = (Rectangle){(float)panel_x + (float)panel_w - 220.0f, 88.0f, 200.0f, 30.0f};
+        gui_draw_action_button(btn_toggle_all, all_selected ? "Limpiar Todo" : "Seleccionar Todo", 0);
         gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
-                            "ID", 12.0f,
-                            "NOMBRE", 78.0f);
+                            "SEL", 12.0f,
+                            "ID / NOMBRE", 64.0f);
 
-        clicked_id = dibujar_y_detectar_click_eliminar_camisetas(rows, count, scroll, row_h, area);
+        toggled_index = dibujar_y_detectar_toggle_eliminar_camisetas(rows,
+                                                                     seleccionados,
+                                                                     count,
+                                                                     scroll,
+                                                                     row_h,
+                                                                     area);
 
         if (toast_timer > 0.0f)
         {
             gui_draw_action_toast(sw, sh, toast_msg, toast_ok);
         }
 
-        gui_draw_footer_hint("Click: eliminar | Rueda: scroll | ESC: volver", (float)panel_x, sh);
+        snprintf(footer_msg,
+                 sizeof(footer_msg),
+                 "Click: marcar | A: todo/limpiar | ENTER: eliminar (%d) | Rueda: scroll | ESC: volver",
+                 seleccionadas);
+        gui_draw_footer_hint(footer_msg, (float)panel_x, sh);
         EndDrawing();
 
         if (gui_tick_action_toast(&toast_timer))
         {
-            return toast_ok ? 1 : 0;
+            toast_timer = 0.0f;
         }
 
         if (toast_timer > 0.0f)
@@ -2044,38 +2604,37 @@ static int eliminar_camiseta_gui(void)
             continue;
         }
 
-        if (clicked_id > 0)
+        accion = manejar_interaccion_eliminar_camisetas(&ctx,
+                                                        click,
+                                                        btn_toggle_all,
+                                                        all_selected,
+                                                        toggled_index,
+                                                        seleccionadas);
+        if (accion == ELIMINAR_INTERACCION_ERROR)
         {
-            if (modal_confirmar_eliminar_camiseta_gui(clicked_id))
-            {
-                toast_ok = 1;
-                snprintf(toast_msg, sizeof(toast_msg), "Camiseta eliminada correctamente");
-                toast_timer = 1.2f;
-            }
-            else
-            {
-                toast_ok = 0;
-                snprintf(toast_msg, sizeof(toast_msg), "Eliminacion cancelada o fallida");
-                toast_timer = 1.2f;
-            }
+            free(rows);
+            free(seleccionados);
+            return 0;
         }
 
-        if (IsKeyPressed(KEY_ESCAPE))
+        if (accion == ELIMINAR_INTERACCION_SALIR)
         {
-            input_consume_key(KEY_ESCAPE);
             break;
         }
+
+        continue;
     }
 
     free(rows);
+    free(seleccionados);
     return 1;
 }
 
 static int dibujar_y_detectar_click_cargar_imagen_camisetas(const CamisetaGuiRow *rows,
-                                                             int count,
-                                                             int scroll,
-                                                             int row_h,
-                                                             Rectangle panel)
+                                                            int count,
+                                                            int scroll,
+                                                            int row_h,
+                                                            Rectangle panel)
 {
     int panel_x = (int)panel.x;
     int panel_y = (int)panel.y;
@@ -2170,7 +2729,7 @@ static int cargar_imagen_camiseta_gui(void)
         scroll = actualizar_scroll_listado(scroll, count, visible_rows, area);
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header("CARGAR IMAGEN", sw);
         gui_text("Selecciona una camiseta para cargar imagen", (float)panel_x, 92.0f, 18.0f,
                  gui_get_active_theme()->text_secondary);
@@ -2414,8 +2973,7 @@ static int ver_imagen_camiseta_card_gui(int id, const char *nombre)
             id,
             nombre,
             tex,
-            dst
-        };
+            dst};
 
         dibujar_card_preview_camiseta(&view);
 
@@ -2487,10 +3045,10 @@ static void procesar_click_ver_imagen_camiseta(int clicked_id,
 }
 
 static int dibujar_y_detectar_click_ver_imagen_camisetas(const CamisetaGuiRow *rows,
-                                                          int count,
-                                                          int scroll,
-                                                          int row_h,
-                                                          Rectangle panel)
+                                                         int count,
+                                                         int scroll,
+                                                         int row_h,
+                                                         Rectangle panel)
 {
     int panel_x = (int)panel.x;
     int panel_y = (int)panel.y;
@@ -2585,7 +3143,7 @@ static int ver_imagen_camiseta_gui(void)
         scroll = actualizar_scroll_listado(scroll, count, visible_rows, area);
 
         BeginDrawing();
-        ClearBackground((Color){14,27,20,255});
+        ClearBackground((Color){14, 27, 20, 255});
         gui_draw_module_header("VER IMAGEN", sw);
         gui_text("Selecciona una camiseta para abrir su imagen", (float)panel_x, 92.0f, 18.0f,
                  gui_get_active_theme()->text_secondary);
@@ -2632,178 +3190,123 @@ static int ver_imagen_camiseta_gui(void)
     return 1;
 }
 
-typedef struct
+static int mostrar_sorteo_sin_disponibles_gui(void)
 {
-    int sw;
-    int sh;
-    int panel_x;
-    int panel_y;
-    int panel_w;
-    int panel_h;
-    Rectangle input_rect;
-    const char *actual;
-    const char *nuevo;
-    float toast_timer;
-    int toast_ok;
-    const char *toast_msg;
-} GuiConfigVisorView;
-
-static void gui_draw_config_visor_screen(const GuiConfigVisorView *v)
-{
-    const GuiTheme *theme = gui_get_active_theme();
-    Rectangle btn_save;
-    Rectangle btn_cancel;
-    if (!v)
-    {
-        return;
-    }
-
-    gui_config_visor_button_rects(v->panel_x, v->panel_y, v->panel_w, v->panel_h, &btn_save, &btn_cancel);
-
-    BeginDrawing();
-    ClearBackground(theme->bg_main);
-    gui_draw_module_header("AJUSTES DE IMAGEN", v->sw);
-
-    DrawRectangle(v->panel_x, v->panel_y, v->panel_w, v->panel_h, theme->card_bg);
-    DrawRectangleLines(v->panel_x, v->panel_y, v->panel_w, v->panel_h, theme->card_border);
-
-    gui_text("Configurar visor preferido", (float)v->panel_x + 24.0f, (float)v->panel_y + 32.0f,
-             22.0f, theme->text_primary);
-    gui_text(TextFormat("Actual: %s", (v->actual && v->actual[0]) ? v->actual : "auto"),
-             (float)v->panel_x + 24.0f, (float)v->panel_y + 74.0f, 18.0f, theme->text_secondary);
-    gui_text("Nuevo visor (auto, mspaint, xdg-open, etc):", (float)v->panel_x + 24.0f,
-             (float)v->panel_y + 102.0f, 18.0f, theme->text_secondary);
-
-    DrawRectangleRec(v->input_rect, theme->bg_list);
-    DrawRectangleLines((int)v->input_rect.x, (int)v->input_rect.y, (int)v->input_rect.width,
-                       (int)v->input_rect.height, theme->border);
-    gui_text(v->nuevo ? v->nuevo : "", v->input_rect.x + 8.0f, v->input_rect.y + 8.0f,
-             18.0f, theme->text_primary);
-
-    if (v->toast_timer <= 0.0f)
-    {
-        gui_draw_input_caret(v->nuevo ? v->nuevo : "", v->input_rect);
-    }
-
-    if (v->toast_timer > 0.0f)
-    {
-        gui_draw_action_toast(v->sw, v->sh, v->toast_msg, v->toast_ok);
-    }
-
-    if (v->toast_timer <= 0.0f)
-    {
-        gui_draw_action_button(btn_save, "Guardar", 1);
-        gui_draw_action_button(btn_cancel, "Cancelar", 0);
-    }
-
-    gui_draw_footer_hint("Click o ENTER para guardar | ESC para cancelar", (float)v->panel_x, v->sh);
-    EndDrawing();
-}
-
-static void gui_submit_config_visor(char *nuevo,
-                                    int *toast_ok,
-                                    char *toast_msg,
-                                    size_t toast_msg_sz,
-                                    float *toast_timer)
-{
-    const char *valor;
-
-    if (!nuevo || !toast_ok || !toast_msg || toast_msg_sz == 0 || !toast_timer)
-    {
-        return;
-    }
-
-    trim_whitespace(nuevo);
-    valor = (nuevo[0] == '\0') ? "" : nuevo;
-
-    if (guardar_visor_preferido(valor))
-    {
-        *toast_ok = 1;
-        snprintf(toast_msg, toast_msg_sz, "Visor guardado correctamente");
-        *toast_timer = 1.2f;
-        return;
-    }
-
-    *toast_ok = 0;
-    snprintf(toast_msg, toast_msg_sz, "No se pudo guardar el visor");
-    *toast_timer = 1.3f;
-}
-
-static int configurar_visor_preferido_imagen_gui(void)
-{
-    char nuevo[64] = {0};
-    int cursor = 0;
-    char actual[64] = {0};
-    float toast_timer = 0.0f;
-    int toast_ok = 0;
-    char toast_msg[96] = {0};
-
-    obtener_visor_preferido(actual, sizeof(actual));
-    /* Prefill 'nuevo' with current value */
-    if (actual[0] != '\0')
-    {
-        (void)strncpy_s(nuevo, sizeof(nuevo), actual, _TRUNCATE);
-        cursor = (int)strlen_s(nuevo, sizeof(nuevo));
-    }
-
     while (!WindowShouldClose())
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
-        int panel_w = sw > 980 ? 760 : sw - 40;
-        int panel_h = 250;
-        int panel_x = (sw - panel_w) / 2;
-        int panel_y = (sh - panel_h) / 2;
-        Rectangle input_rect = {(float)(panel_x + 24), (float)(panel_y + 126), (float)(panel_w - 48), 38.0f};
-        Rectangle btn_save;
-        Rectangle btn_cancel;
-        GuiConfigVisorView view = {
-            sw,
-            sh,
-            panel_x,
-            panel_y,
-            panel_w,
-            panel_h,
-            input_rect,
-            actual,
-            nuevo,
-            toast_timer,
-            toast_ok,
-            toast_msg
-        };
-        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        const GuiTheme *theme = gui_get_active_theme();
 
-        gui_config_visor_button_rects(panel_x, panel_y, panel_w, panel_h, &btn_save, &btn_cancel);
+        BeginDrawing();
+        ClearBackground(theme->bg_main);
+        gui_draw_module_header("SORTEO DE CAMISETA", sw);
+        gui_text("No hay camisetas disponibles para sorteo.", 40.0f, 130.0f, 24.0f, theme->text_primary);
+        gui_draw_action_toast(sw, sh, "No hay camisetas disponibles", 0);
+        gui_draw_footer_hint("ESC: volver", 40.0f, sh);
+        EndDrawing();
 
-        gui_draw_config_visor_screen(&view);
-
-        if (gui_tick_action_toast(&toast_timer))
-        {
-            return toast_ok ? 1 : 0;
-        }
-
-        if (toast_timer > 0.0f)
-        {
-            continue;
-        }
-
-        gui_append_printable_ascii(nuevo, &cursor, sizeof(nuevo));
-        gui_handle_backspace(nuevo, sizeof(nuevo), &cursor);
-
-        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        if (IsKeyPressed(KEY_ESCAPE))
         {
             input_consume_key(KEY_ESCAPE);
-            return 0;
-        }
-
-        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_save)) || IsKeyPressed(KEY_ENTER))
-        {
-            input_consume_key(KEY_ENTER);
-            gui_submit_config_visor(nuevo, &toast_ok, toast_msg, sizeof(toast_msg), &toast_timer);
+            break;
         }
     }
 
     return 0;
+}
+
+static int cargar_preview_sorteo_camiseta(int id, Texture2D *tex_preview)
+{
+    char ruta_preview[1200] = {0};
+    int image_w = 0;
+    int image_h = 0;
+
+    if (!tex_preview)
+    {
+        return 0;
+    }
+
+    *tex_preview = (Texture2D){0};
+    return cargar_textura_preview_camiseta(id,
+                                           ruta_preview,
+                                           sizeof(ruta_preview),
+                                           tex_preview,
+                                           &image_w,
+                                           &image_h);
+}
+
+static const char *obtener_frase_motivadora_sorteo(void)
+{
+    static const char *frases[] = {
+        "Convertite en el Mejor Delantero del Mundo.",
+        "Si no marcas, no existis.",
+        "Destruilos con tu talento.",
+        "Convertite en el arma más letal de la cancha.",
+        "Tenes que pelear para alcanzar tu sueño. Tenes que sacrificarte y trabajar duro.",
+        "La pelota siempre corre mas que vos.",
+        "Salgan y dejen el alma en la cancha.",
+        "Hoy corremos todos, luchamos todos y ganamos todos.",
+        "El talento te lleva lejos, pero el esfuerzo te hace imparable.",
+        "El Futbol es el arte de hacer cosas extraordinarias con una pelota.",
+        "El Futbol es un juego simple, pero jugarlo de forma simple es lo más dificil que hay.",
+        "El Futbol es la cosa más importante de las cosas menos importantes.",
+        "El Futbol es pasion, es alegria, es tristeza, es vida.",
+        "Hoy no se juega, hoy se gana.",
+        "Entrenaste para esto. Demostralo.",
+        "El Futbol es un deporte de equipo, pero el talento individual puede marcar la diferencia.",
+        "El Futbol es un juego de errores, el que comete menos errores gana.",
+        "El Futbol es un juego de oportunidades, el que las aprovecha mejor gana.",
+        "Deja todo, no te guardes nada.",
+    };
+    const int total = (int)(sizeof(frases) / sizeof(frases[0]));
+
+    if (total <= 0)
+    {
+        return "";
+    }
+
+    return frases[rand() % total];
+}
+
+static void dibujar_preview_sorteo_camiseta(Texture2D tex_preview,
+                                            int panel_x,
+                                            int panel_y,
+                                            int panel_w,
+                                            int panel_h,
+                                            const GuiTheme *theme)
+{
+    float image_top;
+    float image_h_available;
+    Rectangle image_box;
+    Rectangle image_dst;
+
+    if (!theme)
+    {
+        return;
+    }
+
+    image_top = (float)panel_y + 210.0f;
+    image_h_available = (float)panel_y + (float)panel_h - image_top - 24.0f;
+    if (image_h_available < 120.0f)
+    {
+        image_h_available = 120.0f;
+    }
+
+    image_box = (Rectangle){(float)panel_x + 24.0f,
+                            image_top,
+                            (float)panel_w - 48.0f,
+                            image_h_available};
+    DrawRectangleRec(image_box, theme->bg_list);
+    DrawRectangleLinesEx(image_box, 1.0f, theme->border);
+
+    image_dst = calcular_dst_textura_en_caja(tex_preview, image_box);
+    DrawTexturePro(tex_preview,
+                   (Rectangle){0.0f, 0.0f, (float)tex_preview.width, (float)tex_preview.height},
+                   image_dst,
+                   (Vector2){0.0f, 0.0f},
+                   0.0f,
+                   WHITE);
 }
 
 static int sortear_camiseta_gui(void)
@@ -2825,27 +3328,7 @@ static int sortear_camiseta_gui(void)
 
     if (count == 0)
     {
-        while (!WindowShouldClose())
-        {
-            int sw = GetScreenWidth();
-            int sh = GetScreenHeight();
-            const GuiTheme *theme = gui_get_active_theme();
-
-            BeginDrawing();
-            ClearBackground(theme->bg_main);
-            gui_draw_module_header("SORTEO DE CAMISETA", sw);
-            gui_text("No hay camisetas disponibles para sorteo.", 40.0f, 130.0f, 24.0f, theme->text_primary);
-            gui_draw_action_toast(sw, sh, "No hay camisetas disponibles", 0);
-            gui_draw_footer_hint("ESC: volver", 40.0f, sh);
-            EndDrawing();
-
-            if (IsKeyPressed(KEY_ESCAPE))
-            {
-                input_consume_key(KEY_ESCAPE);
-                break;
-            }
-        }
-        return 0;
+        return mostrar_sorteo_sin_disponibles_gui();
     }
 
     int seleccionado = seleccionar_id_aleatorio(ids, count);
@@ -2856,13 +3339,16 @@ static int sortear_camiseta_gui(void)
 
     marcar_camiseta_sorteada(seleccionado);
     char *nombre = obtener_nombre_camiseta(seleccionado);
+    Texture2D tex_preview = {0};
+    const char *frase = obtener_frase_motivadora_sorteo();
+    int tiene_imagen = cargar_preview_sorteo_camiseta(seleccionado, &tex_preview);
 
     while (!WindowShouldClose())
     {
         int sw = GetScreenWidth();
         int sh = GetScreenHeight();
         int panel_w = sw > 980 ? 760 : sw - 40;
-        int panel_h = 250;
+        int panel_h = tiene_imagen ? 500 : 250;
         int panel_x = (sw - panel_w) / 2;
         int panel_y = (sh - panel_h) / 2;
         const GuiTheme *theme = gui_get_active_theme();
@@ -2881,11 +3367,22 @@ static int sortear_camiseta_gui(void)
         gui_text_truncated(nombre ? nombre : "Desconocida", (float)panel_x + 24.0f,
                            (float)panel_y + 118.0f, 30.0f, (float)panel_w - 48.0f,
                            theme->text_primary);
+        gui_text_truncated(frase ? frase : "",
+                           (float)panel_x + 24.0f,
+                           (float)panel_y + 156.0f,
+                           20.0f,
+                           (float)panel_w - 48.0f,
+                           theme->text_secondary);
 
         if (reinicio_automatico)
         {
             gui_text("Se reinicio el sorteo automaticamente", (float)panel_x + 24.0f,
-                     (float)panel_y + 160.0f, 17.0f, theme->text_secondary);
+                     (float)panel_y + 184.0f, 17.0f, theme->text_secondary);
+        }
+
+        if (tiene_imagen)
+        {
+            dibujar_preview_sorteo_camiseta(tex_preview, panel_x, panel_y, panel_w, panel_h, theme);
         }
 
         gui_draw_action_toast(sw, sh, "Sorteo realizado correctamente", 1);
@@ -2900,10 +3397,14 @@ static int sortear_camiseta_gui(void)
         }
     }
 
+    if (tiene_imagen)
+    {
+        UnloadTexture(tex_preview);
+    }
+
     free(nombre);
     return 1;
 }
-
 
 /**
  * @brief Marca una camiseta como sorteada en la base de datos
@@ -2928,7 +3429,7 @@ static void marcar_camiseta_sorteada(int id)
  * @param id ID de la camiseta
  * @return Nombre de la camiseta (debe ser liberado con free)
  */
-static char* obtener_nombre_camiseta(int id)
+static char *obtener_nombre_camiseta(int id)
 {
     char nombre_buffer[256];
 
@@ -2961,16 +3462,12 @@ void sortear_camiseta()
 void menu_camisetas()
 {
     MenuItem items[] =
-    {
-        {1, "Crear", crear_camiseta},
-        {2, "Listar", listar_camisetas},
-        {3, "Modificar", editar_camiseta},
-        {4, "Eliminar", eliminar_camiseta},
-        {5, "Sortear", sortear_camiseta},
-        {6, "Cargar Imagen", cargar_imagen_camiseta},
-        {7, "Ver Camiseta", ver_imagen_camiseta},
-        {8, "Ajustes Imagen", menu_ajustes_imagen_camiseta},
-        {0, "Volver", NULL}
-    };
-    ejecutar_menu_estandar("CAMISETAS", items, 9);
+        {
+            {1, "Crear", crear_camiseta},
+            {2, "Listar", listar_camisetas},
+            {3, "Modificar", editar_camiseta},
+            {4, "Eliminar", eliminar_camiseta},
+            {5, "Sortear", sortear_camiseta},
+            {0, "Volver", NULL}};
+    ejecutar_menu_estandar("CAMISETAS", items, 6);
 }

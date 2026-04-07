@@ -90,6 +90,16 @@ static int gui_shutdown(GuiState *st, int action_code)
     return action_code;
 }
 
+/* Libera solo el estado de la pantalla actual y conserva ventana/recursos para transiciones de menu. */
+static int gui_release_state_only(GuiState *st, int action_code)
+{
+    g_last_selected_index = st->selected_global;
+    snprintf(g_last_action_text, sizeof(g_last_action_text), "%s", st->last_action);
+    gui_prefs_save(st);
+    gui_state_cleanup(st);
+    return action_code;
+}
+
 /* Procesa las acciones que ocurren después del EndDrawing y devuelve una acción
    no negativa si hay que salir del run loop con un código concreto. -1 indica
    que no hay acción final pendiente. */
@@ -110,10 +120,10 @@ static int gui_handle_post_frame_actions(GuiState *st, const MenuItem *items, in
         return gui_shutdown(st, GUI_ACTION_EXIT);
     }
 
-    /* Compatibilidad: si alguien solicita menu clasico, se interpreta como salida */
+    /* Solicitud de volver al menu anterior (sin cerrar la app) */
     if (gui_evt_has(&st->events, GUI_EVT_OPEN_CLASSIC))
     {
-        return gui_shutdown(st, GUI_ACTION_EXIT);
+        return gui_release_state_only(st, GUI_ACTION_OPEN_CLASSIC_MENU);
     }
 
     /* Ejecucion pendiente confirmada: desmontar estado y notificar al caller */
@@ -500,7 +510,7 @@ static void process_state_events(GuiState *st)
             gui_set_status(st, "Vista Inicio");
             gui_state_set_toast(st, "Vista Inicio", 0.8f);
         } else if (st->current_screen == GUI_SCREEN_HOME) {
-            gui_evt_push(&st->events, GUI_EVT_EXIT, 0);
+            gui_evt_push(&st->events, GUI_EVT_OPEN_CLASSIC, 0);
         }
     }
 }

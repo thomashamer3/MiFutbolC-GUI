@@ -120,16 +120,6 @@ void modificar_equipo();
  */
 void eliminar_equipo();
 
-/**
- * @brief Carga una imagen asociada a un equipo existente
- */
-void cargar_imagen_equipo();
-
-/**
- * @brief Abre en el sistema la imagen asociada a un equipo
- */
-void ver_imagen_equipo();
-
 
 /**
  * @brief Muestra la información de un equipo

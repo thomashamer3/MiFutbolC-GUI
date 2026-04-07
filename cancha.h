@@ -52,14 +52,4 @@ void eliminar_cancha();
  */
 void modificar_cancha();
 
-/**
- * @brief Carga una imagen asociada a una cancha existente
- */
-void cargar_imagen_cancha();
-
-/**
- * @brief Abre en el sistema la imagen asociada a una cancha
- */
-void ver_imagen_cancha();
-
 #endif

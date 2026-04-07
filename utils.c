@@ -3287,13 +3287,25 @@ int app_command_exists(const char *cmd)
         return 0;
     }
 
-    char check_cmd[256];
 #ifdef _WIN32
-    snprintf(check_cmd, sizeof(check_cmd), "where %s >nul 2>nul", cmd);
+    char found_path[MAX_PATH] = {0};
+    const char *exts[] = {NULL, ".exe", ".com", ".bat", ".cmd", NULL};
+
+    for (int i = 0; exts[i] != NULL || i == 0; i++)
+    {
+        DWORD r = SearchPathA(NULL, cmd, exts[i], (DWORD)sizeof(found_path), found_path, NULL);
+        if (r > 0 && r < (DWORD)sizeof(found_path))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 #else
+    char check_cmd[256];
     snprintf(check_cmd, sizeof(check_cmd), "command -v %s >/dev/null 2>&1", cmd);
-#endif
     return system(check_cmd) == 0;
+#endif
 }
 
 void app_build_path(char *dest, size_t size, const char *dir, const char *file_name)
@@ -3353,6 +3365,45 @@ int app_copy_binary_file(const char *source_path, const char *dest_path)
     return 1;
 }
 
+#ifdef _WIN32
+/* Ejecuta comandos de conversion sin mostrar consola para evitar parpadeo de terminal en GUI. */
+static int run_hidden_process_windows(const char *command_line)
+{
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    DWORD exit_code = 1;
+    char cmd[2800] = {0};
+
+    if (!command_line || command_line[0] == '\0')
+    {
+        return 0;
+    }
+
+    if (strncpy_s(cmd, sizeof(cmd), command_line, _TRUNCATE) != 0)
+    {
+        return 0;
+    }
+
+    ZeroMemory(&si, sizeof(si));
+    ZeroMemory(&pi, sizeof(pi));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi))
+    {
+        return 0;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    (void)GetExitCodeProcess(pi.hProcess, &exit_code);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    return exit_code == 0;
+}
+#endif
+
 int app_optimize_image_file(const char *source_path, const char *dest_path)
 {
     if (!source_path || !dest_path)
@@ -3369,7 +3420,7 @@ int app_optimize_image_file(const char *source_path, const char *dest_path)
                  "magick \"%s\" -auto-orient -resize \"1280x1280>\" -strip -quality 92 \"%s\"",
                  source_path,
                  dest_path);
-        if (system(cmd_magick) == 0)
+        if (run_hidden_process_windows(cmd_magick))
         {
             return 1;
         }

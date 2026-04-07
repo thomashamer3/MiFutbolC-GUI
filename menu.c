@@ -121,7 +121,7 @@ static void abrir_menu_carrera(void)
 
 static const MenuItem MENU_ITEMS[] =
     {
-        {1, "Camisetas", &menu_camisetas, MENU_CATEGORY_GESTION},
+        {1, "Camisetas", &abrir_menu_camisetas, MENU_CATEGORY_GESTION},
         {2, "Canchas", &abrir_menu_canchas, MENU_CATEGORY_GESTION},
         {3, "Equipos", &abrir_menu_equipos, MENU_CATEGORY_GESTION},
         {4, "Partidos", &abrir_menu_partidos, MENU_CATEGORY_GESTION},

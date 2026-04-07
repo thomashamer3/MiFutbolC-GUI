@@ -8,15 +8,13 @@
 #include "utils.h"
 #include "menu.h"
 #include "partido.h"
+#include "raylib.h"
+#include "gui_components.h"
+#include "input.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include "compat_windows.h"
-#endif
 #include "sqlite3.h"
 #include <ctype.h>
 #include <limits.h>
@@ -28,126 +26,20 @@
 #include <strings.h>
 #endif
 
+static void equipo_sleep_ms(unsigned int ms)
+{
+    if (ms == 0U)
+    {
+        return;
+    }
+
+    WaitTime((double)ms / 1000.0);
+}
+
 
 static int preparar_stmt(sqlite3_stmt **stmt, const char *sql)
 {
     return sqlite3_prepare_v2(db, sql, -1, stmt, 0) == SQLITE_OK;
-}
-
-static int abrir_imagen_en_sistema(const char *ruta)
-{
-    if (!ruta || ruta[0] == '\0')
-    {
-        return 0;
-    }
-
-    char cmd[1400];
-#ifdef _WIN32
-    snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", ruta);
-#else
-    snprintf(cmd, sizeof(cmd), "xdg-open \"%s\" >/dev/null 2>&1", ruta);
-#endif
-    return system(cmd) == 0;
-}
-
-static int construir_ruta_absoluta_imagen_equipo_por_id(int id, char *ruta_absoluta, size_t size)
-{
-    if (!ruta_absoluta || size == 0)
-    {
-        return 0;
-    }
-
-    char ruta_db[300] = {0};
-    if (!db_get_image_path_by_id("equipo", id, ruta_db, sizeof(ruta_db)))
-    {
-        return 0;
-    }
-
-    return db_resolve_image_absolute_path(ruta_db, ruta_absoluta, size);
-}
-
-static int cargar_imagen_para_equipo_id(int id)
-{
-    return app_cargar_imagen_entidad(id, "equipo", "mifutbol_imagen_sel_equipo.txt");
-}
-
-void cargar_imagen_equipo()
-{
-    clear_screen();
-    print_header("CARGAR IMAGEN DE EQUIPO");
-
-    if (!hay_registros("equipo"))
-    {
-        mostrar_no_hay_registros("equipos");
-        pause_console();
-        return;
-    }
-
-    listar_equipos();
-    int id = input_int("\nID de equipo (0 para cancelar): ");
-    if (id == 0)
-    {
-        return;
-    }
-
-    if (!existe_id("equipo", id))
-    {
-        printf("ID inexistente.\n");
-        pause_console();
-        return;
-    }
-
-    if (!cargar_imagen_para_equipo_id(id))
-    {
-        printf("No se pudo completar la carga de imagen.\n");
-    }
-
-    pause_console();
-}
-
-void ver_imagen_equipo()
-{
-    clear_screen();
-    print_header("VER IMAGEN DE EQUIPO");
-
-    if (!hay_registros("equipo"))
-    {
-        mostrar_no_hay_registros("equipos");
-        pause_console();
-        return;
-    }
-
-    listar_equipos();
-    int id = input_int("\nID de equipo (0 para cancelar): ");
-    if (id == 0)
-    {
-        return;
-    }
-
-    if (!existe_id("equipo", id))
-    {
-        printf("ID inexistente.\n");
-        pause_console();
-        return;
-    }
-
-    char ruta_absoluta[1200] = {0};
-    if (!construir_ruta_absoluta_imagen_equipo_por_id(id, ruta_absoluta, sizeof(ruta_absoluta)))
-    {
-        printf("No se encontro imagen cargada para ese equipo.\n");
-        pause_console();
-        return;
-    }
-
-    if (!abrir_imagen_en_sistema(ruta_absoluta))
-    {
-        printf("No se pudo abrir la imagen en el sistema.\n");
-        pause_console();
-        return;
-    }
-
-    printf("Abriendo imagen...\n");
-    pause_console();
 }
 
 static int ejecutar_update_text(const char *sql, const char *value, int id)
@@ -1271,11 +1163,6 @@ void save_equipo_to_db(const Equipo *equipo)
     {
         insert_jugadores_for_equipo(equipo_id, equipo);
         printf("Equipo guardado exitosamente con ID: %d\n", equipo_id);
-        if (confirmar("Desea cargar imagen para este equipo ahora?") &&
-                !cargar_imagen_para_equipo_id(equipo_id))
-        {
-            printf("No se pudo cargar la imagen en este momento.\n");
-        }
         handle_party_assignment(equipo_id);
     }
 }
@@ -2356,6 +2243,1222 @@ void gestionar_equipo_individual(Equipo *equipo, const char *tipo_equipo)
     }
 }
 
+typedef struct
+{
+    int id;
+    char nombre[128];
+    int tipo;
+    int tipo_futbol;
+    int num_jugadores;
+    int partido_id;
+} EquipoGuiRow;
+
+typedef struct
+{
+    int x;
+    int y;
+    int w;
+    int h;
+    int visible_rows;
+} EquipoGuiPanel;
+
+enum
+{
+    EQUIPO_GUI_EDIT_CANCELAR = 0,
+    EQUIPO_GUI_EDIT_NOMBRE = 1,
+    EQUIPO_GUI_EDIT_TIPO_FUTBOL = 2,
+    EQUIPO_GUI_EDIT_ASIGNACION = 3,
+    EQUIPO_GUI_EDIT_JUGADORES = 4
+};
+
+static int ampliar_capacidad_equipos_gui(EquipoGuiRow **rows, int *cap)
+{
+    int new_cap = (*cap) * 2;
+    EquipoGuiRow *tmp = (EquipoGuiRow *)realloc(*rows, (size_t)new_cap * sizeof(EquipoGuiRow));
+    if (!tmp)
+    {
+        return 0;
+    }
+
+    memset(tmp + (*cap), 0, (size_t)(new_cap - (*cap)) * sizeof(EquipoGuiRow));
+    *rows = tmp;
+    *cap = new_cap;
+    return 1;
+}
+
+static int cargar_equipos_gui_rows(EquipoGuiRow **rows_out, int *count_out)
+{
+    sqlite3_stmt *stmt = NULL;
+    int cap = 32;
+    int count = 0;
+    EquipoGuiRow *rows;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+
+    rows = (EquipoGuiRow *)calloc((size_t)cap, sizeof(EquipoGuiRow));
+    if (!rows)
+    {
+        return 0;
+    }
+
+    if (!preparar_stmt(&stmt,
+                       "SELECT id, nombre, tipo, tipo_futbol, num_jugadores, partido_id "
+                       "FROM equipo ORDER BY id"))
+    {
+        free(rows);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        if (count >= cap && !ampliar_capacidad_equipos_gui(&rows, &cap))
+        {
+            sqlite3_finalize(stmt);
+            free(rows);
+            return 0;
+        }
+
+        rows[count].id = sqlite3_column_int(stmt, 0);
+        snprintf(rows[count].nombre,
+                 sizeof(rows[count].nombre),
+                 "%s",
+                 (const char *)(sqlite3_column_text(stmt, 1) ? sqlite3_column_text(stmt, 1) : (const unsigned char *)"(sin nombre)"));
+        rows[count].tipo = sqlite3_column_int(stmt, 2);
+        rows[count].tipo_futbol = sqlite3_column_int(stmt, 3);
+        rows[count].num_jugadores = sqlite3_column_int(stmt, 4);
+        rows[count].partido_id = sqlite3_column_int(stmt, 5);
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static int clamp_scroll_equipos_gui(int scroll, int count, int visible_rows)
+{
+    int max_scroll = count - visible_rows;
+    if (max_scroll < 0)
+    {
+        max_scroll = 0;
+    }
+
+    if (scroll < 0)
+    {
+        return 0;
+    }
+
+    if (scroll > max_scroll)
+    {
+        return max_scroll;
+    }
+
+    return scroll;
+}
+
+static int actualizar_scroll_equipos_gui(int scroll, int count, int visible_rows, Rectangle area)
+{
+    float wheel = GetMouseWheelMove();
+    if (CheckCollisionPointRec(GetMousePosition(), area))
+    {
+        if (wheel < 0.0f && scroll < count - visible_rows)
+        {
+            scroll++;
+        }
+        else if (wheel > 0.0f && scroll > 0)
+        {
+            scroll--;
+        }
+    }
+
+    return clamp_scroll_equipos_gui(scroll, count, visible_rows);
+}
+
+static void calcular_panel_listado_equipos_gui(int sw, int sh, int row_h, EquipoGuiPanel *panel)
+{
+    panel->x = (sw > 900) ? 80 : 20;
+    panel->y = 130;
+    panel->w = sw - (panel->x * 2);
+    panel->h = sh - 220;
+    if (panel->h < 200)
+    {
+        panel->h = 200;
+    }
+
+    panel->visible_rows = panel->h / row_h;
+    if (panel->visible_rows < 1)
+    {
+        panel->visible_rows = 1;
+    }
+}
+
+static void equipo_gui_append_printable_ascii(char *buffer, int *cursor, size_t buffer_size, int only_digits)
+{
+    int key = GetCharPressed();
+    while (key > 0)
+    {
+        if (key >= 32 && key <= 126 && *cursor < (int)buffer_size - 1)
+        {
+            if (!only_digits || isdigit((unsigned char)key))
+            {
+                buffer[*cursor] = (char)key;
+                (*cursor)++;
+                buffer[*cursor] = '\0';
+            }
+        }
+        key = GetCharPressed();
+    }
+}
+
+static void equipo_gui_handle_backspace(char *buffer, int *cursor)
+{
+    if (!IsKeyPressed(KEY_BACKSPACE))
+    {
+        return;
+    }
+
+    {
+        size_t len = strlen(buffer);
+        if (len > 0)
+        {
+            buffer[len - 1] = '\0';
+            *cursor = (int)len - 1;
+        }
+    }
+}
+
+static void equipo_gui_draw_input_caret(const char *text, Rectangle input_rect)
+{
+    int blink_on = (((int)(GetTime() * 2.0)) % 2) == 0;
+    if (!blink_on)
+    {
+        return;
+    }
+
+    Vector2 text_size = gui_text_measure(text ? text : "", 18.0f);
+    float caret_x = input_rect.x + 8.0f + text_size.x + 1.0f;
+    float caret_right_limit = input_rect.x + input_rect.width - 8.0f;
+    caret_x = (caret_x > caret_right_limit) ? caret_right_limit : caret_x;
+
+    DrawLineEx((Vector2){caret_x, input_rect.y + 7.0f},
+               (Vector2){caret_x, input_rect.y + input_rect.height - 7.0f},
+               2.0f,
+               (Color){241, 252, 244, 255});
+}
+
+static void equipo_gui_draw_action_toast(int sw, int sh, const char *msg, int success)
+{
+    int toast_w = 560;
+    int toast_h = 44;
+    int toast_x = (sw - toast_w) / 2;
+    int toast_y = sh - 120;
+    Color bg = success ? (Color){28, 94, 52, 240} : (Color){120, 45, 38, 240};
+
+    DrawRectangle(toast_x, toast_y, toast_w, toast_h, bg);
+    DrawRectangleLines(toast_x, toast_y, toast_w, toast_h, (Color){198, 230, 205, 255});
+    gui_text(msg ? msg : "Operacion completada",
+             (float)toast_x + 14.0f,
+             (float)toast_y + 12.0f,
+             18.0f,
+             (Color){241, 252, 244, 255});
+}
+
+static int equipo_gui_tick_toast(float *timer)
+{
+    if (!timer || *timer <= 0.0f)
+    {
+        return 0;
+    }
+
+    *timer -= GetFrameTime();
+    return *timer <= 0.0f;
+}
+
+static int equipo_gui_draw_action_button(Rectangle rect, const char *label, int primary)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    int hovered = CheckCollisionPointRec(GetMousePosition(), rect);
+    Color fill = primary ? theme->accent_primary : theme->bg_sidebar;
+    Color border = primary ? theme->accent_primary_hv : theme->border;
+    Color text = primary ? (Color){255, 255, 255, 255} : theme->text_primary;
+
+    if (hovered)
+    {
+        fill = primary ? theme->accent_primary_hv : theme->row_hover;
+    }
+
+    DrawRectangleRec(rect, fill);
+    DrawRectangleLinesEx(rect, 1.0f, border);
+
+    {
+        Vector2 m = gui_text_measure(label ? label : "", 18.0f);
+        float tx = rect.x + (rect.width - m.x) * 0.5f;
+        float ty = rect.y + (rect.height - m.y) * 0.5f;
+        gui_text(label ? label : "", tx, ty, 18.0f, text);
+    }
+
+    return hovered;
+}
+
+static void equipo_gui_show_action_feedback(const char *title, const char *msg, int success)
+{
+    float timer = 1.15f;
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(title ? title : "EQUIPOS", sw);
+        equipo_gui_draw_action_toast(sw, sh, msg, success);
+        gui_draw_footer_hint("Continuando...", 40.0f, sh);
+        EndDrawing();
+
+        if (equipo_gui_tick_toast(&timer))
+        {
+            return;
+        }
+    }
+}
+
+static int dibujar_y_detectar_click_equipos_gui(const EquipoGuiRow *rows,
+                                                 int count,
+                                                 int scroll,
+                                                 int row_h,
+                                                 const EquipoGuiPanel *panel)
+{
+    if (count == 0)
+    {
+        gui_text("No hay equipos registrados.",
+                 (float)(panel->x + 24),
+                 (float)(panel->y + 24),
+                 24.0f,
+                 (Color){233, 247, 236, 255});
+        return 0;
+    }
+
+    BeginScissorMode(panel->x, panel->y, panel->w, panel->h);
+    for (int i = scroll; i < count; i++)
+    {
+        int row = i - scroll;
+        int y = panel->y + row * row_h;
+        Rectangle fila;
+        char detalle[256];
+        const char *tipo = (rows[i].tipo == FIJO) ? "Fijo" : "Momentaneo";
+        const char *tipo_fut = get_nombre_tipo_futbol((TipoFutbol)rows[i].tipo_futbol);
+        const char *asignado = (rows[i].partido_id == -1) ? "No" : "Si";
+
+        if (y + row_h > panel->y + panel->h)
+        {
+            break;
+        }
+
+        fila = (Rectangle){(float)(panel->x + 6), (float)y, (float)(panel->w - 12), (float)(row_h - 2)};
+        gui_draw_list_row_bg(fila, row, CheckCollisionPointRec(GetMousePosition(), fila));
+        if (CheckCollisionPointRec(GetMousePosition(), fila) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            EndScissorMode();
+            return rows[i].id;
+        }
+
+        snprintf(detalle,
+                 sizeof(detalle),
+                 "%s | %s | %s | Jug: %d | Partido: %s",
+                 rows[i].nombre,
+                 tipo,
+                 tipo_fut ? tipo_fut : "N/A",
+                 rows[i].num_jugadores,
+                 asignado);
+
+        gui_text(TextFormat("%3d", rows[i].id),
+                 (float)(panel->x + 12),
+                 (float)(y + 7),
+                 18.0f,
+                 (Color){220, 238, 225, 255});
+        gui_text_truncated(detalle,
+                           (float)(panel->x + 80),
+                           (float)(y + 7),
+                           18.0f,
+                           (float)panel->w - 100.0f,
+                           (Color){233, 247, 236, 255});
+    }
+    EndScissorMode();
+
+    return 0;
+}
+
+static int seleccionar_equipo_gui(const char *titulo, const char *ayuda, int *id_out)
+{
+    EquipoGuiRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    const int row_h = 34;
+    EquipoGuiPanel panel = {80, 130, 1100, 520, 1};
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+
+    if (!cargar_equipos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int clicked_id;
+        Rectangle area;
+        EquipoGuiPanel content = {0};
+
+        calcular_panel_listado_equipos_gui(sw, sh, row_h, &panel);
+        area = (Rectangle){(float)panel.x, (float)(panel.y + 32), (float)panel.w, (float)(panel.h - 32)};
+        scroll = actualizar_scroll_equipos_gui(scroll,
+                                               count,
+                                               panel.visible_rows,
+                                               area);
+
+        content.x = panel.x;
+        content.y = panel.y + 32;
+        content.w = panel.w;
+        content.h = panel.h - 32;
+        content.visible_rows = panel.visible_rows;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo ? titulo : "EQUIPOS", sw);
+        gui_text(ayuda ? ayuda : "Selecciona un equipo", (float)panel.x, 92.0f, 18.0f,
+                 gui_get_active_theme()->text_secondary);
+        gui_draw_list_shell((Rectangle){(float)panel.x, (float)panel.y, (float)panel.w, (float)panel.h},
+                            "ID", 12.0f,
+                            "NOMBRE / DATOS", 80.0f);
+
+        clicked_id = dibujar_y_detectar_click_equipos_gui(rows, count, scroll, row_h, &content);
+        gui_draw_footer_hint("Click: seleccionar | Rueda: scroll | ESC/Enter: volver",
+                             (float)panel.x, sh);
+        EndDrawing();
+
+        if (clicked_id > 0)
+        {
+            *id_out = clicked_id;
+            free(rows);
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_ESCAPE);
+            input_consume_key(KEY_ENTER);
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+}
+
+static int listar_equipos_gui(void)
+{
+    EquipoGuiRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    const int row_h = 34;
+
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+
+    if (!cargar_equipos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        Rectangle area;
+        EquipoGuiPanel panel = {0};
+        EquipoGuiPanel content = {0};
+
+        calcular_panel_listado_equipos_gui(sw, sh, row_h, &panel);
+        area = (Rectangle){(float)panel.x, (float)(panel.y + 32), (float)panel.w, (float)(panel.h - 32)};
+        scroll = actualizar_scroll_equipos_gui(scroll,
+                                               count,
+                                               panel.visible_rows,
+                                               area);
+
+        content.x = panel.x;
+        content.y = panel.y + 32;
+        content.w = panel.w;
+        content.h = panel.h - 32;
+        content.visible_rows = panel.visible_rows;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header("LISTADO DE EQUIPOS", sw);
+        gui_draw_list_shell((Rectangle){(float)panel.x, (float)panel.y, (float)panel.w, (float)panel.h},
+                            "ID", 12.0f,
+                            "NOMBRE / DATOS", 80.0f);
+        (void)dibujar_y_detectar_click_equipos_gui(rows, count, scroll, row_h, &content);
+        gui_draw_footer_hint("Rueda: scroll | ESC/Enter: volver", (float)panel.x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_ESCAPE);
+            input_consume_key(KEY_ENTER);
+            break;
+        }
+    }
+
+    free(rows);
+    return 1;
+}
+
+static int crear_equipo_gui(void)
+{
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+    input_consume_key(KEY_F);
+    input_consume_key(KEY_M);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 220;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_fijo = {(float)panel_x + 24.0f, (float)panel_y + 128.0f, 320.0f, 46.0f};
+        Rectangle btn_momentaneo = {(float)panel_x + 360.0f, (float)panel_y + 128.0f, 320.0f, 46.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header("CREAR EQUIPO", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text("Selecciona el tipo de creacion", (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f, 24.0f, gui_get_active_theme()->text_primary);
+        gui_text("El asistente de jugadores se mantiene y reutiliza la logica actual.",
+                 (float)panel_x + 24.0f,
+                 (float)panel_y + 86.0f,
+                 18.0f,
+                 gui_get_active_theme()->text_secondary);
+
+        equipo_gui_draw_action_button(btn_fijo, "Fijo", 1);
+        equipo_gui_draw_action_button(btn_momentaneo, "Momentaneo", 0);
+        gui_draw_footer_hint("F/ENTER: fijo | M: momentaneo | ESC: volver", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_fijo)) ||
+            IsKeyPressed(KEY_F) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_F);
+            input_consume_key(KEY_ENTER);
+            crear_equipo_fijo();
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_momentaneo)) || IsKeyPressed(KEY_M))
+        {
+            input_consume_key(KEY_M);
+            crear_equipo_momentaneo();
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int modal_accion_modificar_equipo_gui(int id)
+{
+    input_consume_key(KEY_ENTER);
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_N);
+    input_consume_key(KEY_T);
+    input_consume_key(KEY_A);
+    input_consume_key(KEY_J);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 800 : sw - 40;
+        int panel_h = 250;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_nombre = {(float)panel_x + 24.0f, (float)panel_y + 122.0f, 178.0f, 42.0f};
+        Rectangle btn_tipo = {(float)panel_x + 214.0f, (float)panel_y + 122.0f, 178.0f, 42.0f};
+        Rectangle btn_asig = {(float)panel_x + 404.0f, (float)panel_y + 122.0f, 178.0f, 42.0f};
+        Rectangle btn_jug = {(float)panel_x + 594.0f, (float)panel_y + 122.0f, 178.0f, 42.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header("MODIFICAR EQUIPO", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(TextFormat("ID seleccionado: %d", id),
+                 (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f,
+                 22.0f,
+                 gui_get_active_theme()->text_primary);
+        gui_text("Elige que deseas modificar", (float)panel_x + 24.0f,
+                 (float)panel_y + 82.0f,
+                 18.0f,
+                 gui_get_active_theme()->text_secondary);
+
+        equipo_gui_draw_action_button(btn_nombre, "Nombre", 1);
+        equipo_gui_draw_action_button(btn_tipo, "Tipo Futbol", 0);
+        equipo_gui_draw_action_button(btn_asig, "Asignacion", 0);
+        equipo_gui_draw_action_button(btn_jug, "Jugadores", 0);
+        gui_draw_footer_hint("N: nombre | T: tipo | A: asignacion | J: jugadores | ESC: cancelar",
+                             (float)panel_x,
+                             sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_nombre)) || IsKeyPressed(KEY_N))
+        {
+            input_consume_key(KEY_N);
+            return EQUIPO_GUI_EDIT_NOMBRE;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_tipo)) || IsKeyPressed(KEY_T))
+        {
+            input_consume_key(KEY_T);
+            return EQUIPO_GUI_EDIT_TIPO_FUTBOL;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_asig)) || IsKeyPressed(KEY_A))
+        {
+            input_consume_key(KEY_A);
+            return EQUIPO_GUI_EDIT_ASIGNACION;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_jug)) || IsKeyPressed(KEY_J))
+        {
+            input_consume_key(KEY_J);
+            return EQUIPO_GUI_EDIT_JUGADORES;
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ESCAPE);
+            return EQUIPO_GUI_EDIT_CANCELAR;
+        }
+    }
+
+    return EQUIPO_GUI_EDIT_CANCELAR;
+}
+
+static int modal_editar_nombre_equipo_gui(int equipo_id)
+{
+    char nombre[64] = {0};
+    int cursor = 0;
+    float toast_timer = 0.0f;
+    int toast_ok = 0;
+    char toast_msg[120] = {0};
+
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = (sw > 900) ? 80 : 20;
+        int panel_y = 140;
+        int panel_w = sw - panel_x * 2;
+        int panel_h = 220;
+        Rectangle input_rect = {(float)(panel_x + 24), (float)(panel_y + 74), (float)(panel_w - 48), 36.0f};
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(TextFormat("MODIFICAR EQUIPO %d", equipo_id), sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, (Color){19, 40, 27, 255});
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, (Color){110, 161, 125, 255});
+        gui_text("Nuevo nombre:", (float)(panel_x + 24), (float)(panel_y + 38), 18.0f,
+                 (Color){233, 247, 236, 255});
+
+        DrawRectangleRec(input_rect, (Color){18, 36, 28, 255});
+        DrawRectangleLines((int)input_rect.x,
+                           (int)input_rect.y,
+                           (int)input_rect.width,
+                           (int)input_rect.height,
+                           (Color){55, 100, 72, 255});
+        gui_text(nombre, input_rect.x + 8.0f, input_rect.y + 8.0f, 18.0f,
+                 (Color){233, 247, 236, 255});
+
+        if (toast_timer <= 0.0f)
+        {
+            equipo_gui_draw_input_caret(nombre, input_rect);
+        }
+        if (toast_timer > 0.0f)
+        {
+            equipo_gui_draw_action_toast(sw, sh, toast_msg, toast_ok);
+        }
+
+        gui_draw_footer_hint("ENTER: guardar | ESC: volver", (float)panel_x, sh);
+        EndDrawing();
+
+        if (equipo_gui_tick_toast(&toast_timer) && toast_ok)
+        {
+            return 1;
+        }
+
+        if (toast_timer > 0.0f)
+        {
+            continue;
+        }
+
+        equipo_gui_append_printable_ascii(nombre, &cursor, sizeof(nombre), 0);
+        equipo_gui_handle_backspace(nombre, &cursor);
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+
+        if (IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_ENTER);
+            trim_whitespace(nombre);
+            if (nombre[0] == '\0')
+            {
+                toast_ok = 0;
+                snprintf(toast_msg, sizeof(toast_msg), "El nombre no puede estar vacio");
+                toast_timer = 1.2f;
+            }
+            else if (ejecutar_update_text("UPDATE equipo SET nombre = ? WHERE id = ?", nombre, equipo_id))
+            {
+                toast_ok = 1;
+                snprintf(toast_msg, sizeof(toast_msg), "Equipo modificado correctamente");
+                toast_timer = 1.2f;
+            }
+            else
+            {
+                toast_ok = 0;
+                snprintf(toast_msg, sizeof(toast_msg), "No se pudo modificar el equipo");
+                toast_timer = 1.2f;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int modal_tipo_futbol_equipo_gui(int equipo_id)
+{
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 240;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle b1 = {(float)panel_x + 24.0f, (float)panel_y + 122.0f, 160.0f, 42.0f};
+        Rectangle b2 = {(float)panel_x + 196.0f, (float)panel_y + 122.0f, 160.0f, 42.0f};
+        Rectangle b3 = {(float)panel_x + 368.0f, (float)panel_y + 122.0f, 160.0f, 42.0f};
+        Rectangle b4 = {(float)panel_x + 540.0f, (float)panel_y + 122.0f, 160.0f, 42.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header("MODIFICAR TIPO FUTBOL", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(TextFormat("Equipo ID %d", equipo_id),
+                 (float)panel_x + 24.0f,
+                 (float)panel_y + 46.0f,
+                 22.0f,
+                 gui_get_active_theme()->text_primary);
+        gui_text("Selecciona el nuevo tipo de futbol", (float)panel_x + 24.0f,
+                 (float)panel_y + 84.0f,
+                 18.0f,
+                 gui_get_active_theme()->text_secondary);
+
+        equipo_gui_draw_action_button(b1, "Futbol 5", 1);
+        equipo_gui_draw_action_button(b2, "Futbol 7", 0);
+        equipo_gui_draw_action_button(b3, "Futbol 8", 0);
+        equipo_gui_draw_action_button(b4, "Futbol 11", 0);
+        gui_draw_footer_hint("Click para aplicar | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (click && CheckCollisionPointRec(GetMousePosition(), b1))
+        {
+            return ejecutar_update_int("UPDATE equipo SET tipo_futbol = ? WHERE id = ?", FUTBOL_5, equipo_id);
+        }
+        if (click && CheckCollisionPointRec(GetMousePosition(), b2))
+        {
+            return ejecutar_update_int("UPDATE equipo SET tipo_futbol = ? WHERE id = ?", FUTBOL_7, equipo_id);
+        }
+        if (click && CheckCollisionPointRec(GetMousePosition(), b3))
+        {
+            return ejecutar_update_int("UPDATE equipo SET tipo_futbol = ? WHERE id = ?", FUTBOL_8, equipo_id);
+        }
+        if (click && CheckCollisionPointRec(GetMousePosition(), b4))
+        {
+            return ejecutar_update_int("UPDATE equipo SET tipo_futbol = ? WHERE id = ?", FUTBOL_11, equipo_id);
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static void equipo_gui_set_toast_state(int *toast_ok,
+                                       char *toast_msg,
+                                       size_t toast_msg_size,
+                                       float *toast_timer,
+                                       int ok,
+                                       const char *msg)
+{
+    if (toast_ok)
+    {
+        *toast_ok = ok;
+    }
+    if (toast_msg && toast_msg_size > 0)
+    {
+        snprintf(toast_msg, toast_msg_size, "%s", msg ? msg : "Operacion completada");
+    }
+    if (toast_timer)
+    {
+        *toast_timer = 1.2f;
+    }
+}
+
+static void equipo_gui_accion_asignar_partido(int equipo_id,
+                                               const char *partido_id_txt,
+                                               int *toast_ok,
+                                               char *toast_msg,
+                                               size_t toast_msg_size,
+                                               float *toast_timer)
+{
+    int partido_id = atoi(partido_id_txt ? partido_id_txt : "0");
+
+    if (partido_id <= 0 || !existe_id("partido", partido_id))
+    {
+        equipo_gui_set_toast_state(toast_ok,
+                                   toast_msg,
+                                   toast_msg_size,
+                                   toast_timer,
+                                   0,
+                                   "ID de partido invalido");
+        return;
+    }
+
+    if (ejecutar_update_int("UPDATE equipo SET partido_id = ? WHERE id = ?", partido_id, equipo_id))
+    {
+        equipo_gui_set_toast_state(toast_ok,
+                                   toast_msg,
+                                   toast_msg_size,
+                                   toast_timer,
+                                   1,
+                                   "Partido asignado correctamente");
+        return;
+    }
+
+    equipo_gui_set_toast_state(toast_ok,
+                               toast_msg,
+                               toast_msg_size,
+                               toast_timer,
+                               0,
+                               "No se pudo asignar el partido");
+}
+
+static void equipo_gui_accion_quitar_asignacion(int equipo_id,
+                                                 int *toast_ok,
+                                                 char *toast_msg,
+                                                 size_t toast_msg_size,
+                                                 float *toast_timer)
+{
+    if (ejecutar_update_id("UPDATE equipo SET partido_id = -1 WHERE id = ?", equipo_id))
+    {
+        equipo_gui_set_toast_state(toast_ok,
+                                   toast_msg,
+                                   toast_msg_size,
+                                   toast_timer,
+                                   1,
+                                   "Asignacion removida");
+        return;
+    }
+
+    equipo_gui_set_toast_state(toast_ok,
+                               toast_msg,
+                               toast_msg_size,
+                               toast_timer,
+                               0,
+                               "No se pudo quitar la asignacion");
+}
+
+static int modal_asignacion_equipo_gui(int equipo_id)
+{
+    char partido_id_txt[16] = {0};
+    int cursor = 0;
+    float toast_timer = 0.0f;
+    int toast_ok = 0;
+    char toast_msg[120] = {0};
+
+    input_consume_key(KEY_ESCAPE);
+    input_consume_key(KEY_ENTER);
+    input_consume_key(KEY_R);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 250;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle input_rect = {(float)panel_x + 24.0f, (float)panel_y + 106.0f, 220.0f, 36.0f};
+        Rectangle btn_asignar = {(float)panel_x + 280.0f, (float)panel_y + 102.0f, 180.0f, 42.0f};
+        Rectangle btn_quitar = {(float)panel_x + 474.0f, (float)panel_y + 102.0f, 180.0f, 42.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        int accion_asignar = (click && CheckCollisionPointRec(GetMousePosition(), btn_asignar)) || IsKeyPressed(KEY_ENTER);
+        int accion_quitar = (click && CheckCollisionPointRec(GetMousePosition(), btn_quitar)) || IsKeyPressed(KEY_R);
+        int cancelar = IsKeyPressed(KEY_ESCAPE);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header("ASIGNACION A PARTIDO", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(TextFormat("Equipo ID %d", equipo_id),
+                 (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f,
+                 22.0f,
+                 gui_get_active_theme()->text_primary);
+        gui_text("ID de partido:", (float)panel_x + 24.0f, (float)panel_y + 82.0f,
+                 18.0f,
+                 gui_get_active_theme()->text_secondary);
+
+        DrawRectangleRec(input_rect, (Color){18, 36, 28, 255});
+        DrawRectangleLines((int)input_rect.x,
+                           (int)input_rect.y,
+                           (int)input_rect.width,
+                           (int)input_rect.height,
+                           (Color){55, 100, 72, 255});
+        gui_text(partido_id_txt, input_rect.x + 8.0f, input_rect.y + 8.0f, 18.0f,
+                 (Color){233, 247, 236, 255});
+        if (toast_timer <= 0.0f)
+        {
+            equipo_gui_draw_input_caret(partido_id_txt, input_rect);
+        }
+
+        equipo_gui_draw_action_button(btn_asignar, "Asignar", 1);
+        equipo_gui_draw_action_button(btn_quitar, "Quitar", 0);
+
+        if (toast_timer > 0.0f)
+        {
+            equipo_gui_draw_action_toast(sw, sh, toast_msg, toast_ok);
+        }
+
+        gui_draw_footer_hint("ENTER: asignar | R: quitar asignacion | ESC: volver", (float)panel_x, sh);
+        EndDrawing();
+
+        if (equipo_gui_tick_toast(&toast_timer) && toast_ok)
+        {
+            return 1;
+        }
+        if (toast_timer > 0.0f)
+        {
+            continue;
+        }
+
+        equipo_gui_append_printable_ascii(partido_id_txt, &cursor, sizeof(partido_id_txt), 1);
+        equipo_gui_handle_backspace(partido_id_txt, &cursor);
+
+        if (accion_asignar)
+        {
+            input_consume_key(KEY_ENTER);
+            equipo_gui_accion_asignar_partido(equipo_id,
+                                              partido_id_txt,
+                                              &toast_ok,
+                                              toast_msg,
+                                              sizeof(toast_msg),
+                                              &toast_timer);
+        }
+
+        if (accion_quitar)
+        {
+            input_consume_key(KEY_R);
+            equipo_gui_accion_quitar_asignacion(equipo_id,
+                                                &toast_ok,
+                                                toast_msg,
+                                                sizeof(toast_msg),
+                                                &toast_timer);
+        }
+
+        if (cancelar)
+        {
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int modificar_equipo_gui(void)
+{
+    int equipo_id = 0;
+    int accion = EQUIPO_GUI_EDIT_CANCELAR;
+
+    if (!seleccionar_equipo_gui("MODIFICAR EQUIPO",
+                                "Click para seleccionar equipo | ESC/Enter: volver",
+                                &equipo_id))
+    {
+        return 1;
+    }
+
+    if (equipo_id <= 0)
+    {
+        return 1;
+    }
+
+    accion = modal_accion_modificar_equipo_gui(equipo_id);
+    if (accion == EQUIPO_GUI_EDIT_CANCELAR)
+    {
+        return 1;
+    }
+
+    if (accion == EQUIPO_GUI_EDIT_NOMBRE)
+    {
+        if (modal_editar_nombre_equipo_gui(equipo_id))
+        {
+            equipo_gui_show_action_feedback("MODIFICAR EQUIPO", "Nombre actualizado correctamente", 1);
+        }
+        return 1;
+    }
+
+    if (accion == EQUIPO_GUI_EDIT_TIPO_FUTBOL)
+    {
+        if (modal_tipo_futbol_equipo_gui(equipo_id))
+        {
+            equipo_gui_show_action_feedback("MODIFICAR EQUIPO", "Tipo de futbol actualizado", 1);
+        }
+        return 1;
+    }
+
+    if (accion == EQUIPO_GUI_EDIT_ASIGNACION)
+    {
+        (void)modal_asignacion_equipo_gui(equipo_id);
+        return 1;
+    }
+
+    if (accion == EQUIPO_GUI_EDIT_JUGADORES)
+    {
+        handle_modify_players(equipo_id);
+        return 1;
+    }
+
+    return 1;
+}
+
+static int equipo_gui_obtener_nombre_por_id(int id, char *nombre_out, size_t nombre_size)
+{
+    sqlite3_stmt *stmt = NULL;
+    int ok = 0;
+
+    if (!nombre_out || nombre_size == 0)
+    {
+        return 0;
+    }
+
+    nombre_out[0] = '\0';
+
+    if (!preparar_stmt(&stmt, "SELECT nombre FROM equipo WHERE id = ?"))
+    {
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        snprintf(nombre_out,
+                 nombre_size,
+                 "%s",
+                 (const char *)(sqlite3_column_text(stmt, 0) ? sqlite3_column_text(stmt, 0) : (const unsigned char *)"(sin nombre)"));
+        ok = 1;
+    }
+
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+static int eliminar_equipo_por_id_gui(int equipo_id)
+{
+    sqlite3_stmt *stmt = NULL;
+
+    if (!preparar_stmt(&stmt, "DELETE FROM jugador WHERE equipo_id = ?"))
+    {
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, equipo_id);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (!preparar_stmt(&stmt, "DELETE FROM equipo WHERE id = ?"))
+    {
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, equipo_id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+
+    {
+        char log_msg[128];
+        snprintf(log_msg, sizeof(log_msg), "Eliminado equipo id=%d", equipo_id);
+        app_log_event("EQUIPO", log_msg);
+    }
+
+    return 1;
+}
+
+static int modal_confirmar_eliminar_equipo_gui(int id, const char *nombre)
+{
+    input_consume_key(KEY_Y);
+    input_consume_key(KEY_N);
+    input_consume_key(KEY_ESCAPE);
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 700 : sw - 40;
+        int panel_h = 210;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_confirm = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header("CONFIRMAR ELIMINACION", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text("Confirmar eliminacion de equipo", (float)panel_x + 24.0f,
+                 (float)panel_y + 44.0f,
+                 24.0f,
+                 gui_get_active_theme()->text_primary);
+        gui_text_truncated(TextFormat("%d (%s)", id, nombre ? nombre : "(sin nombre)"),
+                           (float)panel_x + 24.0f,
+                           (float)panel_y + 82.0f,
+                           18.0f,
+                           (float)panel_w - 48.0f,
+                           gui_get_active_theme()->text_secondary);
+        gui_text("Usa botones o teclas ENTER/ESC", (float)panel_x + 24.0f,
+                 (float)panel_y + 112.0f,
+                 18.0f,
+                 gui_get_active_theme()->text_secondary);
+
+        equipo_gui_draw_action_button(btn_confirm, "Eliminar", 1);
+        equipo_gui_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("Esta accion no se puede deshacer", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_confirm)) ||
+            IsKeyPressed(KEY_Y) || IsKeyPressed(KEY_ENTER))
+        {
+            input_consume_key(KEY_Y);
+            input_consume_key(KEY_ENTER);
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) ||
+            IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE))
+        {
+            input_consume_key(KEY_N);
+            input_consume_key(KEY_ESCAPE);
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int eliminar_equipo_gui(void)
+{
+    int equipo_id = 0;
+    char nombre[128] = {0};
+
+    if (!seleccionar_equipo_gui("ELIMINAR EQUIPO",
+                                "Click para seleccionar equipo | ESC/Enter: volver",
+                                &equipo_id))
+    {
+        return 1;
+    }
+
+    if (equipo_id <= 0)
+    {
+        return 1;
+    }
+
+    if (!equipo_gui_obtener_nombre_por_id(equipo_id, nombre, sizeof(nombre)))
+    {
+        snprintf(nombre, sizeof(nombre), "(sin nombre)");
+    }
+
+    if (!modal_confirmar_eliminar_equipo_gui(equipo_id, nombre))
+    {
+        equipo_gui_show_action_feedback("ELIMINAR EQUIPO", "Eliminacion cancelada", 0);
+        return 1;
+    }
+
+    if (eliminar_equipo_por_id_gui(equipo_id))
+    {
+        equipo_gui_show_action_feedback("ELIMINAR EQUIPO", "Equipo eliminado correctamente", 1);
+    }
+    else
+    {
+        equipo_gui_show_action_feedback("ELIMINAR EQUIPO", "No se pudo eliminar el equipo", 0);
+    }
+
+    return 1;
+}
+
 /**
  * @brief Funcion principal para crear equipos
  *
@@ -2365,30 +3468,7 @@ void gestionar_equipo_individual(Equipo *equipo, const char *tipo_equipo)
  */
 void crear_equipo()
 {
-    clear_screen();
-    print_header("CREAR EQUIPO");
-
-    printf("Seleccione el tipo de equipo:\n");
-    printf("1. Fijo\n");
-    printf("2. Momentaneo\n");
-    printf("3. Volver\n");
-
-    int opcion = input_int(">");
-
-    switch (opcion)
-    {
-    case 1:
-        crear_equipo_fijo();
-        break;
-    case 2:
-        crear_equipo_momentaneo();
-        break;
-    case 3:
-        return;
-    default:
-        printf("Opcion invalida.\n");
-        pause_console();
-    }
+    (void)crear_equipo_gui();
 }
 
 /**
@@ -2401,53 +3481,8 @@ void crear_equipo()
  */
 void listar_equipos()
 {
-    clear_screen();
-    print_header("LISTAR EQUIPOS");
-
-    sqlite3_stmt *stmt;
-    const char *sql = "SELECT id, nombre, tipo, tipo_futbol, num_jugadores, partido_id FROM equipo ORDER BY id;";
-
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
-    {
-        ui_printf_centered_line("=== LISTA DE EQUIPOS ===");
-        ui_printf("\n");
-
-        int found = 0;
-        while (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            found = 1;
-            int id = sqlite3_column_int(stmt, 0);
-            const char *nombre = (const char*)sqlite3_column_text(stmt, 1);
-            int tipo = sqlite3_column_int(stmt, 2);
-            int tipo_futbol = sqlite3_column_int(stmt, 3);
-            int num_jugadores = sqlite3_column_int(stmt, 4);
-            int partido_id = sqlite3_column_int(stmt, 5);
-
-            ui_printf_centered_line("ID: %d", id);
-            ui_printf_centered_line("Nombre: %s", nombre);
-            ui_printf_centered_line("Tipo: %s", tipo == FIJO ? "Fijo" : "Momentaneo");
-            ui_printf_centered_line("Tipo de Futbol: %s", get_nombre_tipo_futbol(tipo_futbol));
-            ui_printf_centered_line("Numero de Jugadores: %d", num_jugadores);
-            ui_printf_centered_line("Asignado a Partido: %s", partido_id == -1 ? "No" : "Si");
-
-            // Mostrar jugadores del equipo
-            ui_printf_centered_line("=== JUGADORES ===");
-            mostrar_jugadores_equipo(id);
-            ui_printf_centered_line("----------------------------------------");
-        }
-
-        if (!found)
-        {
-            mostrar_no_hay_registros("equipos registrados");
-        }
-    }
-    else
-    {
-        printf("Error al obtener la lista de equipos: %s\n", sqlite3_errmsg(db));
-    }
-
-    sqlite3_finalize(stmt);
-    pause_console();
+    app_log_event("EQUIPO", "Listado de equipos consultado");
+    (void)listar_equipos_gui();
 }
 
 /**
@@ -2465,48 +3500,7 @@ void listar_equipos()
  */
 void modificar_equipo()
 {
-    clear_screen();
-    print_header("MODIFICAR EQUIPO");
-
-    // Mostrar lista de equipos disponibles
-    show_available_teams_for_modification();
-
-    // Obtener y validar ID del equipo
-    int equipo_id = get_equipo_id_to_modify();
-    if (equipo_id <= 0) return; // Usuario cancelo o error
-
-    // Mostrar menu de opciones de modificacion
-    printf("\nSeleccione que desea modificar:\n");
-    printf("1. Nombre del equipo\n");
-    printf("2. Tipo de futbol\n");
-    printf("3. Asignacion a partido\n");
-    printf("4. Jugadores\n");
-    printf("5. Volver\n");
-
-    int opcion = input_int(">");
-
-    // Procesar opcion seleccionada usando funciones helper
-    switch (opcion)
-    {
-    case 1:
-        handle_modify_team_name(equipo_id);
-        break;
-    case 2:
-        handle_modify_team_type(equipo_id);
-        break;
-    case 3:
-        handle_modify_team_assignment(equipo_id);
-        break;
-    case 4:
-        handle_modify_players(equipo_id);
-        break;
-    case 5:
-        return; // Usuario cancelo
-    default:
-        printf("Opcion invalida.\n");
-    }
-
-    pause_console();
+    (void)modificar_equipo_gui();
 }
 
 /**
@@ -2520,50 +3514,7 @@ void modificar_equipo()
  */
 void eliminar_equipo()
 {
-    clear_screen();
-    print_header("ELIMINAR EQUIPO");
-    sqlite3_stmt *stmt;
-    int equipo_id = select_team_id("\nIngrese el ID del equipo a eliminar (0 para cancelar): ",
-                                   "equipos registrados para eliminar", 1);
-    if (equipo_id == 0)
-    {
-        return;
-    }
-
-    if (confirmar("Esta seguro que desea eliminar este equipo? Esta accion no se puede deshacer."))
-    {
-        // Eliminar jugadores primero
-        const char *sql_delete_jugadores = "DELETE FROM jugador WHERE equipo_id = ?;";
-        if (sqlite3_prepare_v2(db, sql_delete_jugadores, -1, &stmt, 0) == SQLITE_OK)
-        {
-            sqlite3_bind_int(stmt, 1, equipo_id);
-            sqlite3_step(stmt);
-            sqlite3_finalize(stmt);
-        }
-
-        // Eliminar equipo
-        const char *sql_delete_equipo = "DELETE FROM equipo WHERE id = ?;";
-        if (sqlite3_prepare_v2(db, sql_delete_equipo, -1, &stmt, 0) == SQLITE_OK)
-        {
-            sqlite3_bind_int(stmt, 1, equipo_id);
-
-            if (sqlite3_step(stmt) == SQLITE_DONE)
-            {
-                printf("Equipo eliminado exitosamente.\n");
-            }
-            else
-            {
-                printf("Error al eliminar el equipo: %s\n", sqlite3_errmsg(db));
-            }
-            sqlite3_finalize(stmt);
-        }
-    }
-    else
-    {
-        printf("Eliminacion cancelada.\n");
-    }
-
-    pause_console();
+    (void)eliminar_equipo_gui();
 }
 
 /**
@@ -2619,7 +3570,7 @@ void mostrar_informacion_inicial(const Equipo *equipo_local, const Equipo *equip
 
     printf("\n*** INICIO DEL PARTIDO ***\n");
     printf("La simulacion comenzara automaticamente en 3 segundos...\n");
-    Sleep(3000); // Esperar 3 segundos antes de comenzar
+    equipo_sleep_ms(3000); // Esperar 3 segundos antes de comenzar
 }
 
 /**
@@ -2844,7 +3795,7 @@ void simular_minuto_partido(int minuto_actual, const Equipo *equipo_local, const
     mostrar_cancha_animada(minuto_actual, tipo_evento_cancha);
 
     // Pausa automatica de 1 segundo para simular el tiempo real
-    Sleep(1000);
+    equipo_sleep_ms(1000);
 }
 
 /**
@@ -2994,10 +3945,8 @@ void menu_equipos()
         {2, "Listar", listar_equipos},
         {3, "Modificar", modificar_equipo},
         {4, "Eliminar", eliminar_equipo},
-        {5, "Cargar Imagen", cargar_imagen_equipo},
-        {6, "Ver Imagen", ver_imagen_equipo},
         {0, "Volver", NULL}
     };
 
-    ejecutar_menu_estandar("EQUIPOS", items, 7);
+    ejecutar_menu_estandar("EQUIPOS", items, 5);
 }
