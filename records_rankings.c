@@ -11,7 +11,17 @@
 #include <string.h>
 #include <time.h>
 
+#ifndef UNIT_TEST
+#include "estadisticas_gui_capture.h"
+#endif
+
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+#define RECORDS_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_ANALISIS}
+#define RECORDS_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
+
 static void mostrar_partido_rendimiento(const char *titulo, const char *order_clause);
+static void mostrar_record_simple_gui(const char *titulo, const char *sql);
+static void mostrar_no_hay_registros_gui(const char *entidad);
 
 static void mostrar_top5_mejores_partidos(void);
 static void mostrar_ranking_camisetas(void);
@@ -24,6 +34,57 @@ static int preparar_stmt(const char *sql, sqlite3_stmt **stmt)
         return 0;
     }
     return 1;
+}
+
+static void mostrar_no_hay_registros_gui(const char *entidad)
+{
+    if (!entidad || entidad[0] == '\0')
+    {
+        printf("No hay registros disponibles.\n");
+        return;
+    }
+
+    size_t len = safe_strnlen(entidad, SIZE_MAX);
+    if (len == 0)
+    {
+        printf("No hay registros disponibles.\n");
+        return;
+    }
+
+    printf("No hay %s registrad%s.\n", entidad,
+           (entidad[len - 1] == 'a' || entidad[len - 1] == 'o') ? "o" : "os");
+}
+
+static void mostrar_record_simple_gui(const char *titulo, const char *sql)
+{
+    sqlite3_stmt *stmt;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return;
+    }
+
+    printf("\n%s\n", titulo);
+    printf("----------------------------------------\n");
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        printf("Valor: %d\n", sqlite3_column_int(stmt, 0));
+        if (sqlite3_column_count(stmt) > 1)
+        {
+            printf("Camiseta: %s\n", sqlite3_column_text(stmt, 1));
+        }
+        if (sqlite3_column_count(stmt) > 2)
+        {
+            printf("Fecha: %s\n", sqlite3_column_text(stmt, 2));
+        }
+    }
+    else
+    {
+        mostrar_no_hay_registros_gui("datos disponibles");
+    }
+
+    sqlite3_finalize(stmt);
 }
 
 /**
@@ -48,7 +109,7 @@ static void mostrar_combinacion(const char *titulo, const char *sql)
         }
         else
         {
-            mostrar_no_hay_registros("datos disponibles");
+            mostrar_no_hay_registros_gui("datos disponibles");
         }
         sqlite3_finalize(stmt);
     }
@@ -82,7 +143,7 @@ static void mostrar_temporada(const char *titulo, const char *sql)
         }
         else
         {
-            mostrar_no_hay_registros("datos disponibles");
+            mostrar_no_hay_registros_gui("datos disponibles");
         }
         sqlite3_finalize(stmt);
     }
@@ -96,11 +157,11 @@ void mostrar_record_goles_partido()
     clear_screen();
     print_header("RECORD DE GOLES EN UN PARTIDO");
 
-    mostrar_record_simple("Record de Goles en un Partido",
-                          "SELECT p.goles, c.nombre, p.fecha_hora "
-                          "FROM partido p "
-                          "JOIN camiseta c ON p.camiseta_id = c.id "
-                          "ORDER BY p.goles DESC LIMIT 1");
+    mostrar_record_simple_gui("Record de Goles en un Partido",
+                              "SELECT p.goles, c.nombre, p.fecha_hora "
+                              "FROM partido p "
+                              "JOIN camiseta c ON p.camiseta_id = c.id "
+                              "ORDER BY p.goles DESC LIMIT 1");
 
     pause_console();
 }
@@ -110,10 +171,14 @@ void mostrar_record_goles_partido()
  */
 void mostrar_record_asistencias_partido()
 {
-    mostrar_record_simple("Record de Asistencias en un Partido",
-                          "SELECT p.asistencias, c.nombre, p.fecha_hora "
-                          "FROM partido p JOIN camiseta c ON p.camiseta_id=c.id "
-                          "ORDER BY p.asistencias DESC, p.fecha_hora DESC LIMIT 1");
+    clear_screen();
+    print_header("RECORD DE ASISTENCIAS EN UN PARTIDO");
+
+    mostrar_record_simple_gui("Record de Asistencias en un Partido",
+                              "SELECT p.asistencias, c.nombre, p.fecha_hora "
+                              "FROM partido p JOIN camiseta c ON p.camiseta_id=c.id "
+                              "ORDER BY p.asistencias DESC, p.fecha_hora DESC LIMIT 1");
+
     pause_console();
 }
 
@@ -233,7 +298,7 @@ static void mostrar_partido_rendimiento(const char *titulo, const char *order_cl
         }
         else
         {
-            mostrar_no_hay_registros("datos disponibles");
+            mostrar_no_hay_registros_gui("datos disponibles");
         }
         sqlite3_finalize(stmt);
     }
@@ -272,7 +337,7 @@ void mostrar_partido_mejor_combinacion_goles_asistencias()
         }
         else
         {
-            mostrar_no_hay_registros("datos disponibles");
+            mostrar_no_hay_registros_gui("datos disponibles");
         }
         sqlite3_finalize(stmt);
     }
@@ -423,7 +488,7 @@ static void mostrar_racha_info(const char *titulo, RachaInfo racha)
     }
     else
     {
-        mostrar_no_hay_registros("rachas disponibles");
+        mostrar_no_hay_registros_gui("rachas disponibles");
     }
 }
 
@@ -516,7 +581,7 @@ static void mostrar_top5_mejores_partidos(void)
 
     if (pos == 1)
     {
-        mostrar_no_hay_registros("partidos disponibles");
+        mostrar_no_hay_registros_gui("partidos disponibles");
     }
 
     sqlite3_finalize(stmt);
@@ -573,7 +638,7 @@ static void mostrar_ranking_camisetas(void)
 
     if (pos == 1)
     {
-        mostrar_no_hay_registros("camisetas con partidos");
+        mostrar_no_hay_registros_gui("camisetas con partidos");
     }
 
     sqlite3_finalize(stmt);
@@ -584,28 +649,34 @@ static void mostrar_ranking_camisetas(void)
  * Construye array de opciones del menu de records y rankings.
  * Centralizado aqui para mantener consistencia y facilitar mantenimiento.
  */
-static MenuItem* construir_menu_records()
+static const MenuItem *construir_menu_records(int *cantidad)
 {
-    static MenuItem items[] =
+    static const MenuItem items[] =
     {
-        {1, "Record de Goles en un Partido", mostrar_record_goles_partido},
-        {2, "Record de Asistencias", mostrar_record_asistencias_partido},
-        {3, "Mejor Combinacion Cancha + Camiseta", mostrar_mejor_combinacion_cancha_camiseta},
-        {4, "Peor Combinacion Cancha + Camiseta", mostrar_peor_combinacion_cancha_camiseta},
-        {5, "Mejor Temporada", mostrar_mejor_temporada},
-        {6, "Peor Temporada", mostrar_peor_temporada},
-        {7, "Partido con Mejor Rendimiento General", mostrar_partido_mejor_rendimiento_general},
-        {8, "Partido con Peor Rendimiento General", mostrar_partido_peor_rendimiento_general},
-        {9, "Partido con Mejor Combinacion Goles+Asistencias", mostrar_partido_mejor_combinacion_goles_asistencias},
-        {10, "Partidos sin Goles", mostrar_partidos_sin_goles},
-        {11, "Partidos sin Asistencias", mostrar_partidos_sin_asistencias},
-        {12, "Mejor Racha Goleadora", mostrar_mejor_racha_goleadora},
-        {13, "Peor Racha", mostrar_peor_racha},
-        {14, "Partidos Consecutivos Anotando", mostrar_partidos_consecutivos_anotando},
-        {15, "Top 5 Mejores Partidos", &mostrar_top5_mejores_partidos},
-        {16, "Ranking de Tus Camisetas", &mostrar_ranking_camisetas},
-        {0, "Volver", NULL}
+        RECORDS_ITEM(1, "Record de Goles en un Partido", mostrar_record_goles_partido),
+        RECORDS_ITEM(2, "Record de Asistencias", mostrar_record_asistencias_partido),
+        RECORDS_ITEM(3, "Mejor Combinacion Cancha + Camiseta", mostrar_mejor_combinacion_cancha_camiseta),
+        RECORDS_ITEM(4, "Peor Combinacion Cancha + Camiseta", mostrar_peor_combinacion_cancha_camiseta),
+        RECORDS_ITEM(5, "Mejor Temporada", mostrar_mejor_temporada),
+        RECORDS_ITEM(6, "Peor Temporada", mostrar_peor_temporada),
+        RECORDS_ITEM(7, "Partido con Mejor Rendimiento General", mostrar_partido_mejor_rendimiento_general),
+        RECORDS_ITEM(8, "Partido con Peor Rendimiento General", mostrar_partido_peor_rendimiento_general),
+        RECORDS_ITEM(9, "Partido con Mejor Combinacion Goles+Asistencias", mostrar_partido_mejor_combinacion_goles_asistencias),
+        RECORDS_ITEM(10, "Partidos sin Goles", mostrar_partidos_sin_goles),
+        RECORDS_ITEM(11, "Partidos sin Asistencias", mostrar_partidos_sin_asistencias),
+        RECORDS_ITEM(12, "Mejor Racha Goleadora", mostrar_mejor_racha_goleadora),
+        RECORDS_ITEM(13, "Peor Racha", mostrar_peor_racha),
+        RECORDS_ITEM(14, "Partidos Consecutivos Anotando", mostrar_partidos_consecutivos_anotando),
+        RECORDS_ITEM(15, "Top 5 Mejores Partidos", mostrar_top5_mejores_partidos),
+        RECORDS_ITEM(16, "Ranking de Tus Camisetas", mostrar_ranking_camisetas),
+        RECORDS_BACK_ITEM
     };
+
+    if (cantidad)
+    {
+        *cantidad = ARRAY_COUNT(items);
+    }
+
     return items;
 }
 
@@ -614,6 +685,7 @@ static MenuItem* construir_menu_records()
  */
 void menu_records_rankings()
 {
-    MenuItem const *items = construir_menu_records();
-    ejecutar_menu_estandar("RECORDS & RANKINGS", items, 17);
+    int cantidad = 0;
+    const MenuItem *items = construir_menu_records(&cantidad);
+    ejecutar_menu_estandar("RECORDS & RANKINGS", items, cantidad);
 }

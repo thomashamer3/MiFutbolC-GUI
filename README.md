@@ -227,6 +227,46 @@ El sistema utiliza **SQLite3** como base de datos para almacenamiento persistent
 
 ## 🚀 Instalación y Compilación
 
+### Instalador CLI Remoto (One-liner)
+
+Puedes instalar desde terminal sin clonar el repositorio completo.
+El instalador remoto ahora:
+- Detecta OS/arquitectura automaticamente
+- En Linux/macOS usa `install.sh` como wrapper remoto
+- Centraliza la logica real en `Instalador-Linux.sh` (sin duplicacion)
+- Reenvia argumentos del wrapper al instalador principal
+- En Windows usa instalador por release versionado
+
+#### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/thomashamer3/MiFutbolC-GUI/main/install.ps1 | iex
+```
+
+Opcional (modo silencioso):
+
+```powershell
+$env:MIFUTBOLC_SILENT='1'; irm https://raw.githubusercontent.com/thomashamer3/MiFutbolC-GUI/main/install.ps1 | iex
+```
+
+Opcional (forzar update/reinstalacion):
+
+```powershell
+$env:MIFUTBOLC_FORCE_UPDATE='1'; irm https://raw.githubusercontent.com/thomashamer3/MiFutbolC-GUI/main/install.ps1 | iex
+```
+
+#### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thomashamer3/MiFutbolC-GUI/main/install.sh | sh
+```
+
+Reenviar opciones a `Instalador-Linux.sh` con `-s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thomashamer3/MiFutbolC-GUI/main/install.sh | sh -s -- --path-user --without-image-tools
+```
+
 ### Método 1: Instalador Automático (Windows - Recomendado para Usuarios Finales)
 
 El método más sencillo para usuarios que solo desean usar el programa:

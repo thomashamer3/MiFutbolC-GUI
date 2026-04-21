@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "estadisticas_gui_capture.h"
+
 /**
  * Prepara la consulta SQL para obtener estadisticas agrupadas por mes.
  * Esta funcion encapsula la preparacion de la consulta para mantener la logica de base de datos separada.
@@ -76,7 +78,7 @@ static void procesar_resultados(sqlite3_stmt *stmt)
     }
 
     if (!hay)
-        mostrar_no_hay_registros("estadisticas");
+        printf("No hay estadisticas registradas.\n");
 }
 
 /**

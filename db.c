@@ -20,7 +20,7 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
-#include <ShlObj.h>
+#include "ShlObj.h"
 #else
 #include "direct.h"
 #include "compat_windows.h"

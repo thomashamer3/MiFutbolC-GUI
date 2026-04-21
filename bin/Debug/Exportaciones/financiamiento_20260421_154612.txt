@@ -1,0 +1,114 @@
+LISTADO DE TRANSACCIONES FINANCIERAS
+=====================================
+
+ID: 13
+Fecha: 2026-04-21
+Tipo: Ingreso
+Categoria: Transporte
+Descripcion: Sube 600
+Monto: $600
+Item Especifico: Pago Trasnporte
+----------------------------------------
+ID: 12
+Fecha: 2026-04-13
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $5.000
+Item Especifico: (12 |Cancha:Futbolin |Fecha:27/08/2026 20:00 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)
+----------------------------------------
+ID: 11
+Fecha: 2026-04-13
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $5.000
+Item Especifico: (12 |Cancha:Futbolin |Fecha:13/04/2026 16:43 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)
+----------------------------------------
+ID: 10
+Fecha: 2026-04-13
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $6.500
+Item Especifico: (11 |Cancha:Predio Talleres  |Fecha:13/04/2026 01:39 | G:2 A:1 |Camiseta:Independiente Azul | DERROTA)
+----------------------------------------
+ID: 9
+Fecha: 2026-04-09
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $6.000
+Item Especifico: (11 |Cancha:Futbolin |Fecha:09/04/2026 16:18 | G:4 A:1 |Camiseta:Hamer 19 | VICTORIA)
+----------------------------------------
+ID: 8
+Fecha: 2026-04-08
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $6.500
+Item Especifico: (10 |Cancha:Predio Talleres  |Fecha:08/04/2026 23:21 | G:1 A:1 |Camiseta:Independiente Azul | VICTORIA)
+----------------------------------------
+ID: 7
+Fecha: 2026-03-23
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $6.500
+Item Especifico: (9 |Cancha:Predio Talleres  |Fecha:23/03/2026 23:15 | G:0 A:0 |Camiseta:Real Madrid | VICTORIA)
+----------------------------------------
+ID: 6
+Fecha: 2026-03-01
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $4.000
+Item Especifico: (8 |Cancha:Predio Talleres  |Fecha:01/03/2026 23:55 | G:0 A:1 |Camiseta:Argentina Messi 10 | VICTORIA)
+----------------------------------------
+ID: 5
+Fecha: 2026-02-03
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $2.000
+Item Especifico: (8 |Cancha:Roca |Fecha:03/02/2026 23:45 | G:1 A:2 |Camiseta:Argentina Messi 10 | VICTORIA)
+----------------------------------------
+ID: 4
+Fecha: 2026-02-02
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago por alquiler de cancha
+Monto: $6.000
+Item Especifico: (7 |Cancha:Village Adrogue |Fecha:02/02/2026 22:13 | G:1 A:1 |Camiseta:Palmerias | VICTORIA)
+----------------------------------------
+ID: 3
+Fecha: 2026-01-19
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Partido
+Monto: $3.500
+Item Especifico: (4 |Cancha:Predio Talleres  |Fecha:18/01/2026 22:12 | G:0 A:0 |Camiseta:Independiente Millan 14 | EMPATE |Cl0188ö
+----------------------------------------
+ID: 2
+Fecha: 2026-01-09
+Tipo: Gasto
+Categoria: Canchas
+Descripcion: Pago a Ivan
+Monto: $3.500
+Item Especifico: Partido ID: 3
+----------------------------------------
+ID: 1
+Fecha: 2026-01-09
+Tipo: Gasto
+Categoria: Medicina
+Descripcion: Atomo Desinflamante
+Monto: $11.900
+Item Especifico: Crema
+----------------------------------------
+
+RESUMEN GENERAL
+================
+Total de transacciones: 13
+Total Ingresos: $600
+Total Gastos: $66.400
+Balance Neto: $-65.800

@@ -16,6 +16,87 @@
 #include "entrenador_ia.h"
 #include "utils.h"
 
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+
+#define STATS_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_ANALISIS}
+#define STATS_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
+
+static void ejecutar_menu_estadisticas_gui(const char *titulo, const MenuItem *items, int cantidad)
+{
+    ejecutar_menu_estandar(titulo, items, cantidad);
+}
+
+static const MenuItem MENU_ESTADISTICAS[] =
+{
+    STATS_ITEM(1, "Generales", menu_estadisticas_generales),
+    STATS_ITEM(2, "Partidos", menu_estadisticas_partidos),
+    STATS_ITEM(3, "Goles", menu_estadisticas_goles),
+    STATS_ITEM(4, "Asistencias", menu_estadisticas_asistencias),
+    STATS_ITEM(5, "Rendimiento", menu_estadisticas_rendimiento),
+    STATS_BACK_ITEM
+};
+
+static const MenuItem MENU_ESTADISTICAS_GENERALES[] =
+{
+    STATS_ITEM(1, "Generales", mostrar_estadisticas_generales),
+    STATS_ITEM(2, "Por Mes", mostrar_estadisticas_por_mes),
+    STATS_ITEM(3, "Por Anio", mostrar_estadisticas_por_anio),
+    STATS_ITEM(4, "Records & Rankings", menu_records_rankings),
+    STATS_BACK_ITEM
+};
+
+static const MenuItem MENU_ESTADISTICAS_PARTIDOS[] =
+{
+    STATS_ITEM(1, "Total de Partidos Jugados", mostrar_total_partidos_jugados),
+    STATS_ITEM(2, "Partidos con Cansancio Alto", mostrar_partidos_cansancio_alto),
+    STATS_ITEM(3, "Partidos Atipicos", mostrar_partidos_outliers),
+    STATS_ITEM(4, "Partidos Exigentes Bien Rendidos", mostrar_partidos_exigentes_bien_rendidos),
+    STATS_ITEM(5, "Partidos Faciles Mal Rendidos", mostrar_partidos_faciles_mal_rendidos),
+    STATS_BACK_ITEM
+};
+
+static const MenuItem MENU_ESTADISTICAS_GOLES[] =
+{
+    STATS_ITEM(1, "Promedio de Goles por Partido", mostrar_promedio_goles_por_partido),
+    STATS_ITEM(2, "Goles por Clima", mostrar_goles_por_clima),
+    STATS_ITEM(3, "Goles promedio por dia", mostrar_goles_promedio_por_dia),
+    STATS_ITEM(4, "Goles con Cansancio Alto vs Bajo", mostrar_goles_cansancio_alto_vs_bajo),
+    STATS_ITEM(5, "Goles por Estado de Animo", mostrar_goles_por_estado_animo),
+    STATS_ITEM(6, "Eficiencia: Goles vs Rendimiento", mostrar_eficiencia_goles_vs_rendimiento),
+    STATS_BACK_ITEM
+};
+
+static const MenuItem MENU_ESTADISTICAS_ASISTENCIAS[] =
+{
+    STATS_ITEM(1, "Promedio de Asistencias por Partido", mostrar_promedio_asistencias_por_partido),
+    STATS_ITEM(2, "Asistencias por Clima", mostrar_asistencias_por_clima),
+    STATS_ITEM(3, "Asistencias promedio por dia", mostrar_asistencias_promedio_por_dia),
+    STATS_ITEM(4, "Asistencias por Estado de Animo", mostrar_asistencias_por_estado_animo),
+    STATS_ITEM(5, "Eficiencia: Asistencias vs Cansancio", mostrar_eficiencia_asistencias_vs_cansancio),
+    STATS_BACK_ITEM
+};
+
+static const MenuItem MENU_ESTADISTICAS_RENDIMIENTO[] =
+{
+    STATS_ITEM(1, "Promedio de Rendimiento General", mostrar_promedio_rendimiento_general),
+    STATS_ITEM(2, "Rendimiento Promedio por Clima", mostrar_rendimiento_promedio_por_clima),
+    STATS_ITEM(3, "Clima donde se rinde mejor", mostrar_clima_mejor_rendimiento),
+    STATS_ITEM(4, "Clima donde se rinde peor", mostrar_clima_peor_rendimiento),
+    STATS_ITEM(5, "Mejor dia de la semana", mostrar_mejor_dia_semana),
+    STATS_ITEM(6, "Peor dia de la semana", mostrar_peor_dia_semana),
+    STATS_ITEM(7, "Rendimiento promedio por dia", mostrar_rendimiento_promedio_por_dia),
+    STATS_ITEM(8, "Rendimiento por Nivel de Cansancio", mostrar_rendimiento_por_nivel_cansancio),
+    STATS_ITEM(9, "Caida de Rendimiento por Cansancio Acumulado", mostrar_caida_rendimiento_cansancio_acumulado),
+    STATS_ITEM(10, "Rendimiento por Estado de Animo", mostrar_rendimiento_por_estado_animo),
+    STATS_ITEM(11, "Estado de Animo Ideal para Jugar", mostrar_estado_animo_ideal),
+    STATS_ITEM(12, "Consistencia del Rendimiento", mostrar_consistencia_rendimiento),
+    STATS_ITEM(13, "Dependencia del Contexto", mostrar_dependencia_contexto),
+    STATS_ITEM(14, "Impacto Real del Cansancio", mostrar_impacto_real_cansancio),
+    STATS_ITEM(15, "Impacto Real del Estado de Animo", mostrar_impacto_real_estado_animo),
+    STATS_ITEM(16, "Rendimiento por Esfuerzo", mostrar_rendimiento_por_esfuerzo),
+    STATS_BACK_ITEM
+};
+
 
 /**
  * @brief Menu principal de estadisticas
@@ -32,17 +113,7 @@ void menu_estadisticas()
     activar_ia_estadisticas();
 #endif
 
-    MenuItem items[] =
-    {
-        {1, "Generales", menu_estadisticas_generales},
-        {2, "Partidos", menu_estadisticas_partidos},
-        {3, "Goles", menu_estadisticas_goles},
-        {4, "Asistencias", menu_estadisticas_asistencias},
-        {5, "Rendimiento", menu_estadisticas_rendimiento},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS", items, 6);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS", MENU_ESTADISTICAS, ARRAY_COUNT(MENU_ESTADISTICAS));
 }
 
 /**
@@ -55,16 +126,9 @@ void menu_estadisticas()
  */
 void menu_estadisticas_generales()
 {
-    MenuItem items[] =
-    {
-        {1, "Generales", mostrar_estadisticas_generales},
-        {2, "Por Mes", mostrar_estadisticas_por_mes},
-        {3, "Por Anio", mostrar_estadisticas_por_anio},
-        {4, "Records & Rankings", menu_records_rankings},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS GENERALES", items, 5);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS | GENERALES",
+                                   MENU_ESTADISTICAS_GENERALES,
+                                   ARRAY_COUNT(MENU_ESTADISTICAS_GENERALES));
 }
 
 /**
@@ -77,17 +141,9 @@ void menu_estadisticas_generales()
  */
 void menu_estadisticas_partidos()
 {
-    MenuItem items[] =
-    {
-        {1, "Total de Partidos Jugados", mostrar_total_partidos_jugados},
-        {2, "Partidos con Cansancio Alto", mostrar_partidos_cansancio_alto},
-        {3, "Partidos Atipicos", mostrar_partidos_outliers},
-        {4, "Partidos Exigentes Bien Rendidos", mostrar_partidos_exigentes_bien_rendidos},
-        {5, "Partidos Faciles Mal Rendidos", mostrar_partidos_faciles_mal_rendidos},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS DE PARTIDOS", items, 6);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS | PARTIDOS",
+                                   MENU_ESTADISTICAS_PARTIDOS,
+                                   ARRAY_COUNT(MENU_ESTADISTICAS_PARTIDOS));
 }
 
 /**
@@ -100,18 +156,9 @@ void menu_estadisticas_partidos()
  */
 void menu_estadisticas_goles()
 {
-    MenuItem items[] =
-    {
-        {1, "Promedio de Goles por Partido", mostrar_promedio_goles_por_partido},
-        {2, "Goles por Clima", mostrar_goles_por_clima},
-        {3, "Goles promedio por dia", mostrar_goles_promedio_por_dia},
-        {4, "Goles con Cansancio Alto vs Bajo", mostrar_goles_cansancio_alto_vs_bajo},
-        {5, "Goles por Estado de Animo", mostrar_goles_por_estado_animo},
-        {6, "Eficiencia: Goles vs Rendimiento", mostrar_eficiencia_goles_vs_rendimiento},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS DE GOLES", items, 7);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS | GOLES",
+                                   MENU_ESTADISTICAS_GOLES,
+                                   ARRAY_COUNT(MENU_ESTADISTICAS_GOLES));
 }
 
 /**
@@ -124,17 +171,9 @@ void menu_estadisticas_goles()
  */
 void menu_estadisticas_asistencias()
 {
-    MenuItem items[] =
-    {
-        {1, "Promedio de Asistencias por Partido", mostrar_promedio_asistencias_por_partido},
-        {2, "Asistencias por Clima", mostrar_asistencias_por_clima},
-        {3, "Asistencias promedio por dia", mostrar_asistencias_promedio_por_dia},
-        {4, "Asistencias por Estado de Animo", mostrar_asistencias_por_estado_animo},
-        {5, "Eficiencia: Asistencias vs Cansancio", mostrar_eficiencia_asistencias_vs_cansancio},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS DE ASISTENCIAS", items, 6);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS | ASISTENCIAS",
+                                   MENU_ESTADISTICAS_ASISTENCIAS,
+                                   ARRAY_COUNT(MENU_ESTADISTICAS_ASISTENCIAS));
 }
 
 /**
@@ -148,26 +187,7 @@ void menu_estadisticas_asistencias()
  */
 void menu_estadisticas_rendimiento()
 {
-    MenuItem items[] =
-    {
-        {1, "Promedio de Rendimiento General", mostrar_promedio_rendimiento_general},
-        {2, "Rendimiento Promedio por Clima", mostrar_rendimiento_promedio_por_clima},
-        {3, "Clima donde se rinde mejor", mostrar_clima_mejor_rendimiento},
-        {4, "Clima donde se rinde peor", mostrar_clima_peor_rendimiento},
-        {5, "Mejor dia de la semana", mostrar_mejor_dia_semana},
-        {6, "Peor dia de la semana", mostrar_peor_dia_semana},
-        {7, "Rendimiento promedio por dia", mostrar_rendimiento_promedio_por_dia},
-        {8, "Rendimiento por Nivel de Cansancio", mostrar_rendimiento_por_nivel_cansancio},
-        {9, "Caida de Rendimiento por Cansancio Acumulado", mostrar_caida_rendimiento_cansancio_acumulado},
-        {10, "Rendimiento por Estado de Animo", mostrar_rendimiento_por_estado_animo},
-        {11, "Estado de Animo Ideal para Jugar", mostrar_estado_animo_ideal},
-        {12, "Consistencia del Rendimiento", mostrar_consistencia_rendimiento},
-        {13, "Dependencia del Contexto", mostrar_dependencia_contexto},
-        {14, "Impacto Real del Cansancio", mostrar_impacto_real_cansancio},
-        {15, "Impacto Real del Estado de Animo", mostrar_impacto_real_estado_animo},
-        {16, "Rendimiento por Esfuerzo", mostrar_rendimiento_por_esfuerzo},
-        {0, "Volver", NULL}
-    };
-
-    ejecutar_menu_estandar("ESTADISTICAS DE RENDIMIENTO", items, 17);
+    ejecutar_menu_estadisticas_gui("ESTADISTICAS | RENDIMIENTO",
+                                   MENU_ESTADISTICAS_RENDIMIENTO,
+                                   ARRAY_COUNT(MENU_ESTADISTICAS_RENDIMIENTO));
 }

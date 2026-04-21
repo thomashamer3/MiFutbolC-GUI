@@ -14,11 +14,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
+#include <ctype.h>
+
+#ifndef UNIT_TEST
+#include "estadisticas_gui_capture.h"
+#endif
 
 #ifdef _WIN32
 #define PATH_SEP "\\"
 #else
 #define PATH_SEP "/"
+#endif
+
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+#define FIN_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_ADMIN}
+#define FIN_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
+
+#define FIN_TEXT_MAX 256
+
+#ifndef UNIT_TEST
+typedef enum
+{
+    FIN_INPUT_ALNUM = 0,
+    FIN_INPUT_NUMERIC,
+    FIN_INPUT_DATE,
+    FIN_INPUT_GENERIC
+} FinInputMode;
+
+static int fin_modal_input_texto_gui(const char *titulo,
+                                     const char *etiqueta,
+                                     const char *hint,
+                                     char *out,
+                                     size_t out_size,
+                                     int permitir_vacio,
+                                     FinInputMode mode);
+static int fin_modal_input_entero_gui(const char *titulo,
+                                      const char *etiqueta,
+                                      const char *hint,
+                                      int min_value,
+                                      int *valor_out);
 #endif
 
 
@@ -176,6 +211,7 @@ static void ejecutar_update_texto(const char *sql, const char *valor, int id_tra
 
 static void solicitar_texto_no_vacio(const char *prompt, char *buffer, int size)
 {
+#ifdef UNIT_TEST
     while (1)
     {
         input_string(prompt, buffer, size);
@@ -183,16 +219,36 @@ static void solicitar_texto_no_vacio(const char *prompt, char *buffer, int size)
             return;
         printf("El campo no puede estar vacio.\n");
     }
+#else
+    const char *etiqueta = (prompt && prompt[0] != '\0') ? prompt : "Ingrese un texto";
+    (void)fin_modal_input_texto_gui("INGRESAR TEXTO",
+                                    etiqueta,
+                                    "Solo letras, numeros y espacios",
+                                    buffer,
+                                    (size_t)size,
+                                    0,
+                                    FIN_INPUT_ALNUM);
+#endif
 }
 
 static int solicitar_monto_no_negativo(const char *prompt)
 {
+#ifdef UNIT_TEST
     int monto = input_int(prompt);
     while (monto < 0)
     {
         monto = input_int("Monto invalido. Ingrese 0 o mas: ");
     }
     return monto;
+#else
+    int monto = 0;
+    const char *etiqueta = (prompt && prompt[0] != '\0') ? prompt : "Monto";
+    if (!fin_modal_input_entero_gui("INGRESAR MONTO", etiqueta, "Ingrese un entero (0 o mayor)", 0, &monto))
+    {
+        return -1;
+    }
+    return monto;
+#endif
 }
 
 /**
@@ -211,26 +267,26 @@ void mostrar_transaccion(TransaccionFinanciera *transaccion)
     // Verificar que el puntero no sea nulo
     if (transaccion == NULL)
     {
-        ui_printf_centered_line("Error: Puntero de transaccion nulo.");
+        printf("Error: Puntero de transaccion nulo.\n");
         return;
     }
 
-    ui_printf_centered_line("ID: %d", transaccion->id);
+    printf("ID: %d\n", transaccion->id);
 
     // Convertir fecha de YYYY-MM-DD a DD/MM/YYYY para mostrar
     char fecha_display[11] = {0};
     mostrar_fecha_display(transaccion->fecha, fecha_display, sizeof(fecha_display));
-    ui_printf_centered_line("Fecha: %s", fecha_display);
+    printf("Fecha: %s\n", fecha_display);
 
-    ui_printf_centered_line("Tipo: %s", get_nombre_tipo_transaccion(transaccion->tipo));
-    ui_printf_centered_line("Categoria: %s", get_nombre_categoria(transaccion->categoria));
-    ui_printf_centered_line("Descripcion: %s", transaccion->descripcion);
-    ui_printf_centered_line("Monto: $%s", formato_monto(transaccion->monto));
+    printf("Tipo: %s\n", get_nombre_tipo_transaccion(transaccion->tipo));
+    printf("Categoria: %s\n", get_nombre_categoria(transaccion->categoria));
+    printf("Descripcion: %s\n", transaccion->descripcion);
+    printf("Monto: $%s\n", formato_monto(transaccion->monto));
     if (transaccion->item_especifico[0] != '\0')
     {
-        ui_printf_centered_line("Item Especifico: %s", transaccion->item_especifico);
+        printf("Item Especifico: %s\n", transaccion->item_especifico);
     }
-    ui_printf("\n");
+    printf("\n");
 }
 
 /**
@@ -283,9 +339,949 @@ int convertir_fecha_ddmmyyyy_a_yyyymmdd(const char *fecha_ddmmyyyy, char *fecha_
  */
 // FUNCIoN ELIMINADA: ahora usa obtener_siguiente_id("financiamiento") de utils.c
 
+#ifndef UNIT_TEST
+typedef struct
+{
+    int id;
+    char resumen[FIN_TEXT_MAX];
+} FinTransaccionRow;
+
+typedef struct
+{
+    int id;
+    char resumen[FIN_TEXT_MAX];
+} FinPartidoRow;
+
+static int fin_input_char_valido(unsigned int codepoint, FinInputMode mode)
+{
+    unsigned char ch = (unsigned char)codepoint;
+
+    if (codepoint < 32 || codepoint > 126)
+    {
+        return 0;
+    }
+
+    if (mode == FIN_INPUT_NUMERIC)
+    {
+        return isdigit(ch);
+    }
+
+    if (mode == FIN_INPUT_DATE)
+    {
+        return isdigit(ch) || ch == '/' || ch == '-';
+    }
+
+    if (mode == FIN_INPUT_ALNUM)
+    {
+        return isalnum(ch) || isspace(ch);
+    }
+
+    return isprint(ch);
+}
+
+static void fin_draw_action_button(Rectangle rect, const char *label, int primary)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    Color fill = primary ? (Color){34, 132, 80, 255} : theme->bg_list;
+    Color border = primary ? (Color){57, 178, 110, 255} : theme->card_border;
+    Color text = primary ? (Color){244, 255, 248, 255} : theme->text_primary;
+    Vector2 tm = gui_text_measure(label, 18.0f);
+
+    DrawRectangleRounded(rect, 0.22f, 8, fill);
+    DrawRectangleRoundedLines(rect, 0.22f, 8, border);
+    gui_text(label,
+             rect.x + (rect.width - tm.x) * 0.5f,
+             rect.y + (rect.height - tm.y) * 0.5f,
+             18.0f,
+             text);
+}
+
+static int fin_modal_confirmar_gui(const char *titulo,
+                                   const char *mensaje,
+                                   const char *accion)
+{
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 240;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "CONFIRMAR", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text_wrapped(mensaje ? mensaje : "Confirma la accion",
+                         (Rectangle){(float)panel_x + 24.0f, (float)panel_y + 52.0f, (float)panel_w - 48.0f, 86.0f},
+                         20.0f,
+                         gui_get_active_theme()->text_primary);
+
+        fin_draw_action_button(btn_ok, accion ? accion : "Confirmar", 1);
+        fin_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            return 1;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static void fin_mostrar_info_gui(const char *titulo, const char *mensaje)
+{
+    (void)fin_modal_confirmar_gui(titulo ? titulo : "INFORMACION",
+                                  mensaje ? mensaje : "Operacion finalizada.",
+                                  "Entendido");
+}
+
+static int fin_modal_input_texto_gui(const char *titulo,
+                                     const char *etiqueta,
+                                     const char *hint,
+                                     char *out,
+                                     size_t out_size,
+                                     int permitir_vacio,
+                                     FinInputMode mode)
+{
+    char texto[FIN_TEXT_MAX] = {0};
+    int cursor = 0;
+    int error_vacio = 0;
+
+    if (!out || out_size == 0)
+    {
+        return 0;
+    }
+
+    if (out[0] != '\0')
+    {
+        strncpy_s(texto, sizeof(texto), out, _TRUNCATE);
+        cursor = (int)strlen_s(texto, sizeof(texto));
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 1080 ? 860 : sw - 40;
+        int panel_h = 280;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle input_rect = {(float)panel_x + 26.0f, (float)panel_y + 102.0f, (float)panel_w - 52.0f, 44.0f};
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        int key = GetCharPressed();
+
+        while (key > 0)
+        {
+            if (fin_input_char_valido((unsigned int)key, mode) &&
+                cursor < (int)(out_size - 1) &&
+                cursor < (int)(sizeof(texto) - 1))
+            {
+                texto[cursor++] = (char)key;
+                texto[cursor] = '\0';
+            }
+            key = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE) && cursor > 0)
+        {
+            texto[--cursor] = '\0';
+        }
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "ENTRADA", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(etiqueta ? etiqueta : "Ingrese un valor:",
+                 (float)panel_x + 26.0f,
+                 (float)panel_y + 56.0f,
+                 20.0f,
+                 gui_get_active_theme()->text_primary);
+
+        DrawRectangleRounded(input_rect, 0.18f, 8, gui_get_active_theme()->bg_list);
+        DrawRectangleRoundedLines(input_rect, 0.18f, 8, gui_get_active_theme()->card_border);
+        gui_text_truncated(texto, input_rect.x + 10.0f, input_rect.y + 11.0f, 18.0f, input_rect.width - 20.0f, gui_get_active_theme()->text_primary);
+
+        if (error_vacio)
+        {
+            gui_text("El campo no puede estar vacio.",
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     17.0f,
+                     (Color){238, 121, 121, 255});
+        }
+        else if (hint && hint[0] != '\0')
+        {
+            gui_text(hint,
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     16.0f,
+                     gui_get_active_theme()->text_muted);
+        }
+
+        fin_draw_action_button(btn_ok, "Guardar", 1);
+        fin_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar | BACKSPACE: borrar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            if (!permitir_vacio && texto[0] == '\0')
+            {
+                error_vacio = 1;
+                continue;
+            }
+
+            strncpy_s(out, out_size, texto, _TRUNCATE);
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int fin_parse_int(const char *text, int *out)
+{
+    char *end = NULL;
+    long v;
+
+    if (!text || text[0] == '\0' || !out)
+    {
+        return 0;
+    }
+
+    v = strtol(text, &end, 10);
+    if (!end || *end != '\0')
+    {
+        return 0;
+    }
+
+    if (v < INT_MIN || v > INT_MAX)
+    {
+        return 0;
+    }
+
+    *out = (int)v;
+    return 1;
+}
+
+static int fin_modal_input_entero_gui(const char *titulo,
+                                      const char *etiqueta,
+                                      const char *hint,
+                                      int min_value,
+                                      int *valor_out)
+{
+    char texto[32] = {0};
+    int valor = 0;
+
+    if (!valor_out)
+    {
+        return 0;
+    }
+
+    while (1)
+    {
+        if (!fin_modal_input_texto_gui(titulo,
+                                       etiqueta,
+                                       hint,
+                                       texto,
+                                       sizeof(texto),
+                                       0,
+                                       FIN_INPUT_NUMERIC))
+        {
+            return 0;
+        }
+
+        if (fin_parse_int(texto, &valor) && valor >= min_value)
+        {
+            *valor_out = valor;
+            return 1;
+        }
+
+        (void)fin_modal_confirmar_gui("VALOR INVALIDO",
+                                      "Ingrese un numero valido dentro del rango permitido.",
+                                      "Entendido");
+    }
+}
+
+static int fin_modal_selector_opcion_gui(const char *titulo,
+                                         const char *columna,
+                                         const char **opciones,
+                                         int cantidad,
+                                         int seleccion_inicial,
+                                         int *seleccion_out)
+{
+    int selected;
+    int scroll = 0;
+    const int row_h = 34;
+
+    if (!seleccion_out || !opciones || cantidad <= 0)
+    {
+        return 0;
+    }
+
+    selected = seleccion_inicial;
+    if (selected < 0 || selected >= cantidad)
+    {
+        selected = 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 72;
+        int panel_y = 120;
+        int panel_w = sw - 144;
+        int panel_h = sh - 190;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        if (panel_w < 560)
+        {
+            panel_w = 560;
+            panel_x = (sw - panel_w) / 2;
+        }
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (cantidad > visible_rows) ? (cantidad - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= cantidad) selected = cantidad - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo, sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            columna ? columna : "OPCION", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < cantidad; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *seleccion_out = i;
+                EndScissorMode();
+                EndDrawing();
+                return 1;
+            }
+
+            gui_text(TextFormat("%2d", i + 1), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text(opciones[i], (float)(panel_x + 80), (float)(y + 7), 18.0f,
+                     is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *seleccion_out = selected;
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int fin_cargar_transacciones_gui_rows(FinTransaccionRow **rows_out, int *count_out, int limit)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql_all = "SELECT id, fecha, tipo, categoria, descripcion, monto FROM financiamiento ORDER BY fecha DESC, id DESC;";
+    const char *sql_limit = "SELECT id, fecha, tipo, categoria, descripcion, monto FROM financiamiento ORDER BY fecha DESC, id DESC LIMIT ?;";
+    FinTransaccionRow *rows = NULL;
+    int count = 0;
+    int cap = 0;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+    *rows_out = NULL;
+    *count_out = 0;
+
+    if (!preparar_stmt((limit > 0) ? sql_limit : sql_all, &stmt))
+    {
+        return 0;
+    }
+
+    if (limit > 0)
+    {
+        sqlite3_bind_int(stmt, 1, limit);
+    }
+
+    cap = 16;
+    rows = (FinTransaccionRow *)calloc((size_t)cap, sizeof(FinTransaccionRow));
+    if (!rows)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id;
+        const char *fecha_db;
+        int tipo;
+        int categoria;
+        const char *descripcion;
+        int monto;
+        char fecha_display[20] = {0};
+
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            FinTransaccionRow *tmp = (FinTransaccionRow *)realloc(rows, (size_t)new_cap * sizeof(FinTransaccionRow));
+            if (!tmp)
+            {
+                free(rows);
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            rows = tmp;
+            cap = new_cap;
+        }
+
+        id = sqlite3_column_int(stmt, 0);
+        fecha_db = (const char *)sqlite3_column_text(stmt, 1);
+        tipo = sqlite3_column_int(stmt, 2);
+        categoria = sqlite3_column_int(stmt, 3);
+        descripcion = (const char *)sqlite3_column_text(stmt, 4);
+        monto = sqlite3_column_int(stmt, 5);
+
+        if (fecha_db && fecha_db[0] != '\0')
+        {
+            mostrar_fecha_display(fecha_db, fecha_display, sizeof(fecha_display));
+        }
+        else
+        {
+            strcpy_s(fecha_display, sizeof(fecha_display), "(sin fecha)");
+        }
+
+        rows[count].id = id;
+        snprintf(rows[count].resumen,
+                 sizeof(rows[count].resumen),
+                 "%s | %s | %s | %s | $%s",
+                 fecha_display,
+                 get_nombre_tipo_transaccion(tipo),
+                 get_nombre_categoria(categoria),
+                 (descripcion && descripcion[0] != '\0') ? descripcion : "(sin descripcion)",
+                 formato_monto(monto));
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (count == 0)
+    {
+        free(rows);
+        rows = NULL;
+    }
+
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static int fin_seleccionar_transaccion_gui(const char *titulo,
+                                           const char *ayuda,
+                                           int limit,
+                                           int *id_out)
+{
+    FinTransaccionRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    int selected = 0;
+    const int row_h = 34;
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    if (!fin_cargar_transacciones_gui_rows(&rows, &count, limit))
+    {
+        return 0;
+    }
+
+    if (count == 0)
+    {
+        free(rows);
+        fin_mostrar_info_gui(titulo ? titulo : "TRANSACCIONES",
+                             "No hay transacciones registradas.");
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 60;
+        int panel_y = 110;
+        int panel_w = sw - 120;
+        int panel_h = sh - 180;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= count) selected = count - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo ? titulo : "SELECCIONAR TRANSACCION", sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            "DETALLE", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < count; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *id_out = rows[i].id;
+                EndScissorMode();
+                EndDrawing();
+                free(rows);
+                return 1;
+            }
+
+            gui_text(TextFormat("%3d", rows[i].id), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text_truncated(rows[i].resumen,
+                               (float)(panel_x + 80),
+                               (float)(y + 7),
+                               18.0f,
+                               (float)panel_w - 96.0f,
+                               is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint(ayuda ? ayuda : "Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *id_out = rows[selected].id;
+            free(rows);
+            return 1;
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+}
+
+static int fin_cargar_partidos_gui_rows(FinPartidoRow **rows_out, int *count_out)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT p.id, p.fecha_hora, can.nombre, p.goles, p.asistencias, c.nombre, p.resultado "
+        "FROM partido p "
+        "LEFT JOIN camiseta c ON p.camiseta_id = c.id "
+        "LEFT JOIN cancha can ON p.cancha_id = can.id "
+        "ORDER BY p.fecha_hora DESC, p.id DESC;";
+    FinPartidoRow *rows = NULL;
+    int count = 0;
+    int cap = 0;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+
+    *rows_out = NULL;
+    *count_out = 0;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    cap = 16;
+    rows = (FinPartidoRow *)calloc((size_t)cap, sizeof(FinPartidoRow));
+    if (!rows)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id;
+        const char *fecha_hora;
+        const char *cancha;
+        int goles;
+        int asistencias;
+        const char *camiseta;
+        int resultado;
+        char fecha_display[32] = {0};
+
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            FinPartidoRow *tmp = (FinPartidoRow *)realloc(rows, (size_t)new_cap * sizeof(FinPartidoRow));
+            if (!tmp)
+            {
+                free(rows);
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            rows = tmp;
+            cap = new_cap;
+        }
+
+        id = sqlite3_column_int(stmt, 0);
+        fecha_hora = (const char *)sqlite3_column_text(stmt, 1);
+        cancha = (const char *)sqlite3_column_text(stmt, 2);
+        goles = sqlite3_column_int(stmt, 3);
+        asistencias = sqlite3_column_int(stmt, 4);
+        camiseta = (const char *)sqlite3_column_text(stmt, 5);
+        resultado = sqlite3_column_int(stmt, 6);
+
+        if (fecha_hora && fecha_hora[0] != '\0')
+        {
+            format_date_for_display(fecha_hora, fecha_display, sizeof(fecha_display));
+        }
+        else
+        {
+            strcpy_s(fecha_display, sizeof(fecha_display), "(sin fecha)");
+        }
+
+        rows[count].id = id;
+        snprintf(rows[count].resumen,
+                 sizeof(rows[count].resumen),
+                 "%s | Cancha:%s | G:%d A:%d | Camiseta:%s | %s",
+                 fecha_display,
+                 (cancha && cancha[0] != '\0') ? cancha : "(sin cancha)",
+                 goles,
+                 asistencias,
+                 (camiseta && camiseta[0] != '\0') ? camiseta : "(sin camiseta)",
+                 resultado_to_text(resultado));
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (count == 0)
+    {
+        free(rows);
+        rows = NULL;
+    }
+
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static int fin_seleccionar_partido_gui(const char *titulo,
+                                       const char *ayuda,
+                                       int *id_out)
+{
+    FinPartidoRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    int selected = 0;
+    const int row_h = 34;
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    if (!fin_cargar_partidos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
+
+    if (count == 0)
+    {
+        free(rows);
+        fin_mostrar_info_gui("SIN PARTIDOS",
+                             "No hay partidos registrados. Cree uno en el modulo Partidos.");
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 60;
+        int panel_y = 110;
+        int panel_w = sw - 120;
+        int panel_h = sh - 180;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= count) selected = count - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo ? titulo : "SELECCIONAR PARTIDO", sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            "PARTIDO", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < count; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *id_out = rows[i].id;
+                EndScissorMode();
+                EndDrawing();
+                free(rows);
+                return 1;
+            }
+
+            gui_text(TextFormat("%3d", rows[i].id), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text_truncated(rows[i].resumen,
+                               (float)(panel_x + 80),
+                               (float)(y + 7),
+                               18.0f,
+                               (float)panel_w - 96.0f,
+                               is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint(ayuda ? ayuda : "Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *id_out = rows[selected].id;
+            free(rows);
+            return 1;
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+}
+
+static int fin_obtener_transaccion_por_id(int id_transaccion, TransaccionFinanciera *transaccion)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT fecha, tipo, categoria, descripcion, monto, item_especifico FROM financiamiento WHERE id = ?;";
+
+    if (!transaccion)
+    {
+        return 0;
+    }
+
+    memset(transaccion, 0, sizeof(*transaccion));
+    transaccion->id = id_transaccion;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, id_transaccion);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        strncpy_s(transaccion->fecha, sizeof(transaccion->fecha),
+                  sqlite3_column_text(stmt, 0) ? (const char *)sqlite3_column_text(stmt, 0) : "",
+                  _TRUNCATE);
+        transaccion->tipo = sqlite3_column_int(stmt, 1);
+        transaccion->categoria = sqlite3_column_int(stmt, 2);
+        strncpy_s(transaccion->descripcion, sizeof(transaccion->descripcion),
+                  sqlite3_column_text(stmt, 3) ? (const char *)sqlite3_column_text(stmt, 3) : "",
+                  _TRUNCATE);
+        transaccion->monto = sqlite3_column_int(stmt, 4);
+        strncpy_s(transaccion->item_especifico, sizeof(transaccion->item_especifico),
+                  sqlite3_column_text(stmt, 5) ? (const char *)sqlite3_column_text(stmt, 5) : "",
+                  _TRUNCATE);
+        sqlite3_finalize(stmt);
+        return 1;
+    }
+
+    sqlite3_finalize(stmt);
+    return 0;
+}
+
+static int fin_normalizar_fecha_input(const char *input, char *fecha_out, size_t out_size)
+{
+    if (!input || !fecha_out || out_size < 11)
+    {
+        return 0;
+    }
+
+    if (input[0] == '\0')
+    {
+        obtener_fecha_actual(fecha_out);
+        return 1;
+    }
+
+    if (strchr(input, '/') != NULL)
+    {
+        return convertir_fecha_ddmmyyyy_a_yyyymmdd(input, fecha_out);
+    }
+
+    if (strlen_s(input, 32) == 10 &&
+        isdigit((unsigned char)input[0]) && isdigit((unsigned char)input[1]) &&
+        isdigit((unsigned char)input[2]) && isdigit((unsigned char)input[3]) &&
+        input[4] == '-' &&
+        isdigit((unsigned char)input[5]) && isdigit((unsigned char)input[6]) &&
+        input[7] == '-' &&
+        isdigit((unsigned char)input[8]) && isdigit((unsigned char)input[9]))
+    {
+        strncpy_s(fecha_out, out_size, input, _TRUNCATE);
+        return 1;
+    }
+
+    return 0;
+}
+#endif
 
 static int seleccionar_tipo_transaccion(TransaccionFinanciera *transaccion)
 {
+#ifdef UNIT_TEST
     printf("\nSeleccione el tipo de transaccion:\n");
     printf("1. Ingreso\n");
     printf("2. Gasto\n");
@@ -309,10 +1305,33 @@ static int seleccionar_tipo_transaccion(TransaccionFinanciera *transaccion)
         pause_console();
         return 0;
     }
+#else
+    const char *opciones[] = {"Ingreso", "Gasto"};
+    int seleccion = 0;
+
+    if (!transaccion)
+    {
+        return 0;
+    }
+
+    if (!fin_modal_selector_opcion_gui("TIPO DE TRANSACCION",
+                                       "TIPO",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       (int)transaccion->tipo,
+                                       &seleccion))
+    {
+        return 0;
+    }
+
+    transaccion->tipo = (seleccion == 0) ? INGRESO : GASTO;
+    return 1;
+#endif
 }
 
 static int seleccionar_categoria_transaccion(TransaccionFinanciera *transaccion)
 {
+#ifdef UNIT_TEST
     printf("\nSeleccione la categoria:\n");
     printf("1. Transporte\n");
     printf("2. Equipamiento\n");
@@ -355,6 +1374,38 @@ static int seleccionar_categoria_transaccion(TransaccionFinanciera *transaccion)
         pause_console();
         return 0;
     }
+#else
+    const char *opciones[] =
+    {
+        "Transporte",
+        "Equipamiento",
+        "Cuotas",
+        "Torneos",
+        "Arbitraje",
+        "Canchas",
+        "Medicina",
+        "Otros"
+    };
+    int seleccion = 0;
+
+    if (!transaccion)
+    {
+        return 0;
+    }
+
+    if (!fin_modal_selector_opcion_gui("CATEGORIA FINANCIERA",
+                                       "CATEGORIA",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       (int)transaccion->categoria,
+                                       &seleccion))
+    {
+        return 0;
+    }
+
+    transaccion->categoria = (CategoriaFinanciera)seleccion;
+    return 1;
+#endif
 }
 
 static int verificar_partido_precio_asignado(int id_partido)
@@ -373,11 +1424,22 @@ static int verificar_partido_precio_asignado(int id_partido)
         int precio = sqlite3_column_int(stmt_check_precio, 0);
         if (precio > 0)
         {
+#ifdef UNIT_TEST
             printf("El partido ya tiene un precio asignado ($%s).\n", formato_monto(precio));
             printf("No se puede agregar otra transaccion para este partido.\n");
             sqlite3_finalize(stmt_check_precio);
             pause_console();
             return 0;
+#else
+            char mensaje[256];
+            snprintf(mensaje,
+                     sizeof(mensaje),
+                     "El partido ya tiene un precio asignado ($%s). No se puede agregar otra transaccion para este partido.",
+                     formato_monto(precio));
+            sqlite3_finalize(stmt_check_precio);
+            fin_mostrar_info_gui("PARTIDO CON PRECIO", mensaje);
+            return 0;
+#endif
         }
     }
     sqlite3_finalize(stmt_check_precio);
@@ -402,11 +1464,18 @@ static int verificar_partido_transaccion_asociada(int id_partido)
         int count = sqlite3_column_int(stmt_check, 0);
         if (count > 0)
         {
+#ifdef UNIT_TEST
             printf("El partido ya tiene una transaccion financiera asociada (precio ya asignado).\n");
             printf("No se puede agregar otra transaccion para este partido.\n");
             sqlite3_finalize(stmt_check);
             pause_console();
             return 0;
+#else
+            sqlite3_finalize(stmt_check);
+            fin_mostrar_info_gui("PARTIDO YA ASOCIADO",
+                                 "El partido ya tiene una transaccion financiera asociada. No se puede agregar otra.");
+            return 0;
+#endif
         }
     }
     sqlite3_finalize(stmt_check);
@@ -455,6 +1524,7 @@ static int completar_item_especifico(TransaccionFinanciera *transaccion)
 {
     if (transaccion->tipo == GASTO && transaccion->categoria == CANCHAS)
     {
+#ifdef UNIT_TEST
         printf("\n=== PARTIDOS DISPONIBLES ===\n");
         listar_partidos();
         printf("\n");
@@ -482,10 +1552,46 @@ static int completar_item_especifico(TransaccionFinanciera *transaccion)
 
         construir_item_partido(transaccion, id_partido);
         return 1;
+#else
+        int id_partido = 0;
+
+        if (!fin_seleccionar_partido_gui("GASTO DE CANCHA",
+                                         "Seleccione el partido al que desea asignar el gasto",
+                                         &id_partido))
+        {
+            return 0;
+        }
+
+        if (!verificar_partido_precio_asignado(id_partido))
+        {
+            return 0;
+        }
+
+        if (!verificar_partido_transaccion_asociada(id_partido))
+        {
+            return 0;
+        }
+
+        construir_item_partido(transaccion, id_partido);
+        return 1;
+#endif
     }
 
+#ifdef UNIT_TEST
     printf("Item especifico (opcional, ej: 'Botines Nike', 'Cuota enero'): ");
     input_string("", transaccion->item_especifico, sizeof(transaccion->item_especifico));
+#else
+    if (!fin_modal_input_texto_gui("ITEM ESPECIFICO",
+                                   "Item especifico (opcional)",
+                                   "Ej: Botines Nike, Cuota enero",
+                                   transaccion->item_especifico,
+                                   sizeof(transaccion->item_especifico),
+                                   1,
+                                   FIN_INPUT_ALNUM))
+    {
+        transaccion->item_especifico[0] = '\0';
+    }
+#endif
     return 1;
 }
 
@@ -580,6 +1686,10 @@ void agregar_transaccion()
 
     // Monto
     transaccion.monto = solicitar_monto_no_negativo("Monto: ");
+    if (transaccion.monto < 0)
+    {
+        return;
+    }
 
     if (!completar_item_especifico(&transaccion))
     {
@@ -594,7 +1704,13 @@ void agregar_transaccion()
     print_header("CONFIRMAR TRANSACCION");
     mostrar_transaccion(&transaccion);
 
+    #ifdef UNIT_TEST
     if (confirmar("Desea guardar esta transaccion?"))
+    #else
+    if (fin_modal_confirmar_gui("CONFIRMAR TRANSACCION",
+                                "Desea guardar esta transaccion?",
+                                "Guardar"))
+    #endif
     {
         guardar_transaccion_db(&transaccion);
     }
@@ -643,8 +1759,9 @@ void menu_presupuestos_mensuales()
 /**
  * @brief Recopilar datos del presupuesto desde la entrada del usuario
  */
-static void recopilar_datos_presupuesto(PresupuestoMensual *presupuesto)
+static int recopilar_datos_presupuesto(PresupuestoMensual *presupuesto)
 {
+#ifdef UNIT_TEST
     presupuesto->presupuesto_total = input_int("Presupuesto total mensual: ");
     presupuesto->limite_gasto = input_int("Limite maximo de gasto mensual: ");
 
@@ -654,6 +1771,49 @@ static void recopilar_datos_presupuesto(PresupuestoMensual *presupuesto)
     {
         presupuesto->alertas_habilitadas = 1; // Default a habilitado
     }
+    return 1;
+#else
+    const char *opciones_alerta[] = {"Si", "No"};
+    int seleccion_alerta = 0;
+
+    if (!presupuesto)
+    {
+        return 0;
+    }
+
+    if (!fin_modal_input_entero_gui("PRESUPUESTO MENSUAL",
+                                    "Presupuesto total mensual",
+                                    "Ingrese un entero (0 o mayor)",
+                                    0,
+                                    &presupuesto->presupuesto_total))
+    {
+        return 0;
+    }
+
+    if (!fin_modal_input_entero_gui("PRESUPUESTO MENSUAL",
+                                    "Limite maximo de gasto mensual",
+                                    "Ingrese un entero (0 o mayor)",
+                                    0,
+                                    &presupuesto->limite_gasto))
+    {
+        return 0;
+    }
+
+    if (fin_modal_selector_opcion_gui("ALERTAS AUTOMATICAS",
+                                      "HABILITAR",
+                                      opciones_alerta,
+                                      ARRAY_COUNT(opciones_alerta),
+                                      0,
+                                      &seleccion_alerta))
+    {
+        presupuesto->alertas_habilitadas = (seleccion_alerta == 0) ? 1 : 0;
+    }
+    else
+    {
+        presupuesto->alertas_habilitadas = 1;
+    }
+    return 1;
+#endif
 }
 
 /**
@@ -746,7 +1906,10 @@ void configurar_presupuesto_mensual()
 
     PresupuestoMensual presupuesto;
     strcpy_s(presupuesto.mes_anio, sizeof(presupuesto.mes_anio), mes_anio);
-    recopilar_datos_presupuesto(&presupuesto);
+    if (!recopilar_datos_presupuesto(&presupuesto))
+    {
+        return;
+    }
 
     // Fechas
     obtener_fecha_actual(presupuesto.fecha_creacion);
@@ -755,7 +1918,13 @@ void configurar_presupuesto_mensual()
     if (presupuesto_existe(mes_anio))
     {
         printf("\nYa existe un presupuesto para este mes. Desea actualizarlo?\n");
+#ifdef UNIT_TEST
         if (confirmar(""))
+#else
+        if (fin_modal_confirmar_gui("ACTUALIZAR PRESUPUESTO",
+                                    "Ya existe un presupuesto para este mes. Desea actualizarlo?",
+                                    "Actualizar"))
+#endif
         {
             actualizar_presupuesto(&presupuesto);
         }
@@ -1781,20 +2950,20 @@ void exportar_financiamiento()
  */
 void menu_financiamiento()
 {
-    MenuItem items[] =
+    static const MenuItem items[] =
     {
-        {1, "Agregar Transaccion", agregar_transaccion},
-        {2, "Listar Transacciones", listar_transacciones},
-        {3, "Modificar Transaccion", modificar_transaccion},
-        {4, "Eliminar Transaccion", eliminar_transaccion},
-        {5, "Ver Resumen Financiero", mostrar_resumen_financiero},
-        {6, "Balance General de Gastos", ver_balance_gastos},
-        {7, "Exportar Datos", exportar_financiamiento},
-        {8, "Presupuestos Mensuales", menu_presupuestos_mensuales},
-        {0, "Volver", NULL}
+        FIN_ITEM(1, "Agregar Transaccion", agregar_transaccion),
+        FIN_ITEM(2, "Listar Transacciones", listar_transacciones),
+        FIN_ITEM(3, "Modificar Transaccion", modificar_transaccion),
+        FIN_ITEM(4, "Eliminar Transaccion", eliminar_transaccion),
+        FIN_ITEM(5, "Ver Resumen Financiero", mostrar_resumen_financiero),
+        FIN_ITEM(6, "Balance General de Gastos", ver_balance_gastos),
+        FIN_ITEM(7, "Exportar Datos", exportar_financiamiento),
+        FIN_ITEM(8, "Presupuestos Mensuales", menu_presupuestos_mensuales),
+        FIN_BACK_ITEM
     };
 
-    ejecutar_menu_estandar("FINANCIAMIENTO", items, 9);
+    ejecutar_menu_estandar("FINANCIAMIENTO", items, ARRAY_COUNT(items));
 }
 
 /**
@@ -1802,6 +2971,7 @@ void menu_financiamiento()
  */
 static void modificar_fecha_transaccion(int id_transaccion)
 {
+#ifdef UNIT_TEST
     printf("Nueva fecha (DD/MM/AAAA, Enter=hoy): ");
     char nueva_fecha[20] = "";
     while (1)
@@ -1814,6 +2984,32 @@ static void modificar_fecha_transaccion(int id_transaccion)
     const char *sql = "UPDATE financiamiento SET fecha = ? WHERE id = ?;";
     ejecutar_update_texto(sql, nueva_fecha, id_transaccion);
     printf("Fecha actualizada exitosamente.\n");
+#else
+    char fecha_ingresada[20] = "";
+    char fecha_normalizada[11] = "";
+    const char *sql = "UPDATE financiamiento SET fecha = ? WHERE id = ?;";
+
+    if (!fin_modal_input_texto_gui("MODIFICAR FECHA",
+                                   "Nueva fecha (DD/MM/AAAA o YYYY-MM-DD)",
+                                   "Deje vacio para usar hoy",
+                                   fecha_ingresada,
+                                   sizeof(fecha_ingresada),
+                                   1,
+                                   FIN_INPUT_DATE))
+    {
+        return;
+    }
+
+    if (!fin_normalizar_fecha_input(fecha_ingresada, fecha_normalizada, sizeof(fecha_normalizada)))
+    {
+        fin_mostrar_info_gui("FORMATO INVALIDO",
+                             "La fecha debe ser DD/MM/AAAA o YYYY-MM-DD.");
+        return;
+    }
+
+    ejecutar_update_texto(sql, fecha_normalizada, id_transaccion);
+    printf("Fecha actualizada exitosamente.\n");
+#endif
 }
 
 /**
@@ -1821,6 +3017,7 @@ static void modificar_fecha_transaccion(int id_transaccion)
  */
 static void modificar_tipo_transaccion(int id_transaccion)
 {
+#ifdef UNIT_TEST
     printf("Nuevo tipo:\n1. Ingreso\n2. Gasto\n");
     int nuevo_tipo = input_int(">") - 1;
     if (nuevo_tipo < 0 || nuevo_tipo > 1)
@@ -1831,6 +3028,24 @@ static void modificar_tipo_transaccion(int id_transaccion)
     const char *sql = "UPDATE financiamiento SET tipo = ? WHERE id = ?;";
     ejecutar_update_int(sql, nuevo_tipo, id_transaccion);
     printf("Tipo actualizado exitosamente.\n");
+#else
+    const char *opciones[] = {"Ingreso", "Gasto"};
+    int seleccion = 0;
+    const char *sql = "UPDATE financiamiento SET tipo = ? WHERE id = ?;";
+
+    if (!fin_modal_selector_opcion_gui("MODIFICAR TIPO",
+                                       "TIPO",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       0,
+                                       &seleccion))
+    {
+        return;
+    }
+
+    ejecutar_update_int(sql, seleccion, id_transaccion);
+    printf("Tipo actualizado exitosamente.\n");
+#endif
 }
 
 /**
@@ -1838,6 +3053,7 @@ static void modificar_tipo_transaccion(int id_transaccion)
  */
 static void modificar_categoria_transaccion(int id_transaccion)
 {
+#ifdef UNIT_TEST
     printf("Nueva categoria:\n");
     printf("1. Transporte\n2. Equipamiento\n3. Cuotas\n4. Torneos\n");
     printf("5. Arbitraje\n6. Canchas\n7. Medicina\n8. Otros\n");
@@ -1850,6 +3066,34 @@ static void modificar_categoria_transaccion(int id_transaccion)
     const char *sql = "UPDATE financiamiento SET categoria = ? WHERE id = ?;";
     ejecutar_update_int(sql, nueva_categoria, id_transaccion);
     printf("Categoria actualizada exitosamente.\n");
+#else
+    const char *opciones[] =
+    {
+        "Transporte",
+        "Equipamiento",
+        "Cuotas",
+        "Torneos",
+        "Arbitraje",
+        "Canchas",
+        "Medicina",
+        "Otros"
+    };
+    int seleccion = 0;
+    const char *sql = "UPDATE financiamiento SET categoria = ? WHERE id = ?;";
+
+    if (!fin_modal_selector_opcion_gui("MODIFICAR CATEGORIA",
+                                       "CATEGORIA",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       0,
+                                       &seleccion))
+    {
+        return;
+    }
+
+    ejecutar_update_int(sql, seleccion, id_transaccion);
+    printf("Categoria actualizada exitosamente.\n");
+#endif
 }
 
 /**
@@ -1857,12 +3101,31 @@ static void modificar_categoria_transaccion(int id_transaccion)
  */
 static void modificar_descripcion_transaccion(int id_transaccion)
 {
+#ifdef UNIT_TEST
     printf("Nueva descripcion: ");
     char nueva_descripcion[200] = "";
     solicitar_texto_no_vacio("", nueva_descripcion, sizeof(nueva_descripcion));
     const char *sql = "UPDATE financiamiento SET descripcion = ? WHERE id = ?;";
     ejecutar_update_texto(sql, nueva_descripcion, id_transaccion);
     printf("Descripcion actualizada exitosamente.\n");
+#else
+    char nueva_descripcion[200] = "";
+    const char *sql = "UPDATE financiamiento SET descripcion = ? WHERE id = ?;";
+
+    if (!fin_modal_input_texto_gui("MODIFICAR DESCRIPCION",
+                                   "Nueva descripcion",
+                                   "Solo letras, numeros y espacios",
+                                   nueva_descripcion,
+                                   sizeof(nueva_descripcion),
+                                   0,
+                                   FIN_INPUT_ALNUM))
+    {
+        return;
+    }
+
+    ejecutar_update_texto(sql, nueva_descripcion, id_transaccion);
+    printf("Descripcion actualizada exitosamente.\n");
+#endif
 }
 
 /**
@@ -1871,6 +3134,10 @@ static void modificar_descripcion_transaccion(int id_transaccion)
 static void modificar_monto_transaccion(int id_transaccion)
 {
     int nuevo_monto = solicitar_monto_no_negativo("Nuevo monto: ");
+    if (nuevo_monto < 0)
+    {
+        return;
+    }
     const char *sql = "UPDATE financiamiento SET monto = ? WHERE id = ?;";
     ejecutar_update_int(sql, nuevo_monto, id_transaccion);
     printf("Monto actualizado exitosamente.\n");
@@ -1881,12 +3148,31 @@ static void modificar_monto_transaccion(int id_transaccion)
  */
 static void modificar_item_especifico_transaccion(int id_transaccion)
 {
+#ifdef UNIT_TEST
     printf("Nuevo item especifico: ");
     char nuevo_item[100] = "";
     input_string("", nuevo_item, sizeof(nuevo_item));
     const char *sql = "UPDATE financiamiento SET item_especifico = ? WHERE id = ?;";
     ejecutar_update_texto(sql, nuevo_item, id_transaccion);
     printf("Item especifico actualizado exitosamente.\n");
+#else
+    char nuevo_item[100] = "";
+    const char *sql = "UPDATE financiamiento SET item_especifico = ? WHERE id = ?;";
+
+    if (!fin_modal_input_texto_gui("MODIFICAR ITEM",
+                                   "Nuevo item especifico (opcional)",
+                                   "Ej: Botines Nike",
+                                   nuevo_item,
+                                   sizeof(nuevo_item),
+                                   1,
+                                   FIN_INPUT_ALNUM))
+    {
+        return;
+    }
+
+    ejecutar_update_texto(sql, nuevo_item, id_transaccion);
+    printf("Item especifico actualizado exitosamente.\n");
+#endif
 }
 
 /**
@@ -1897,6 +3183,7 @@ void modificar_transaccion()
     clear_screen();
     print_header("MODIFICAR TRANSACCION FINANCIERA");
 
+#ifdef UNIT_TEST
     // Mostrar lista de todas las transacciones
     sqlite3_stmt *stmt;
     const char *sql_lista = "SELECT id, fecha, tipo, categoria, descripcion, monto FROM financiamiento ORDER BY fecha DESC, id DESC;";
@@ -2020,6 +3307,77 @@ void modificar_transaccion()
     }
 
     pause_console();
+#else
+    int id_transaccion = 0;
+    int opcion = 0;
+    TransaccionFinanciera transaccion;
+    const char *opciones[] =
+    {
+        "Fecha",
+        "Tipo",
+        "Categoria",
+        "Descripcion",
+        "Monto",
+        "Item especifico",
+        "Volver"
+    };
+
+    if (!fin_seleccionar_transaccion_gui("MODIFICAR TRANSACCION",
+                                         "Click o ENTER para seleccionar | ESC: cancelar",
+                                         0,
+                                         &id_transaccion))
+    {
+        return;
+    }
+
+    if (!fin_obtener_transaccion_por_id(id_transaccion, &transaccion))
+    {
+        fin_mostrar_info_gui("ERROR",
+                             "No se pudo cargar la transaccion seleccionada.");
+        return;
+    }
+
+    clear_screen();
+    print_header("MODIFICAR TRANSACCION");
+    printf("Datos actuales:\n");
+    mostrar_transaccion(&transaccion);
+
+    if (!fin_modal_selector_opcion_gui("QUE DESEA MODIFICAR?",
+                                       "CAMPO",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       0,
+                                       &opcion))
+    {
+        return;
+    }
+
+    switch (opcion)
+    {
+    case 0:
+        modificar_fecha_transaccion(id_transaccion);
+        break;
+    case 1:
+        modificar_tipo_transaccion(id_transaccion);
+        break;
+    case 2:
+        modificar_categoria_transaccion(id_transaccion);
+        break;
+    case 3:
+        modificar_descripcion_transaccion(id_transaccion);
+        break;
+    case 4:
+        modificar_monto_transaccion(id_transaccion);
+        break;
+    case 5:
+        modificar_item_especifico_transaccion(id_transaccion);
+        break;
+    default:
+        return;
+    }
+
+    pause_console();
+#endif
 }
 
 /**
@@ -2030,6 +3388,7 @@ void eliminar_transaccion()
     clear_screen();
     print_header("ELIMINAR TRANSACCION FINANCIERA");
 
+#ifdef UNIT_TEST
     // Mostrar lista de transacciones recientes
     sqlite3_stmt *stmt;
     const char *sql_lista = "SELECT id, fecha, tipo, categoria, descripcion, monto FROM financiamiento ORDER BY fecha DESC, id DESC LIMIT 10;";
@@ -2132,6 +3491,56 @@ void eliminar_transaccion()
     }
 
     pause_console();
+#else
+    int id_transaccion = 0;
+    TransaccionFinanciera transaccion;
+    sqlite3_stmt *stmt = NULL;
+
+    if (!fin_seleccionar_transaccion_gui("ELIMINAR TRANSACCION",
+                                         "Click o ENTER para seleccionar | ESC: cancelar",
+                                         10,
+                                         &id_transaccion))
+    {
+        return;
+    }
+
+    if (!fin_obtener_transaccion_por_id(id_transaccion, &transaccion))
+    {
+        fin_mostrar_info_gui("ERROR",
+                             "No se pudo cargar la transaccion seleccionada.");
+        return;
+    }
+
+    printf("\nTransaccion a eliminar:\n");
+    mostrar_transaccion(&transaccion);
+
+    if (fin_modal_confirmar_gui("CONFIRMAR ELIMINACION",
+                                "Esta seguro que desea eliminar esta transaccion? Esta accion no se puede deshacer.",
+                                "Eliminar"))
+    {
+        const char *sql_delete = "DELETE FROM financiamiento WHERE id = ?;";
+        if (preparar_stmt(sql_delete, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, id_transaccion);
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                printf("Transaccion eliminada exitosamente.\n");
+            }
+            else
+            {
+                printf("Error al eliminar la transaccion: %s\n", sqlite3_errmsg(db));
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+    else
+    {
+        printf("Eliminacion cancelada.\n");
+    }
+
+    pause_console();
+#endif
 }
 
 /**
@@ -2148,8 +3557,7 @@ void listar_transacciones()
     sqlite3_stmt *stmt;
     if (preparar_stmt(sql, &stmt))
     {
-        ui_printf_centered_line("=== TODAS LAS TRANSACCIONES FINANCIERAS ===");
-        ui_printf("\n");
+        printf("=== TODAS LAS TRANSACCIONES FINANCIERAS ===\n\n");
 
         int total_ingresos = 0;
         int total_gastos = 0;
@@ -2189,7 +3597,7 @@ void listar_transacciones()
             }
 
             // Mostrar transaccion
-            ui_printf_centered_line("----------------------------------------");
+            printf("----------------------------------------\n");
             mostrar_transaccion(&transaccion);
         }
 
@@ -2197,16 +3605,16 @@ void listar_transacciones()
 
         if (count == 0)
         {
-            ui_printf_centered_line("No hay transacciones registradas.");
+            printf("No hay transacciones registradas.\n");
         }
         else
         {
-            ui_printf_centered_line("========================================");
-            ui_printf_centered_line("RESUMEN GENERAL:");
-            ui_printf_centered_line("Total Ingresos: $%s", formato_monto(total_ingresos));
-            ui_printf_centered_line("Total Gastos: $%s", formato_monto(total_gastos));
-            ui_printf_centered_line("Balance: $%s", formato_monto(total_ingresos - total_gastos));
-            ui_printf_centered_line("Total de transacciones: %d", count);
+            printf("========================================\n");
+            printf("RESUMEN GENERAL:\n");
+            printf("Total Ingresos: $%s\n", formato_monto(total_ingresos));
+            printf("Total Gastos: $%s\n", formato_monto(total_gastos));
+            printf("Balance: $%s\n", formato_monto(total_ingresos - total_gastos));
+            printf("Total de transacciones: %d\n", count);
         }
     }
     else

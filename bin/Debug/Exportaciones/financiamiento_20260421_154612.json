@@ -1,0 +1,113 @@
+{
+	"transacciones":	[{
+			"id":	13,
+			"fecha":	"2026-04-21",
+			"tipo":	"Ingreso",
+			"categoria":	"Transporte",
+			"descripcion":	"Sube 600",
+			"monto":	600,
+			"item_especifico":	"Pago Trasnporte"
+		}, {
+			"id":	12,
+			"fecha":	"2026-04-13",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	5000,
+			"item_especifico":	"(12 |Cancha:Futbolin |Fecha:27/08/2026 20:00 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+		}, {
+			"id":	11,
+			"fecha":	"2026-04-13",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	5000,
+			"item_especifico":	"(12 |Cancha:Futbolin |Fecha:13/04/2026 16:43 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+		}, {
+			"id":	10,
+			"fecha":	"2026-04-13",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	6500,
+			"item_especifico":	"(11 |Cancha:Predio Talleres  |Fecha:13/04/2026 01:39 | G:2 A:1 |Camiseta:Independiente Azul | DERROTA)"
+		}, {
+			"id":	9,
+			"fecha":	"2026-04-09",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	6000,
+			"item_especifico":	"(11 |Cancha:Futbolin |Fecha:09/04/2026 16:18 | G:4 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+		}, {
+			"id":	8,
+			"fecha":	"2026-04-08",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	6500,
+			"item_especifico":	"(10 |Cancha:Predio Talleres  |Fecha:08/04/2026 23:21 | G:1 A:1 |Camiseta:Independiente Azul | VICTORIA)"
+		}, {
+			"id":	7,
+			"fecha":	"2026-03-23",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	6500,
+			"item_especifico":	"(9 |Cancha:Predio Talleres  |Fecha:23/03/2026 23:15 | G:0 A:0 |Camiseta:Real Madrid | VICTORIA)"
+		}, {
+			"id":	6,
+			"fecha":	"2026-03-01",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	4000,
+			"item_especifico":	"(8 |Cancha:Predio Talleres  |Fecha:01/03/2026 23:55 | G:0 A:1 |Camiseta:Argentina Messi 10 | VICTORIA)"
+		}, {
+			"id":	5,
+			"fecha":	"2026-02-03",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	2000,
+			"item_especifico":	"(8 |Cancha:Roca |Fecha:03/02/2026 23:45 | G:1 A:2 |Camiseta:Argentina Messi 10 | VICTORIA)"
+		}, {
+			"id":	4,
+			"fecha":	"2026-02-02",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago por alquiler de cancha",
+			"monto":	6000,
+			"item_especifico":	"(7 |Cancha:Village Adrogue |Fecha:02/02/2026 22:13 | G:1 A:1 |Camiseta:Palmerias | VICTORIA)"
+		}, {
+			"id":	3,
+			"fecha":	"2026-01-19",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Partido",
+			"monto":	3500,
+			"item_especifico":	"(4 |Cancha:Predio Talleres  |Fecha:18/01/2026 22:12 | G:0 A:0 |Camiseta:Independiente Millan 14 | EMPATE |Cl0188ö"
+		}, {
+			"id":	2,
+			"fecha":	"2026-01-09",
+			"tipo":	"Gasto",
+			"categoria":	"Canchas",
+			"descripcion":	"Pago a Ivan",
+			"monto":	3500,
+			"item_especifico":	"Partido ID: 3"
+		}, {
+			"id":	1,
+			"fecha":	"2026-01-09",
+			"tipo":	"Gasto",
+			"categoria":	"Medicina",
+			"descripcion":	"Atomo Desinflamante",
+			"monto":	11900,
+			"item_especifico":	"Crema"
+		}],
+	"resumen":	{
+		"total_transacciones":	13,
+		"total_ingresos":	600,
+		"total_gastos":	66400,
+		"balance_neto":	-65800
+	}
+}

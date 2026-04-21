@@ -14,6 +14,8 @@
 #include <math.h>
 #include <time.h>
 
+#include "estadisticas_gui_capture.h"
+
 static const char *resultado_a_texto(int resultado)
 {
     switch (resultado)

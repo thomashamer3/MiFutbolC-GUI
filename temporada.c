@@ -8,12 +8,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
+#include <ctype.h>
+
+#ifndef UNIT_TEST
+#include "estadisticas_gui_capture.h"
+#endif
 
 #ifdef _WIN32
 #define PATH_SEP "\\"
 #else
 #define PATH_SEP "/"
 #endif
+
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+#define TEMP_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_COMPETENCIA}
+#define TEMP_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
+
+#define TEMP_TEXT_MAX 256
 
 
 /**
@@ -33,6 +45,665 @@ static int preparar_stmt(const char *sql, sqlite3_stmt **stmt)
     return 1;
 }
 
+#ifndef UNIT_TEST
+typedef enum
+{
+    TEMP_INPUT_ALNUM = 0,
+    TEMP_INPUT_NUMERIC,
+    TEMP_INPUT_DATE
+} TempInputMode;
+
+typedef struct
+{
+    int id;
+    char resumen[TEMP_TEXT_MAX];
+} TempTemporadaRow;
+
+typedef struct
+{
+    int id;
+    char resumen[TEMP_TEXT_MAX];
+} TempTorneoRow;
+
+static int temp_parse_int(const char *text, int *out)
+{
+    char *end = NULL;
+    long v;
+
+    if (!text || text[0] == '\0' || !out)
+    {
+        return 0;
+    }
+
+    v = strtol(text, &end, 10);
+    if (!end || *end != '\0')
+    {
+        return 0;
+    }
+
+    if (v < INT_MIN || v > INT_MAX)
+    {
+        return 0;
+    }
+
+    *out = (int)v;
+    return 1;
+}
+
+static int temp_input_char_valido(unsigned int codepoint, TempInputMode mode)
+{
+    unsigned char ch = (unsigned char)codepoint;
+
+    if (codepoint < 32 || codepoint > 126)
+    {
+        return 0;
+    }
+
+    if (mode == TEMP_INPUT_NUMERIC)
+    {
+        return isdigit(ch);
+    }
+
+    if (mode == TEMP_INPUT_DATE)
+    {
+        return isdigit(ch) || ch == '/' || ch == '-';
+    }
+
+    return isalnum(ch) || isspace(ch) || ch == '_' || ch == '-' || ch == ',' || ch == '.';
+}
+
+static void temp_draw_action_button(Rectangle rect, const char *label, int primary)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    Color fill = primary ? (Color){34, 132, 80, 255} : theme->bg_list;
+    Color border = primary ? (Color){57, 178, 110, 255} : theme->card_border;
+    Color text = primary ? (Color){244, 255, 248, 255} : theme->text_primary;
+    Vector2 tm = gui_text_measure(label, 18.0f);
+
+    DrawRectangleRounded(rect, 0.22f, 8, fill);
+    DrawRectangleRoundedLines(rect, 0.22f, 8, border);
+    gui_text(label,
+             rect.x + (rect.width - tm.x) * 0.5f,
+             rect.y + (rect.height - tm.y) * 0.5f,
+             18.0f,
+             text);
+}
+
+static int temp_modal_confirmar_gui(const char *titulo,
+                                    const char *mensaje,
+                                    const char *accion)
+{
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 240;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "CONFIRMAR", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text_wrapped(mensaje ? mensaje : "Confirma la accion",
+                         (Rectangle){(float)panel_x + 24.0f, (float)panel_y + 52.0f, (float)panel_w - 48.0f, 86.0f},
+                         20.0f,
+                         gui_get_active_theme()->text_primary);
+
+        temp_draw_action_button(btn_ok, accion ? accion : "Confirmar", 1);
+        temp_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            return 1;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static void temp_mostrar_info_gui(const char *titulo, const char *mensaje)
+{
+    (void)temp_modal_confirmar_gui(titulo ? titulo : "INFORMACION",
+                                   mensaje ? mensaje : "Operacion finalizada.",
+                                   "Entendido");
+}
+
+static int temp_modal_input_texto_gui(const char *titulo,
+                                      const char *etiqueta,
+                                      const char *hint,
+                                      char *out,
+                                      size_t out_size,
+                                      int permitir_vacio,
+                                      TempInputMode mode)
+{
+    char texto[TEMP_TEXT_MAX] = {0};
+    int cursor = 0;
+    int error_vacio = 0;
+
+    if (!out || out_size == 0)
+    {
+        return 0;
+    }
+
+    if (out[0] != '\0')
+    {
+        strncpy_s(texto, sizeof(texto), out, _TRUNCATE);
+        cursor = (int)strlen_s(texto, sizeof(texto));
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 1080 ? 860 : sw - 40;
+        int panel_h = 280;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle input_rect = {(float)panel_x + 26.0f, (float)panel_y + 102.0f, (float)panel_w - 52.0f, 44.0f};
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        int key = GetCharPressed();
+
+        while (key > 0)
+        {
+            if (temp_input_char_valido((unsigned int)key, mode) &&
+                cursor < (int)(out_size - 1) &&
+                cursor < (int)(sizeof(texto) - 1))
+            {
+                texto[cursor++] = (char)key;
+                texto[cursor] = '\0';
+            }
+            key = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE) && cursor > 0)
+        {
+            texto[--cursor] = '\0';
+        }
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "ENTRADA", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(etiqueta ? etiqueta : "Ingrese un valor:",
+                 (float)panel_x + 26.0f,
+                 (float)panel_y + 56.0f,
+                 20.0f,
+                 gui_get_active_theme()->text_primary);
+
+        DrawRectangleRounded(input_rect, 0.18f, 8, gui_get_active_theme()->bg_list);
+        DrawRectangleRoundedLines(input_rect, 0.18f, 8, gui_get_active_theme()->card_border);
+        gui_text_truncated(texto, input_rect.x + 10.0f, input_rect.y + 11.0f, 18.0f, input_rect.width - 20.0f, gui_get_active_theme()->text_primary);
+
+        if (error_vacio)
+        {
+            gui_text("El campo no puede estar vacio.",
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     17.0f,
+                     (Color){238, 121, 121, 255});
+        }
+        else if (hint && hint[0] != '\0')
+        {
+            gui_text(hint,
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     16.0f,
+                     gui_get_active_theme()->text_muted);
+        }
+
+        temp_draw_action_button(btn_ok, "Guardar", 1);
+        temp_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar | BACKSPACE: borrar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            if (!permitir_vacio && texto[0] == '\0')
+            {
+                error_vacio = 1;
+                continue;
+            }
+
+            strncpy_s(out, out_size, texto, _TRUNCATE);
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int temp_modal_input_entero_gui(const char *titulo,
+                                       const char *etiqueta,
+                                       const char *hint,
+                                       int min_value,
+                                       int *valor_out)
+{
+    char texto[32] = {0};
+    int valor = 0;
+
+    if (!valor_out)
+    {
+        return 0;
+    }
+
+    while (1)
+    {
+        if (!temp_modal_input_texto_gui(titulo,
+                                        etiqueta,
+                                        hint,
+                                        texto,
+                                        sizeof(texto),
+                                        0,
+                                        TEMP_INPUT_NUMERIC))
+        {
+            return 0;
+        }
+
+        if (temp_parse_int(texto, &valor) && valor >= min_value)
+        {
+            *valor_out = valor;
+            return 1;
+        }
+
+        temp_mostrar_info_gui("VALOR INVALIDO",
+                              "Ingrese un numero valido dentro del rango permitido.");
+    }
+}
+
+static int temp_modal_selector_opcion_gui(const char *titulo,
+                                          const char *columna,
+                                          const char **opciones,
+                                          int cantidad,
+                                          int seleccion_inicial,
+                                          int *seleccion_out)
+{
+    int selected;
+    int scroll = 0;
+    const int row_h = 34;
+
+    if (!seleccion_out || !opciones || cantidad <= 0)
+    {
+        return 0;
+    }
+
+    selected = seleccion_inicial;
+    if (selected < 0 || selected >= cantidad)
+    {
+        selected = 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 72;
+        int panel_y = 120;
+        int panel_w = sw - 144;
+        int panel_h = sh - 190;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        if (panel_w < 560)
+        {
+            panel_w = 560;
+            panel_x = (sw - panel_w) / 2;
+        }
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (cantidad > visible_rows) ? (cantidad - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= cantidad) selected = cantidad - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo, sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            columna ? columna : "OPCION", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < cantidad; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *seleccion_out = i;
+                EndScissorMode();
+                EndDrawing();
+                return 1;
+            }
+
+            gui_text(TextFormat("%2d", i + 1), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text(opciones[i], (float)(panel_x + 80), (float)(y + 7), 18.0f,
+                     is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *seleccion_out = selected;
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int temp_cargar_temporadas_rows(TempTemporadaRow *rows, int max_rows)
+{
+    sqlite3_stmt *stmt = NULL;
+    int count = 0;
+    const char *sql = "SELECT id, nombre, anio, fecha_inicio, fecha_fin, estado "
+                      "FROM temporada ORDER BY anio DESC, fecha_inicio DESC, id DESC;";
+
+    if (!rows || max_rows <= 0)
+    {
+        return 0;
+    }
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_rows)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        const unsigned char *nombre = sqlite3_column_text(stmt, 1);
+        int anio = sqlite3_column_int(stmt, 2);
+        const unsigned char *inicio = sqlite3_column_text(stmt, 3);
+        const unsigned char *fin = sqlite3_column_text(stmt, 4);
+        const unsigned char *estado = sqlite3_column_text(stmt, 5);
+
+        rows[count].id = id;
+        snprintf(rows[count].resumen,
+                 sizeof(rows[count].resumen),
+                 "%03d | %s | %d | %s a %s | %s",
+                 id,
+                 nombre ? (const char *)nombre : "Sin nombre",
+                 anio,
+                 inicio ? (const char *)inicio : "-",
+                 fin ? (const char *)fin : "-",
+                 estado ? (const char *)estado : "-");
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    return count;
+}
+
+static int temp_seleccionar_temporada_gui(const char *titulo, int *temporada_id_out)
+{
+    TempTemporadaRow rows[256];
+    const char *opciones[256];
+    int count;
+    int idx = 0;
+
+    if (!temporada_id_out)
+    {
+        return 0;
+    }
+
+    count = temp_cargar_temporadas_rows(rows, ARRAY_COUNT(rows));
+    if (count <= 0)
+    {
+        temp_mostrar_info_gui("TEMPORADAS", "No hay temporadas registradas.");
+        return 0;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        opciones[i] = rows[i].resumen;
+    }
+
+    if (!temp_modal_selector_opcion_gui(titulo ? titulo : "SELECCIONAR TEMPORADA",
+                                        "TEMPORADA",
+                                        opciones,
+                                        count,
+                                        0,
+                                        &idx))
+    {
+        return 0;
+    }
+
+    *temporada_id_out = rows[idx].id;
+    return 1;
+}
+
+static int temp_cargar_torneos_disponibles_rows(TempTorneoRow *rows, int max_rows)
+{
+    sqlite3_stmt *stmt = NULL;
+    int count = 0;
+    const char *sql = "SELECT id, nombre FROM torneo WHERE id NOT IN "
+                      "(SELECT torneo_id FROM torneo_temporada) ORDER BY id;";
+
+    if (!rows || max_rows <= 0)
+    {
+        return 0;
+    }
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && count < max_rows)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        const unsigned char *nombre = sqlite3_column_text(stmt, 1);
+
+        rows[count].id = id;
+        snprintf(rows[count].resumen,
+                 sizeof(rows[count].resumen),
+                 "%03d | %s",
+                 id,
+                 nombre ? (const char *)nombre : "Sin nombre");
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+    return count;
+}
+
+static int temp_seleccionar_torneo_disponible_gui(const char *titulo, int *torneo_id_out)
+{
+    TempTorneoRow rows[256];
+    const char *opciones[256];
+    int count;
+    int idx = 0;
+
+    if (!torneo_id_out)
+    {
+        return 0;
+    }
+
+    count = temp_cargar_torneos_disponibles_rows(rows, ARRAY_COUNT(rows));
+    if (count <= 0)
+    {
+        temp_mostrar_info_gui("TORNEOS", "No hay torneos disponibles para asociar.");
+        return 0;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        opciones[i] = rows[i].resumen;
+    }
+
+    if (!temp_modal_selector_opcion_gui(titulo ? titulo : "SELECCIONAR TORNEO",
+                                        "TORNEO",
+                                        opciones,
+                                        count,
+                                        0,
+                                        &idx))
+    {
+        return 0;
+    }
+
+    *torneo_id_out = rows[idx].id;
+    return 1;
+}
+
+static void temp_fecha_hoy(char *out, size_t out_size)
+{
+    time_t t = time(NULL);
+    struct tm tmv;
+
+    if (!out || out_size == 0)
+    {
+        return;
+    }
+
+    if (out_size < 11)
+    {
+        out[0] = '\0';
+        return;
+    }
+
+    localtime_s(&tmv, &t);
+    snprintf(out, out_size, "%04d-%02d-%02d", tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday);
+}
+
+static int temp_normalizar_fecha_input(const char *input, char *out, size_t out_size)
+{
+    int d = 0;
+    int m = 0;
+    int a = 0;
+
+    if (!input || !out || out_size < 11)
+    {
+        return 0;
+    }
+
+    if (input[0] == '\0')
+    {
+        temp_fecha_hoy(out, out_size);
+        return 1;
+    }
+
+    if (strchr(input, '/') != NULL)
+    {
+        if (sscanf(input, "%d/%d/%d", &d, &m, &a) == 3 &&
+            d >= 1 && d <= 31 &&
+            m >= 1 && m <= 12 &&
+            a >= 1900 && a <= 2100)
+        {
+            snprintf(out, out_size, "%04d-%02d-%02d", a, m, d);
+            return 1;
+        }
+        return 0;
+    }
+
+    if (strlen_s(input, 32) == 10 &&
+        isdigit((unsigned char)input[0]) && isdigit((unsigned char)input[1]) &&
+        isdigit((unsigned char)input[2]) && isdigit((unsigned char)input[3]) &&
+        input[4] == '-' &&
+        isdigit((unsigned char)input[5]) && isdigit((unsigned char)input[6]) &&
+        input[7] == '-' &&
+        isdigit((unsigned char)input[8]) && isdigit((unsigned char)input[9]))
+    {
+        strncpy_s(out, out_size, input, _TRUNCATE);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int temp_validar_mes_anio(const char *mes_anio)
+{
+    if (!mes_anio)
+    {
+        return 0;
+    }
+
+    if (strlen_s(mes_anio, 16) != 7)
+    {
+        return 0;
+    }
+
+    if (!isdigit((unsigned char)mes_anio[0]) ||
+        !isdigit((unsigned char)mes_anio[1]) ||
+        !isdigit((unsigned char)mes_anio[2]) ||
+        !isdigit((unsigned char)mes_anio[3]) ||
+        mes_anio[4] != '-' ||
+        !isdigit((unsigned char)mes_anio[5]) ||
+        !isdigit((unsigned char)mes_anio[6]))
+    {
+        return 0;
+    }
+
+    {
+        int mes = (mes_anio[5] - '0') * 10 + (mes_anio[6] - '0');
+        return (mes >= 1 && mes <= 12);
+    }
+}
+#endif
+
+#ifdef UNIT_TEST
 static void solicitar_texto_no_vacio(const char *prompt, char *buffer, int size)
 {
     while (1)
@@ -43,10 +714,39 @@ static void solicitar_texto_no_vacio(const char *prompt, char *buffer, int size)
         printf("El campo no puede estar vacio.\n");
     }
 }
+#endif
 
 static void solicitar_fecha_yyyy_mm_dd(const char *prompt, char *buffer, int size)
 {
+#ifdef UNIT_TEST
     input_date(prompt, buffer, size);
+#else
+    char ingresada[32] = {0};
+    const char *etiqueta = (prompt && prompt[0] != '\0') ? prompt : "Fecha";
+
+    while (1)
+    {
+        if (!temp_modal_input_texto_gui("INGRESAR FECHA",
+                                        etiqueta,
+                                        "Formato DD/MM/AAAA o YYYY-MM-DD. Vacio = hoy",
+                                        ingresada,
+                                        sizeof(ingresada),
+                                        1,
+                                        TEMP_INPUT_DATE))
+        {
+            buffer[0] = '\0';
+            return;
+        }
+
+        if (temp_normalizar_fecha_input(ingresada, buffer, (size_t)size))
+        {
+            return;
+        }
+
+        temp_mostrar_info_gui("FORMATO INVALIDO",
+                              "La fecha debe ser DD/MM/AAAA o YYYY-MM-DD.");
+    }
+#endif
 }
 
 const char* get_nombre_tipo_fase(TipoFaseTemporada tipo)
@@ -215,6 +915,7 @@ void crear_temporada()
     Temporada temporada = {0};
     temporada.estado[0] = '\0'; // Inicializar como vacio
 
+#ifdef UNIT_TEST
     // Solicitar datos basicos
     solicitar_texto_no_vacio("Nombre de la temporada: ", temporada.nombre, sizeof(temporada.nombre));
     temporada.anio = input_int("Ano de la temporada: ");
@@ -269,6 +970,93 @@ void crear_temporada()
     }
 
     pause_console();
+#else
+    if (!temp_modal_input_texto_gui("CREAR TEMPORADA",
+                                    "Nombre de la temporada:",
+                                    "Solo letras, numeros y espacios",
+                                    temporada.nombre,
+                                    sizeof(temporada.nombre),
+                                    0,
+                                    TEMP_INPUT_ALNUM))
+    {
+        return;
+    }
+
+    if (!temp_modal_input_entero_gui("CREAR TEMPORADA",
+                                     "Ano de la temporada:",
+                                     "Ingrese un ano positivo",
+                                     1,
+                                     &temporada.anio))
+    {
+        return;
+    }
+
+    solicitar_fecha_yyyy_mm_dd("Fecha de inicio (DD/MM/AAAA, Enter=hoy): ", temporada.fecha_inicio, sizeof(temporada.fecha_inicio));
+    if (temporada.fecha_inicio[0] == '\0')
+    {
+        return;
+    }
+
+    while (1)
+    {
+        solicitar_fecha_yyyy_mm_dd("Fecha de fin (DD/MM/AAAA, Enter=hoy): ", temporada.fecha_fin, sizeof(temporada.fecha_fin));
+        if (temporada.fecha_fin[0] == '\0')
+        {
+            return;
+        }
+
+        if (strcmp(temporada.fecha_fin, temporada.fecha_inicio) >= 0)
+        {
+            break;
+        }
+
+        temp_mostrar_info_gui("FECHA INVALIDA", "La fecha de fin no puede ser anterior a la fecha de inicio.");
+    }
+
+    (void)temp_modal_input_texto_gui("CREAR TEMPORADA",
+                                     "Descripcion (opcional):",
+                                     "Puede dejar el campo vacio",
+                                     temporada.descripcion,
+                                     sizeof(temporada.descripcion),
+                                     1,
+                                     TEMP_INPUT_ALNUM);
+
+    // Determinar estado automaticamente
+    determinar_estado_temporada(temporada.fecha_inicio, temporada.fecha_fin,
+                                temporada.estado, sizeof(temporada.estado));
+
+    // Guardar en base de datos - reutilizar ID libre
+    sqlite3_stmt *stmt = NULL;
+    int nuevo_id = calcular_nuevo_id_temporada();
+
+    const char *sql = "INSERT INTO temporada (id, nombre, anio, fecha_inicio, fecha_fin, estado, descripcion) VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+    if (preparar_stmt(sql, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, nuevo_id);
+        sqlite3_bind_text(stmt, 2, temporada.nombre, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 3, temporada.anio);
+        sqlite3_bind_text(stmt, 4, temporada.fecha_inicio, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 5, temporada.fecha_fin, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 6, temporada.estado, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 7, temporada.descripcion, -1, SQLITE_STATIC);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+            char msg[256];
+            crear_fases_temporada_defecto(nuevo_id);
+            snprintf(msg, sizeof(msg), "Temporada creada exitosamente con ID: %d", nuevo_id);
+            temp_mostrar_info_gui("TEMPORADA", msg);
+        }
+        else
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al crear la temporada: %s", sqlite3_errmsg(db));
+            temp_mostrar_info_gui("ERROR", msg);
+        }
+        sqlite3_finalize(stmt);
+    }
+#endif
 }
 
 void crear_fases_temporada_defecto(int temporada_id)
@@ -380,8 +1168,7 @@ void listar_temporadas()
 
     if (preparar_stmt(sql, &stmt))
     {
-        ui_printf_centered_line("=== TEMPORADAS ===");
-        ui_printf("\n");
+        printf("=== TEMPORADAS ===\n\n");
 
         int found = 0;
         while (sqlite3_step(stmt) == SQLITE_ROW)
@@ -394,12 +1181,12 @@ void listar_temporadas()
             const char *fecha_fin = (const char*)sqlite3_column_text(stmt, 4);
             const char *estado = (const char*)sqlite3_column_text(stmt, 5);
 
-            ui_printf_centered_line("ID: %d", id);
-            ui_printf_centered_line("Nombre: %s", nombre);
-            ui_printf_centered_line("Ano: %d", anio);
-            ui_printf_centered_line("Periodo: %s al %s", fecha_inicio, fecha_fin);
-            ui_printf_centered_line("Estado: %s", estado);
-            ui_printf_centered_line("----------------------------------------");
+            printf("ID: %d\n", id);
+            printf("Nombre: %s\n", nombre);
+            printf("Ano: %d\n", anio);
+            printf("Periodo: %s al %s\n", fecha_inicio, fecha_fin);
+            printf("Estado: %s\n", estado);
+            printf("----------------------------------------\n");
         }
 
         if (!found)
@@ -420,6 +1207,8 @@ void modificar_temporada()
 {
     clear_screen();
     print_header("MODIFICAR TEMPORADA");
+
+#ifdef UNIT_TEST
 
     // Mostrar lista de temporadas
     listar_temporadas();
@@ -544,12 +1333,152 @@ void modificar_temporada()
     }
 
     pause_console();
+#else
+    int temporada_id = 0;
+    const char *opciones[] = {"Nombre", "Fechas", "Descripcion", "Estado"};
+    int opcion = 0;
+    sqlite3_stmt *stmt = NULL;
+
+    if (!temp_seleccionar_temporada_gui("SELECCIONAR TEMPORADA A MODIFICAR", &temporada_id))
+    {
+        return;
+    }
+
+    if (!temp_modal_selector_opcion_gui("MODIFICAR TEMPORADA",
+                                        "CAMPO",
+                                        opciones,
+                                        ARRAY_COUNT(opciones),
+                                        0,
+                                        &opcion))
+    {
+        return;
+    }
+
+    switch (opcion)
+    {
+    case 0:
+    {
+        char nuevo_nombre[100] = {0};
+        if (!temp_modal_input_texto_gui("MODIFICAR TEMPORADA",
+                                        "Nuevo nombre:",
+                                        "Solo letras, numeros y espacios",
+                                        nuevo_nombre,
+                                        sizeof(nuevo_nombre),
+                                        0,
+                                        TEMP_INPUT_ALNUM))
+        {
+            return;
+        }
+
+        if (preparar_stmt("UPDATE temporada SET nombre = ? WHERE id = ?;", &stmt))
+        {
+            sqlite3_bind_text(stmt, 1, nuevo_nombre, -1, SQLITE_STATIC);
+            sqlite3_bind_int(stmt, 2, temporada_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            temp_mostrar_info_gui("TEMPORADA", "Nombre actualizado.");
+        }
+        break;
+    }
+    case 1:
+    {
+        char nueva_fecha_inicio[20] = {0};
+        char nueva_fecha_fin[20] = {0};
+
+        solicitar_fecha_yyyy_mm_dd("Nueva fecha de inicio (DD/MM/AAAA, Enter=hoy): ", nueva_fecha_inicio, sizeof(nueva_fecha_inicio));
+        if (nueva_fecha_inicio[0] == '\0')
+        {
+            return;
+        }
+
+        while (1)
+        {
+            solicitar_fecha_yyyy_mm_dd("Nueva fecha de fin (DD/MM/AAAA, Enter=hoy): ", nueva_fecha_fin, sizeof(nueva_fecha_fin));
+            if (nueva_fecha_fin[0] == '\0')
+            {
+                return;
+            }
+
+            if (strcmp(nueva_fecha_fin, nueva_fecha_inicio) >= 0)
+            {
+                break;
+            }
+
+            temp_mostrar_info_gui("FECHA INVALIDA", "La fecha de fin no puede ser anterior a la fecha de inicio.");
+        }
+
+        if (preparar_stmt("UPDATE temporada SET fecha_inicio = ?, fecha_fin = ? WHERE id = ?;", &stmt))
+        {
+            sqlite3_bind_text(stmt, 1, nueva_fecha_inicio, -1, SQLITE_STATIC);
+            sqlite3_bind_text(stmt, 2, nueva_fecha_fin, -1, SQLITE_STATIC);
+            sqlite3_bind_int(stmt, 3, temporada_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            temp_mostrar_info_gui("TEMPORADA", "Fechas actualizadas.");
+        }
+        break;
+    }
+    case 2:
+    {
+        char nueva_descripcion[500] = {0};
+        if (!temp_modal_input_texto_gui("MODIFICAR TEMPORADA",
+                                        "Nueva descripcion:",
+                                        "Puede dejar este campo vacio",
+                                        nueva_descripcion,
+                                        sizeof(nueva_descripcion),
+                                        1,
+                                        TEMP_INPUT_ALNUM))
+        {
+            return;
+        }
+
+        if (preparar_stmt("UPDATE temporada SET descripcion = ? WHERE id = ?;", &stmt))
+        {
+            sqlite3_bind_text(stmt, 1, nueva_descripcion, -1, SQLITE_STATIC);
+            sqlite3_bind_int(stmt, 2, temporada_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            temp_mostrar_info_gui("TEMPORADA", "Descripcion actualizada.");
+        }
+        break;
+    }
+    case 3:
+    {
+        const char *estados[] = {"Planificada", "Activa", "Finalizada"};
+        int estado_idx = 0;
+
+        if (!temp_modal_selector_opcion_gui("ESTADO DE TEMPORADA",
+                                            "ESTADO",
+                                            estados,
+                                            ARRAY_COUNT(estados),
+                                            0,
+                                            &estado_idx))
+        {
+            return;
+        }
+
+        if (preparar_stmt("UPDATE temporada SET estado = ? WHERE id = ?;", &stmt))
+        {
+            sqlite3_bind_text(stmt, 1, estados[estado_idx], -1, SQLITE_STATIC);
+            sqlite3_bind_int(stmt, 2, temporada_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            temp_mostrar_info_gui("TEMPORADA", "Estado actualizado.");
+        }
+        break;
+    }
+    default:
+        break;
+    }
+#endif
 }
 
 void eliminar_temporada()
 {
     clear_screen();
     print_header("ELIMINAR TEMPORADA");
+
+#ifdef UNIT_TEST
 
     listar_temporadas();
 
@@ -598,6 +1527,49 @@ void eliminar_temporada()
     }
 
     pause_console();
+#else
+    int temporada_id = 0;
+
+    if (!temp_seleccionar_temporada_gui("SELECCIONAR TEMPORADA A ELIMINAR", &temporada_id))
+    {
+        return;
+    }
+
+    if (!temp_modal_confirmar_gui("ELIMINAR TEMPORADA",
+                                  "Esta seguro de eliminar esta temporada? Se perderan los datos asociados.",
+                                  "Eliminar"))
+    {
+        temp_mostrar_info_gui("TEMPORADA", "Eliminacion cancelada.");
+        return;
+    }
+
+    {
+        sqlite3_stmt *stmt = NULL;
+        const char *sqls[] =
+        {
+            "DELETE FROM torneo_temporada WHERE temporada_id = ?;",
+            "DELETE FROM temporada_fase WHERE temporada_id = ?;",
+            "DELETE FROM equipo_temporada_fatiga WHERE temporada_id = ?;",
+            "DELETE FROM jugador_temporada_fatiga WHERE temporada_id = ?;",
+            "DELETE FROM equipo_temporada_evolucion WHERE temporada_id = ?;",
+            "DELETE FROM temporada_resumen WHERE temporada_id = ?;",
+            "DELETE FROM temporada WHERE id = ?;",
+            NULL
+        };
+
+        for (int i = 0; sqls[i] != NULL; i++)
+        {
+            if (preparar_stmt(sqls[i], &stmt))
+            {
+                sqlite3_bind_int(stmt, 1, temporada_id);
+                sqlite3_step(stmt);
+                sqlite3_finalize(stmt);
+            }
+        }
+    }
+
+    temp_mostrar_info_gui("TEMPORADA", "Temporada eliminada exitosamente.");
+#endif
 }
 
 // ========== FUNCIONES DE FATIGA Y EVOLUCIoN ==========
@@ -1213,6 +2185,8 @@ void administrar_temporada()
     clear_screen();
     print_header("ADMINISTRAR TEMPORADA");
 
+#ifdef UNIT_TEST
+
     // Mostrar lista de temporadas
     listar_temporadas();
 
@@ -1308,10 +2282,153 @@ void administrar_temporada()
             pause_console();
         }
     }
+#else
+    int temporada_id = 0;
+    const char *acciones[] = {
+        "Dashboard de Temporada",
+        "Ver Estadisticas de Fatiga",
+        "Generar Resumen de Temporada",
+        "Exportar Resumen de Temporada",
+        "Generar Resumen Mensual",
+        "Ver Resumen Mensual",
+        "Listar Resumenes Mensuales",
+        "Exportar Resumen Mensual",
+        "Asociar Torneo a Temporada",
+        "Gestionar Fases de Temporada",
+        "Volver"
+    };
+    int opcion = 0;
+    int seleccion = 0;
+
+    if (!temp_seleccionar_temporada_gui("SELECCIONAR TEMPORADA A ADMINISTRAR", &temporada_id))
+    {
+        return;
+    }
+
+    while (1)
+    {
+        if (!temp_modal_selector_opcion_gui("ADMINISTRAR TEMPORADA",
+                                            "ACCION",
+                                            acciones,
+                                            ARRAY_COUNT(acciones),
+                                            seleccion,
+                                            &opcion))
+        {
+            return;
+        }
+
+        seleccion = opcion;
+        switch (opcion)
+        {
+        case 0:
+            mostrar_dashboard_temporada(temporada_id);
+            break;
+        case 1:
+            mostrar_estadisticas_fatiga(temporada_id);
+            break;
+        case 2:
+            generar_resumen_temporada(temporada_id);
+            temp_mostrar_info_gui("TEMPORADA", "Resumen de temporada generado.");
+            break;
+        case 3:
+            exportar_resumen_temporada(temporada_id);
+            temp_mostrar_info_gui("TEMPORADA", "Resumen de temporada exportado.");
+            break;
+        case 4:
+        {
+            char mes_anio[8] = {0};
+            while (1)
+            {
+                if (!temp_modal_input_texto_gui("RESUMEN MENSUAL",
+                                                "Ingrese mes (YYYY-MM):",
+                                                "Ejemplo: 2025-08",
+                                                mes_anio,
+                                                sizeof(mes_anio),
+                                                0,
+                                                TEMP_INPUT_DATE))
+                {
+                    break;
+                }
+                if (temp_validar_mes_anio(mes_anio))
+                {
+                    generar_resumen_mensual(temporada_id, mes_anio);
+                    temp_mostrar_info_gui("TEMPORADA", "Resumen mensual generado.");
+                    break;
+                }
+                temp_mostrar_info_gui("FORMATO INVALIDO", "Ingrese un mes valido con formato YYYY-MM.");
+            }
+            break;
+        }
+        case 5:
+        {
+            char mes_anio[8] = {0};
+            while (1)
+            {
+                if (!temp_modal_input_texto_gui("VER RESUMEN MENSUAL",
+                                                "Ingrese mes (YYYY-MM):",
+                                                "Ejemplo: 2025-08",
+                                                mes_anio,
+                                                sizeof(mes_anio),
+                                                0,
+                                                TEMP_INPUT_DATE))
+                {
+                    break;
+                }
+                if (temp_validar_mes_anio(mes_anio))
+                {
+                    mostrar_resumen_mensual(temporada_id, mes_anio);
+                    break;
+                }
+                temp_mostrar_info_gui("FORMATO INVALIDO", "Ingrese un mes valido con formato YYYY-MM.");
+            }
+            break;
+        }
+        case 6:
+            listar_resumenes_mensuales(temporada_id);
+            break;
+        case 7:
+        {
+            char mes_anio[8] = {0};
+            while (1)
+            {
+                if (!temp_modal_input_texto_gui("EXPORTAR RESUMEN MENSUAL",
+                                                "Ingrese mes (YYYY-MM):",
+                                                "Ejemplo: 2025-08",
+                                                mes_anio,
+                                                sizeof(mes_anio),
+                                                0,
+                                                TEMP_INPUT_DATE))
+                {
+                    break;
+                }
+                if (temp_validar_mes_anio(mes_anio))
+                {
+                    exportar_resumen_mensual(temporada_id, mes_anio);
+                    temp_mostrar_info_gui("TEMPORADA", "Resumen mensual exportado.");
+                    break;
+                }
+                temp_mostrar_info_gui("FORMATO INVALIDO", "Ingrese un mes valido con formato YYYY-MM.");
+            }
+            break;
+        }
+        case 8:
+            asociar_torneo_temporada(0);
+            break;
+        case 9:
+            temp_mostrar_info_gui("TEMPORADA", "Gestion de fases no implementada aun.");
+            break;
+        case 10:
+            return;
+        default:
+            return;
+        }
+    }
+#endif
 }
 
 void asociar_torneo_temporada(int torneo_id)
 {
+#ifdef UNIT_TEST
     if (torneo_id == 0)
     {
         // Mostrar lista de torneos disponibles
@@ -1383,6 +2500,44 @@ void asociar_torneo_temporada(int torneo_id)
     }
 
     pause_console();
+#else
+    if (torneo_id == 0)
+    {
+        if (!temp_seleccionar_torneo_disponible_gui("SELECCIONAR TORNEO DISPONIBLE", &torneo_id))
+        {
+            return;
+        }
+    }
+
+    {
+        int temporada_id = 0;
+        sqlite3_stmt *stmt = NULL;
+        const char *sql = "INSERT INTO torneo_temporada (torneo_id, temporada_id) VALUES (?, ?);";
+
+        if (!temp_seleccionar_temporada_gui("SELECCIONAR TEMPORADA PARA ASOCIAR", &temporada_id))
+        {
+            return;
+        }
+
+        if (preparar_stmt(sql, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, torneo_id);
+            sqlite3_bind_int(stmt, 2, temporada_id);
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                temp_mostrar_info_gui("TEMPORADA", "Torneo asociado a temporada exitosamente.");
+            }
+            else
+            {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Error al asociar torneo: %s", sqlite3_errmsg(db));
+                temp_mostrar_info_gui("ERROR", msg);
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+#endif
 }
 
 // ========== FUNCIONES DE RESUMEN MENSUAL ==========
@@ -1776,6 +2931,8 @@ void seleccionar_comparar_temporadas()
     clear_screen();
     print_header("COMPARAR TEMPORADAS");
 
+#ifdef UNIT_TEST
+
     // Mostrar lista de temporadas disponibles
     listar_temporadas();
 
@@ -1810,20 +2967,45 @@ void seleccionar_comparar_temporadas()
 
     // Llamar a la funcion de comparacion
     comparar_temporadas(temporada1_id, temporada2_id);
+#else
+    int temporada1_id = 0;
+    int temporada2_id = 0;
+
+    if (!temp_seleccionar_temporada_gui("SELECCIONE LA PRIMERA TEMPORADA", &temporada1_id))
+    {
+        return;
+    }
+
+    while (1)
+    {
+        if (!temp_seleccionar_temporada_gui("SELECCIONE LA SEGUNDA TEMPORADA", &temporada2_id))
+        {
+            return;
+        }
+
+        if (temporada1_id != temporada2_id)
+        {
+            break;
+        }
+
+        temp_mostrar_info_gui("COMPARACION", "Debe seleccionar dos temporadas diferentes.");
+    }
+
+    comparar_temporadas(temporada1_id, temporada2_id);
+#endif
 }
 
 void menu_temporadas()
 {
-    MenuItem items[] =
-    {
-        {1, "Crear Temporada", crear_temporada},
-        {2, "Listar Temporadas", listar_temporadas},
-        {3, "Modificar Temporada", modificar_temporada},
-        {4, "Eliminar Temporada", eliminar_temporada},
-        {5, "Administrar Temporada", administrar_temporada},
-        {6, "Comparar Temporadas", seleccionar_comparar_temporadas},
-        {0, "Volver", NULL}
+    MenuItem items[] = {
+        TEMP_ITEM(1, "Crear Temporada", crear_temporada),
+        TEMP_ITEM(2, "Listar Temporadas", listar_temporadas),
+        TEMP_ITEM(3, "Modificar Temporada", modificar_temporada),
+        TEMP_ITEM(4, "Eliminar Temporada", eliminar_temporada),
+        TEMP_ITEM(5, "Administrar Temporada", administrar_temporada),
+        TEMP_ITEM(6, "Comparar Temporadas", seleccionar_comparar_temporadas),
+        TEMP_BACK_ITEM
     };
 
-    ejecutar_menu_estandar("TEMPORADAS", items, 7);
+    ejecutar_menu_estandar("TEMPORADAS", items, ARRAY_COUNT(items));
 }

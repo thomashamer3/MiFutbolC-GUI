@@ -6,13 +6,977 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <ctype.h>
 #include "sqlite3.h"
 
+#ifndef UNIT_TEST
+#include "estadisticas_gui_capture.h"
+#endif
 
-/**
- * @file torneo.c
- * @brief Implementacion de funciones para la gestion de torneos en MiFutbolC
- */
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+#define TOR_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_COMPETENCIA}
+#define TOR_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
+
+#define TOR_TEXT_MAX 256
+
+static int preparar_stmt(const char *sql, sqlite3_stmt **stmt);
+
+#ifndef UNIT_TEST
+typedef enum
+{
+    TOR_INPUT_ALNUM = 0,
+    TOR_INPUT_NUMERIC
+} TorInputMode;
+
+typedef struct
+{
+    int id;
+    char nombre[64];
+} TorEquipoRow;
+
+typedef struct
+{
+    int id;
+    char resumen[TOR_TEXT_MAX];
+} TorTorneoRow;
+
+static int tor_input_char_valido(unsigned int codepoint, TorInputMode mode)
+{
+    unsigned char ch = (unsigned char)codepoint;
+
+    if (codepoint < 32 || codepoint > 126)
+    {
+        return 0;
+    }
+
+    if (mode == TOR_INPUT_NUMERIC)
+    {
+        return isdigit(ch);
+    }
+
+    if (isalnum(ch) || isspace(ch))
+    {
+        return 1;
+    }
+
+    return (ch == '_' || ch == '-' || ch == '+' || ch == '.' || ch == ',');
+}
+
+static void tor_draw_action_button(Rectangle rect, const char *label, int primary)
+{
+    const GuiTheme *theme = gui_get_active_theme();
+    Color fill = primary ? (Color){34, 132, 80, 255} : theme->bg_list;
+    Color border = primary ? (Color){57, 178, 110, 255} : theme->card_border;
+    Color text = primary ? (Color){244, 255, 248, 255} : theme->text_primary;
+    Vector2 tm = gui_text_measure(label, 18.0f);
+
+    DrawRectangleRounded(rect, 0.22f, 8, fill);
+    DrawRectangleRoundedLines(rect, 0.22f, 8, border);
+    gui_text(label,
+             rect.x + (rect.width - tm.x) * 0.5f,
+             rect.y + (rect.height - tm.y) * 0.5f,
+             18.0f,
+             text);
+}
+
+static int tor_modal_confirmar_gui(const char *titulo,
+                                   const char *mensaje,
+                                   const char *accion)
+{
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 980 ? 760 : sw - 40;
+        int panel_h = 240;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "CONFIRMAR", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text_wrapped(mensaje ? mensaje : "Confirma la accion",
+                         (Rectangle){(float)panel_x + 24.0f, (float)panel_y + 52.0f, (float)panel_w - 48.0f, 86.0f},
+                         20.0f,
+                         gui_get_active_theme()->text_primary);
+
+        tor_draw_action_button(btn_ok, accion ? accion : "Confirmar", 1);
+        tor_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            return 1;
+        }
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static void tor_mostrar_info_gui(const char *titulo, const char *mensaje)
+{
+    (void)tor_modal_confirmar_gui(titulo ? titulo : "INFORMACION",
+                                  mensaje ? mensaje : "Operacion finalizada.",
+                                  "Entendido");
+}
+
+static int tor_parse_int(const char *text, int *out)
+{
+    char *end = NULL;
+    long v;
+
+    if (!text || text[0] == '\0' || !out)
+    {
+        return 0;
+    }
+
+    v = strtol(text, &end, 10);
+    if (!end || *end != '\0')
+    {
+        return 0;
+    }
+
+    if (v < INT_MIN || v > INT_MAX)
+    {
+        return 0;
+    }
+
+    *out = (int)v;
+    return 1;
+}
+
+static int tor_modal_input_texto_gui(const char *titulo,
+                                     const char *etiqueta,
+                                     const char *hint,
+                                     char *out,
+                                     size_t out_size,
+                                     int permitir_vacio,
+                                     TorInputMode mode)
+{
+    char texto[TOR_TEXT_MAX] = {0};
+    int cursor = 0;
+    int error_vacio = 0;
+
+    if (!out || out_size == 0)
+    {
+        return 0;
+    }
+
+    if (out[0] != '\0')
+    {
+        strncpy_s(texto, sizeof(texto), out, _TRUNCATE);
+        cursor = (int)strlen_s(texto, sizeof(texto));
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_w = sw > 1080 ? 860 : sw - 40;
+        int panel_h = 280;
+        int panel_x = (sw - panel_w) / 2;
+        int panel_y = (sh - panel_h) / 2;
+        Rectangle input_rect = {(float)panel_x + 26.0f, (float)panel_y + 102.0f, (float)panel_w - 52.0f, 44.0f};
+        Rectangle btn_ok = {(float)panel_x + panel_w - 362.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        Rectangle btn_cancel = {(float)panel_x + panel_w - 184.0f, (float)panel_y + panel_h - 54.0f, 168.0f, 38.0f};
+        int click = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        int key = GetCharPressed();
+
+        while (key > 0)
+        {
+            if (tor_input_char_valido((unsigned int)key, mode) &&
+                cursor < (int)(out_size - 1) &&
+                cursor < (int)(sizeof(texto) - 1))
+            {
+                texto[cursor++] = (char)key;
+                texto[cursor] = '\0';
+            }
+            key = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE) && cursor > 0)
+        {
+            texto[--cursor] = '\0';
+        }
+
+        BeginDrawing();
+        ClearBackground(gui_get_active_theme()->bg_main);
+        gui_draw_module_header(titulo ? titulo : "ENTRADA", sw);
+
+        DrawRectangle(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_bg);
+        DrawRectangleLines(panel_x, panel_y, panel_w, panel_h, gui_get_active_theme()->card_border);
+
+        gui_text(etiqueta ? etiqueta : "Ingrese un valor:",
+                 (float)panel_x + 26.0f,
+                 (float)panel_y + 56.0f,
+                 20.0f,
+                 gui_get_active_theme()->text_primary);
+
+        DrawRectangleRounded(input_rect, 0.18f, 8, gui_get_active_theme()->bg_list);
+        DrawRectangleRoundedLines(input_rect, 0.18f, 8, gui_get_active_theme()->card_border);
+        gui_text_truncated(texto, input_rect.x + 10.0f, input_rect.y + 11.0f, 18.0f, input_rect.width - 20.0f, gui_get_active_theme()->text_primary);
+
+        if (error_vacio)
+        {
+            gui_text("El campo no puede estar vacio.",
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     17.0f,
+                     (Color){238, 121, 121, 255});
+        }
+        else if (hint && hint[0] != '\0')
+        {
+            gui_text(hint,
+                     (float)panel_x + 26.0f,
+                     (float)panel_y + 154.0f,
+                     16.0f,
+                     gui_get_active_theme()->text_muted);
+        }
+
+        tor_draw_action_button(btn_ok, "Guardar", 1);
+        tor_draw_action_button(btn_cancel, "Cancelar", 0);
+        gui_draw_footer_hint("ENTER: confirmar | ESC: cancelar | BACKSPACE: borrar", (float)panel_x, sh);
+        EndDrawing();
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_ok)) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            if (!permitir_vacio && texto[0] == '\0')
+            {
+                error_vacio = 1;
+                continue;
+            }
+
+            strncpy_s(out, out_size, texto, _TRUNCATE);
+            return 1;
+        }
+
+        if ((click && CheckCollisionPointRec(GetMousePosition(), btn_cancel)) || IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int tor_modal_input_entero_gui(const char *titulo,
+                                      const char *etiqueta,
+                                      const char *hint,
+                                      int min_value,
+                                      int *valor_out)
+{
+    char texto[32] = {0};
+    int valor = 0;
+
+    if (!valor_out)
+    {
+        return 0;
+    }
+
+    while (1)
+    {
+        if (!tor_modal_input_texto_gui(titulo,
+                                       etiqueta,
+                                       hint,
+                                       texto,
+                                       sizeof(texto),
+                                       0,
+                                       TOR_INPUT_NUMERIC))
+        {
+            return 0;
+        }
+
+        if (tor_parse_int(texto, &valor) && valor >= min_value)
+        {
+            *valor_out = valor;
+            return 1;
+        }
+
+        tor_mostrar_info_gui("VALOR INVALIDO",
+                             "Ingrese un numero valido dentro del rango permitido.");
+    }
+}
+
+static int tor_modal_selector_opcion_gui(const char *titulo,
+                                         const char *columna,
+                                         const char **opciones,
+                                         int cantidad,
+                                         int seleccion_inicial,
+                                         int *seleccion_out)
+{
+    int selected;
+    int scroll = 0;
+    const int row_h = 34;
+
+    if (!seleccion_out || !opciones || cantidad <= 0)
+    {
+        return 0;
+    }
+
+    selected = seleccion_inicial;
+    if (selected < 0 || selected >= cantidad)
+    {
+        selected = 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 72;
+        int panel_y = 120;
+        int panel_w = sw - 144;
+        int panel_h = sh - 190;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        if (panel_w < 560)
+        {
+            panel_w = 560;
+            panel_x = (sw - panel_w) / 2;
+        }
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (cantidad > visible_rows) ? (cantidad - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= cantidad) selected = cantidad - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo, sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            columna ? columna : "OPCION", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < cantidad; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *seleccion_out = i;
+                EndScissorMode();
+                EndDrawing();
+                return 1;
+            }
+
+            gui_text(TextFormat("%2d", i + 1), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text(opciones[i], (float)(panel_x + 80), (float)(y + 7), 18.0f,
+                     is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *seleccion_out = selected;
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+static int tor_cargar_equipos_gui_rows(TorEquipoRow **rows_out, int *count_out)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT id, nombre FROM equipo ORDER BY id;";
+    TorEquipoRow *rows = NULL;
+    int count = 0;
+    int cap = 0;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+
+    *rows_out = NULL;
+    *count_out = 0;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    cap = 16;
+    rows = (TorEquipoRow *)calloc((size_t)cap, sizeof(TorEquipoRow));
+    if (!rows)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            TorEquipoRow *tmp = (TorEquipoRow *)realloc(rows, (size_t)new_cap * sizeof(TorEquipoRow));
+            if (!tmp)
+            {
+                free(rows);
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            rows = tmp;
+            cap = new_cap;
+        }
+
+        rows[count].id = sqlite3_column_int(stmt, 0);
+        strncpy_s(rows[count].nombre,
+                  sizeof(rows[count].nombre),
+                  sqlite3_column_text(stmt, 1) ? (const char *)sqlite3_column_text(stmt, 1) : "(sin nombre)",
+                  _TRUNCATE);
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (count == 0)
+    {
+        free(rows);
+        rows = NULL;
+    }
+
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static int tor_seleccionar_equipo_gui(const char *titulo, int *id_out)
+{
+    TorEquipoRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    int selected = 0;
+    const int row_h = 34;
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    if (!tor_cargar_equipos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
+
+    if (count == 0)
+    {
+        free(rows);
+        tor_mostrar_info_gui("SIN EQUIPOS",
+                             "No hay equipos registrados. Cree uno en el modulo Equipos.");
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 60;
+        int panel_y = 110;
+        int panel_w = sw - 120;
+        int panel_h = sh - 180;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= count) selected = count - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo ? titulo : "SELECCIONAR EQUIPO", sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            "EQUIPO", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < count; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *id_out = rows[i].id;
+                EndScissorMode();
+                EndDrawing();
+                free(rows);
+                return 1;
+            }
+
+            gui_text(TextFormat("%3d", rows[i].id), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text_truncated(rows[i].nombre,
+                               (float)(panel_x + 80),
+                               (float)(y + 7),
+                               18.0f,
+                               (float)panel_w - 96.0f,
+                               is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *id_out = rows[selected].id;
+            free(rows);
+            return 1;
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+}
+
+static void tor_asociar_equipo_guardado_gui(int torneo_id)
+{
+    sqlite3_stmt *stmt = NULL;
+    int equipo_id = 0;
+
+    if (!tor_seleccionar_equipo_gui("ASOCIAR EQUIPO A TORNEO", &equipo_id))
+    {
+        return;
+    }
+
+    const char *sql_check = "SELECT COUNT(*) FROM equipo_torneo WHERE torneo_id = ? AND equipo_id = ?;";
+    if (preparar_stmt(sql_check, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, torneo_id);
+        sqlite3_bind_int(stmt, 2, equipo_id);
+        if (sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) > 0)
+        {
+            sqlite3_finalize(stmt);
+            tor_mostrar_info_gui("EQUIPO YA ASOCIADO",
+                                 "Este equipo ya esta asociado al torneo.");
+            return;
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    const char *sql_insert = "INSERT INTO equipo_torneo (torneo_id, equipo_id) VALUES (?, ?);";
+    if (preparar_stmt(sql_insert, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, torneo_id);
+        sqlite3_bind_int(stmt, 2, equipo_id);
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+            sqlite3_finalize(stmt);
+            tor_mostrar_info_gui("EQUIPO ASOCIADO",
+                                 "Equipo asociado al torneo exitosamente.");
+            return;
+        }
+
+        {
+            const char *err = sqlite3_errmsg(db);
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al asociar equipo al torneo: %s", err ? err : "desconocido");
+            sqlite3_finalize(stmt);
+            tor_mostrar_info_gui("ERROR", msg);
+            return;
+        }
+    }
+}
+
+static void tor_agregar_equipos_nombres_gui(int torneo_id)
+{
+    sqlite3_stmt *stmt = NULL;
+    int count = 0;
+
+    while (1)
+    {
+        char nombre[50] = {0};
+
+        if (!tor_modal_input_texto_gui("AGREGAR EQUIPO",
+                                       "Nombre del equipo",
+                                       "Letras, numeros y espacios",
+                                       nombre,
+                                       sizeof(nombre),
+                                       0,
+                                       TOR_INPUT_ALNUM))
+        {
+            break;
+        }
+
+        const char *sql_check = "SELECT COUNT(*) FROM equipo_torneo_nombre WHERE torneo_id = ? AND nombre = ?;";
+        if (preparar_stmt(sql_check, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, torneo_id);
+            sqlite3_bind_text(stmt, 2, nombre, -1, SQLITE_STATIC);
+            if (sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) > 0)
+            {
+                sqlite3_finalize(stmt);
+                tor_mostrar_info_gui("EQUIPO DUPLICADO",
+                                     "Ya existe un equipo con ese nombre en el torneo.");
+                continue;
+            }
+            sqlite3_finalize(stmt);
+        }
+
+        const char *sql_insert = "INSERT INTO equipo_torneo_nombre (torneo_id, nombre) VALUES (?, ?);";
+        if (preparar_stmt(sql_insert, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, torneo_id);
+            sqlite3_bind_text(stmt, 2, nombre, -1, SQLITE_STATIC);
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                count++;
+            }
+            sqlite3_finalize(stmt);
+        }
+
+        if (!tor_modal_confirmar_gui("AGREGAR MAS EQUIPOS",
+                                     "Desea agregar otro equipo por nombre?",
+                                     "Si"))
+        {
+            break;
+        }
+    }
+
+    {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "%d equipo(s) agregado(s) al torneo.", count);
+        tor_mostrar_info_gui("CARGA FINALIZADA", msg);
+    }
+}
+
+static int tor_cargar_torneos_gui_rows(TorTorneoRow **rows_out, int *count_out)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT id, nombre, cantidad_equipos, tipo_torneo, formato_torneo FROM torneo ORDER BY id DESC;";
+    TorTorneoRow *rows = NULL;
+    int count = 0;
+    int cap = 0;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+
+    *rows_out = NULL;
+    *count_out = 0;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    cap = 16;
+    rows = (TorTorneoRow *)calloc((size_t)cap, sizeof(TorTorneoRow));
+    if (!rows)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id;
+        const char *nombre;
+        int cantidad;
+        int tipo;
+        int formato;
+
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            TorTorneoRow *tmp = (TorTorneoRow *)realloc(rows, (size_t)new_cap * sizeof(TorTorneoRow));
+            if (!tmp)
+            {
+                free(rows);
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            rows = tmp;
+            cap = new_cap;
+        }
+
+        id = sqlite3_column_int(stmt, 0);
+        nombre = sqlite3_column_text(stmt, 1) ? (const char *)sqlite3_column_text(stmt, 1) : "(sin nombre)";
+        cantidad = sqlite3_column_int(stmt, 2);
+        tipo = sqlite3_column_int(stmt, 3);
+        formato = sqlite3_column_int(stmt, 4);
+
+        rows[count].id = id;
+        snprintf(rows[count].resumen,
+                 sizeof(rows[count].resumen),
+                 "%s | Equipos:%d | %s | %s",
+                 nombre,
+                 cantidad,
+                 get_nombre_tipo_torneo((TipoTorneos)tipo),
+                 get_nombre_formato_torneo((FormatoTorneos)formato));
+        count++;
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (count == 0)
+    {
+        free(rows);
+        rows = NULL;
+    }
+
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
+}
+
+static int tor_seleccionar_torneo_gui(const char *titulo,
+                                      const char *ayuda,
+                                      int *id_out)
+{
+    TorTorneoRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    int selected = 0;
+    const int row_h = 34;
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    if (!tor_cargar_torneos_gui_rows(&rows, &count))
+    {
+        return 0;
+    }
+
+    if (count == 0)
+    {
+        free(rows);
+        tor_mostrar_info_gui("SIN TORNEOS", "No hay torneos registrados.");
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        int sw = GetScreenWidth();
+        int sh = GetScreenHeight();
+        int panel_x = 60;
+        int panel_y = 110;
+        int panel_w = sw - 120;
+        int panel_h = sh - 180;
+        int content_y = panel_y + 32;
+        int content_h = panel_h - 32;
+        int visible_rows;
+        int max_scroll;
+
+        visible_rows = content_h / row_h;
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) selected--;
+        if (IsKeyPressed(KEY_DOWN)) selected++;
+
+        if (selected < 0) selected = 0;
+        if (selected >= count) selected = count - 1;
+
+        if (selected < scroll) scroll = selected;
+        if (selected >= scroll + visible_rows) scroll = selected - visible_rows + 1;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo ? titulo : "SELECCIONAR TORNEO", sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            "TORNEO", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < count; i++)
+        {
+            int row = i - scroll;
+            int y = content_y + row * row_h;
+            Rectangle fila;
+            int hovered;
+            int is_selected;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            hovered = CheckCollisionPointRec(GetMousePosition(), fila) ? 1 : 0;
+            is_selected = (i == selected) ? 1 : 0;
+            gui_draw_list_row_bg(fila, row, hovered || is_selected);
+
+            if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                *id_out = rows[i].id;
+                EndScissorMode();
+                EndDrawing();
+                free(rows);
+                return 1;
+            }
+
+            gui_text(TextFormat("%3d", rows[i].id), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text_truncated(rows[i].resumen,
+                               (float)(panel_x + 80),
+                               (float)(y + 7),
+                               18.0f,
+                               (float)panel_w - 96.0f,
+                               is_selected ? (Color){183, 247, 206, 255} : (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint(ayuda ? ayuda : "Click o ENTER para confirmar | Flechas: mover | ESC: cancelar", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            *id_out = rows[selected].id;
+            free(rows);
+            return 1;
+        }
+        if (IsKeyPressed(KEY_ESCAPE))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+}
+
+static int tor_obtener_torneo_por_id(int torneo_id, Torneo *torneo)
+{
+    sqlite3_stmt *stmt = NULL;
+    const char *sql = "SELECT nombre, tiene_equipo_fijo, equipo_fijo_id, cantidad_equipos, tipo_torneo, formato_torneo FROM torneo WHERE id = ?;";
+
+    if (!torneo)
+    {
+        return 0;
+    }
+
+    memset(torneo, 0, sizeof(*torneo));
+    torneo->id = torneo_id;
+
+    if (!preparar_stmt(sql, &stmt))
+    {
+        return 0;
+    }
+
+    sqlite3_bind_int(stmt, 1, torneo_id);
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        strncpy_s(torneo->nombre, sizeof(torneo->nombre),
+                  sqlite3_column_text(stmt, 0) ? (const char *)sqlite3_column_text(stmt, 0) : "",
+                  _TRUNCATE);
+        torneo->tiene_equipo_fijo = sqlite3_column_int(stmt, 1);
+        torneo->equipo_fijo_id = sqlite3_column_int(stmt, 2);
+        torneo->cantidad_equipos = sqlite3_column_int(stmt, 3);
+        torneo->tipo_torneo = sqlite3_column_int(stmt, 4);
+        torneo->formato_torneo = sqlite3_column_int(stmt, 5);
+        sqlite3_finalize(stmt);
+        return 1;
+    }
+
+    sqlite3_finalize(stmt);
+    return 0;
+}
+#endif
+
 
 static int preparar_stmt(const char *sql, sqlite3_stmt **stmt)
 {
@@ -41,16 +1005,88 @@ static void actualizar_tipo_formato_torneo(int torneo_id, int cantidad);
 // Stubs para funciones no implementadas pero usadas
 static void actualizar_cantidad_equipos(int torneo_id)
 {
-    (void)torneo_id;
-    printf("Actualizar cantidad de equipos no completamente implementado.\n");
+    int nueva_cantidad = 0;
+    sqlite3_stmt *stmt = NULL;
+    const char *sql_update = "UPDATE torneo SET cantidad_equipos = ? WHERE id = ?;";
+
+#ifdef UNIT_TEST
+    nueva_cantidad = input_int("Ingrese la nueva cantidad de equipos: ");
+    if (nueva_cantidad <= 0)
+    {
+        printf("Cantidad invalida.\n");
+        return;
+    }
+#else
+    if (!tor_modal_input_entero_gui("MODIFICAR CANTIDAD",
+                                    "Nueva cantidad de equipos",
+                                    "Ingrese un entero mayor a 0",
+                                    1,
+                                    &nueva_cantidad))
+    {
+        return;
+    }
+#endif
+
+    if (preparar_stmt(sql_update, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, nueva_cantidad);
+        sqlite3_bind_int(stmt, 2, torneo_id);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+#ifdef UNIT_TEST
+            printf("Cantidad de equipos actualizada exitosamente.\n");
+#else
+            tor_mostrar_info_gui("ACTUALIZACION EXITOSA",
+                                 "Cantidad de equipos actualizada exitosamente.");
+#endif
+        }
+        else
+        {
+#ifdef UNIT_TEST
+            printf("Error al actualizar la cantidad de equipos: %s\n", sqlite3_errmsg(db));
+#else
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al actualizar la cantidad de equipos: %s", sqlite3_errmsg(db));
+            tor_mostrar_info_gui("ERROR", msg);
+#endif
+        }
+        sqlite3_finalize(stmt);
+    }
 }
 
 static void aplicar_actualizacion_formato(int torneo_id, int tipo, int formato)
 {
-    (void)torneo_id;
-    (void)tipo;
-    (void)formato;
-    printf("Aplicar actualizacion de formato no completamente implementado.\n");
+    sqlite3_stmt *stmt = NULL;
+    const char *sql_update = "UPDATE torneo SET tipo_torneo = ?, formato_torneo = ? WHERE id = ?;";
+
+    if (preparar_stmt(sql_update, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, tipo);
+        sqlite3_bind_int(stmt, 2, formato);
+        sqlite3_bind_int(stmt, 3, torneo_id);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+#ifdef UNIT_TEST
+            printf("Tipo y formato de torneo actualizados exitosamente.\n");
+#else
+            tor_mostrar_info_gui("ACTUALIZACION EXITOSA",
+                                 "Tipo y formato de torneo actualizados exitosamente.");
+#endif
+        }
+        else
+        {
+#ifdef UNIT_TEST
+            printf("Error al actualizar tipo/formato de torneo: %s\n", sqlite3_errmsg(db));
+#else
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al actualizar tipo/formato de torneo: %s", sqlite3_errmsg(db));
+            tor_mostrar_info_gui("ERROR", msg);
+#endif
+        }
+        sqlite3_finalize(stmt);
+    }
 }
 
 /**
@@ -128,8 +1164,7 @@ static int listar_torneos_generico(const char *no_records_msg)
         return 0;
     }
 
-    ui_printf_centered_line("=== TORNEOS DISPONIBLES ===");
-    ui_printf("\n");
+    printf("=== TORNEOS DISPONIBLES ===\n\n");
 
     int found = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW)
@@ -137,7 +1172,7 @@ static int listar_torneos_generico(const char *no_records_msg)
         found = 1;
         int id = sqlite3_column_int(stmt, 0);
         const char *nombre = (const char*)sqlite3_column_text(stmt, 1);
-        ui_printf_centered_line("%d. %s", id, nombre);
+        printf("%d. %s\n", id, nombre);
     }
 
     sqlite3_finalize(stmt);
@@ -228,17 +1263,17 @@ static void obtener_formato_por_cantidad(int opcion, int cantidad, TipoTorneos *
  */
 void mostrar_torneo(Torneo *torneo)
 {
-    ui_printf_centered_line("=== INFORMACION DEL TORNEO ===");
-    ui_printf_centered_line("Nombre: %s", torneo->nombre);
-    ui_printf_centered_line("Tiene equipo fijo: %s", torneo->tiene_equipo_fijo ? "Si" : "No");
+    printf("=== INFORMACION DEL TORNEO ===\n");
+    printf("Nombre: %s\n", torneo->nombre);
+    printf("Tiene equipo fijo: %s\n", torneo->tiene_equipo_fijo ? "Si" : "No");
     if (torneo->tiene_equipo_fijo)
     {
-        ui_printf_centered_line("Equipo fijo ID: %d", torneo->equipo_fijo_id);
+        printf("Equipo fijo ID: %d\n", torneo->equipo_fijo_id);
     }
-    ui_printf_centered_line("Cantidad de equipos: %d", torneo->cantidad_equipos);
-    ui_printf_centered_line("Tipo de torneo: %s", get_nombre_tipo_torneo(torneo->tipo_torneo));
-    ui_printf_centered_line("Formato de torneo: %s", get_nombre_formato_torneo(torneo->formato_torneo));
-    ui_printf("\n");
+    printf("Cantidad de equipos: %d\n", torneo->cantidad_equipos);
+    printf("Tipo de torneo: %s\n", get_nombre_tipo_torneo(torneo->tipo_torneo));
+    printf("Formato de torneo: %s\n", get_nombre_formato_torneo(torneo->formato_torneo));
+    printf("\n");
 }
 
 /**
@@ -246,6 +1281,7 @@ void mostrar_torneo(Torneo *torneo)
  */
 static void agregar_equipo_nombre_torneo(int torneo_id)
 {
+#ifdef UNIT_TEST
     char nombre[50] = {0};
     input_string("Nombre del equipo: ", nombre, sizeof(nombre));
     if (nombre[0] == '\0')
@@ -283,6 +1319,55 @@ static void agregar_equipo_nombre_torneo(int torneo_id)
         sqlite3_finalize(stmt);
     }
     pause_console();
+#else
+    char nombre[50] = {0};
+    sqlite3_stmt *stmt = NULL;
+
+    if (!tor_modal_input_texto_gui("AGREGAR EQUIPO",
+                                   "Nombre del equipo",
+                                   "Letras, numeros y espacios",
+                                   nombre,
+                                   sizeof(nombre),
+                                   0,
+                                   TOR_INPUT_ALNUM))
+    {
+        return;
+    }
+
+    const char *sql_check = "SELECT COUNT(*) FROM equipo_torneo_nombre WHERE torneo_id = ? AND nombre = ?;";
+    if (preparar_stmt(sql_check, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, torneo_id);
+        sqlite3_bind_text(stmt, 2, nombre, -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) > 0)
+        {
+            sqlite3_finalize(stmt);
+            tor_mostrar_info_gui("EQUIPO DUPLICADO",
+                                 "Ya existe un equipo con ese nombre en el torneo.");
+            return;
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    const char *sql_insert = "INSERT INTO equipo_torneo_nombre (torneo_id, nombre) VALUES (?, ?);";
+    if (preparar_stmt(sql_insert, &stmt))
+    {
+        sqlite3_bind_int(stmt, 1, torneo_id);
+        sqlite3_bind_text(stmt, 2, nombre, -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+            tor_mostrar_info_gui("EQUIPO AGREGADO",
+                                 "Equipo agregado al torneo exitosamente.");
+        }
+        else
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al agregar equipo: %s", sqlite3_errmsg(db));
+            tor_mostrar_info_gui("ERROR", msg);
+        }
+        sqlite3_finalize(stmt);
+    }
+#endif
 }
 
 /**
@@ -448,6 +1533,7 @@ void crear_equipo_fijo_torneo(int torneo_id)
  */
 static int input_torneo_data(Torneo *torneo)
 {
+#ifdef UNIT_TEST
     input_string("Ingrese el nombre del torneo: ", torneo->nombre, sizeof(torneo->nombre));
 
     torneo->tiene_equipo_fijo = confirmar("El torneo tiene equipo fijo?");
@@ -476,6 +1562,60 @@ static int input_torneo_data(Torneo *torneo)
 
     torneo->cantidad_equipos = input_int("Ingrese la cantidad de equipos en el torneo: ");
     return 1;
+#else
+    const char *opciones_equipo_fijo[] = {"No", "Si"};
+    int seleccion_equipo_fijo = 0;
+
+    if (!torneo)
+    {
+        return 0;
+    }
+
+    if (!tor_modal_input_texto_gui("CREAR TORNEO",
+                                   "Nombre del torneo",
+                                   "Letras, numeros y espacios",
+                                   torneo->nombre,
+                                   sizeof(torneo->nombre),
+                                   0,
+                                   TOR_INPUT_ALNUM))
+    {
+        return 0;
+    }
+
+    if (!tor_modal_selector_opcion_gui("EQUIPO FIJO",
+                                       "TIENE EQUIPO FIJO",
+                                       opciones_equipo_fijo,
+                                       ARRAY_COUNT(opciones_equipo_fijo),
+                                       0,
+                                       &seleccion_equipo_fijo))
+    {
+        return 0;
+    }
+
+    torneo->tiene_equipo_fijo = (seleccion_equipo_fijo == 1) ? 1 : 0;
+    torneo->equipo_fijo_id = -1;
+
+    if (torneo->tiene_equipo_fijo)
+    {
+        int equipo_id = 0;
+        if (!tor_seleccionar_equipo_gui("SELECCIONAR EQUIPO FIJO", &equipo_id))
+        {
+            return 0;
+        }
+        torneo->equipo_fijo_id = equipo_id;
+    }
+
+    if (!tor_modal_input_entero_gui("CREAR TORNEO",
+                                    "Cantidad de equipos",
+                                    "Ingrese un entero (4 o mayor recomendado)",
+                                    1,
+                                    &torneo->cantidad_equipos))
+    {
+        return 0;
+    }
+
+    return 1;
+#endif
 }
 
 /**
@@ -484,6 +1624,7 @@ static int input_torneo_data(Torneo *torneo)
  */
 static void determine_formato_torneo(Torneo *torneo)
 {
+#ifdef UNIT_TEST
     int cantidad = torneo->cantidad_equipos;
     int opcion = 0;
 
@@ -527,6 +1668,105 @@ static void determine_formato_torneo(Torneo *torneo)
     }
 
     obtener_formato_por_cantidad(opcion, cantidad, &torneo->tipo_torneo, &torneo->formato_torneo);
+#else
+    int cantidad = torneo->cantidad_equipos;
+    int opcion = 1;
+
+    if (!torneo)
+    {
+        return;
+    }
+
+    if (cantidad >= 4 && cantidad <= 6)
+    {
+        const char *opciones[] =
+        {
+            "Round-robin (sistema liga)",
+            "Mini grupo con final"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 7 && cantidad <= 12)
+    {
+        const char *opciones[] =
+        {
+            "Liga simple",
+            "Liga doble",
+            "Grupos + final",
+            "Copa simple"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 13 && cantidad <= 20)
+    {
+        const char *opciones[] =
+        {
+            "Grupos (4-5 grupos) + eliminacion",
+            "Copa + repechaje",
+            "Liga grande"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 21)
+    {
+        const char *opciones[] =
+        {
+            "Multiples grupos",
+            "Eliminacion directa por fases"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else
+    {
+        torneo->formato_torneo = ROUND_ROBIN;
+        torneo->tipo_torneo = IDA_Y_VUELTA;
+        tor_mostrar_info_gui("CANTIDAD NO VALIDA",
+                             "Cantidad de equipos fuera de rango. Se aplicara formato por defecto.");
+        return;
+    }
+
+    obtener_formato_por_cantidad(opcion, cantidad, &torneo->tipo_torneo, &torneo->formato_torneo);
+#endif
 }
 
 /**
@@ -577,6 +1817,7 @@ static int save_torneo_to_db(Torneo const *torneo)
 
 void crear_torneo()
 {
+#ifdef UNIT_TEST
     clear_screen();
     print_header("CREAR TORNEO");
 
@@ -609,6 +1850,74 @@ void crear_torneo()
         asociar_equipos_torneo(torneo_id);
 
     pause_console();
+#else
+    Torneo torneo = {0};
+    int torneo_id;
+    int opcion_post = 0;
+    char resumen[512];
+    const char *opciones_post[] =
+    {
+        "Continuar sin agregar equipos",
+        "Agregar equipos por nombre",
+        "Asociar equipos guardados"
+    };
+
+    torneo.tiene_equipo_fijo = 0;
+    torneo.equipo_fijo_id = -1;
+
+    if (!input_torneo_data(&torneo))
+    {
+        return;
+    }
+
+    determine_formato_torneo(&torneo);
+
+    snprintf(resumen,
+             sizeof(resumen),
+             "Nombre: %s\nTiene equipo fijo: %s\nCantidad de equipos: %d\nTipo: %s\nFormato: %s\n\nDesea guardar este torneo?",
+             torneo.nombre,
+             torneo.tiene_equipo_fijo ? "Si" : "No",
+             torneo.cantidad_equipos,
+             get_nombre_tipo_torneo(torneo.tipo_torneo),
+             get_nombre_formato_torneo(torneo.formato_torneo));
+
+    if (!tor_modal_confirmar_gui("CONFIRMAR TORNEO", resumen, "Guardar"))
+    {
+        return;
+    }
+
+    torneo_id = save_torneo_to_db(&torneo);
+    if (torneo_id == -1)
+    {
+        tor_mostrar_info_gui("ERROR", "No se pudo guardar el torneo.");
+        return;
+    }
+
+    {
+        char ok_msg[128];
+        snprintf(ok_msg, sizeof(ok_msg), "Torneo guardado exitosamente con ID: %d", torneo_id);
+        tor_mostrar_info_gui("TORNEO CREADO", ok_msg);
+    }
+
+    if (!tor_modal_selector_opcion_gui("POST CREACION",
+                                       "ACCION",
+                                       opciones_post,
+                                       ARRAY_COUNT(opciones_post),
+                                       0,
+                                       &opcion_post))
+    {
+        return;
+    }
+
+    if (opcion_post == 1)
+    {
+        tor_agregar_equipos_nombres_gui(torneo_id);
+    }
+    else if (opcion_post == 2)
+    {
+        tor_asociar_equipo_guardado_gui(torneo_id);
+    }
+#endif
 }
 
 void listar_torneos()
@@ -655,6 +1964,7 @@ void listar_torneos()
 
 void modificar_torneo()
 {
+#ifdef UNIT_TEST
     clear_screen();
     print_header("MODIFICAR TORNEO");
 
@@ -737,10 +2047,77 @@ void modificar_torneo()
     }
 
     pause_console();
+#else
+    int torneo_id = 0;
+    int opcion = 0;
+    Torneo torneo = {0};
+    const char *opciones[] =
+    {
+        "Nombre del torneo",
+        "Equipo fijo",
+        "Cantidad de equipos",
+        "Tipo y formato de torneo",
+        "Asociar equipos guardados",
+        "Agregar equipos por nombre",
+        "Agregar un equipo por nombre",
+        "Volver"
+    };
+
+    if (!tor_seleccionar_torneo_gui("MODIFICAR TORNEO",
+                                    "Click o ENTER para seleccionar | ESC: cancelar",
+                                    &torneo_id))
+    {
+        return;
+    }
+
+    if (!tor_obtener_torneo_por_id(torneo_id, &torneo))
+    {
+        tor_mostrar_info_gui("ERROR", "No se pudo cargar el torneo seleccionado.");
+        return;
+    }
+
+    if (!tor_modal_selector_opcion_gui("QUE DESEA MODIFICAR?",
+                                       "CAMPO",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       0,
+                                       &opcion))
+    {
+        return;
+    }
+
+    switch (opcion)
+    {
+    case 0:
+        actualizar_nombre_torneo(torneo_id);
+        break;
+    case 1:
+        actualizar_equipo_fijo(torneo_id);
+        break;
+    case 2:
+        actualizar_cantidad_equipos(torneo_id);
+        break;
+    case 3:
+        actualizar_tipo_formato_torneo(torneo_id, torneo.cantidad_equipos);
+        break;
+    case 4:
+        tor_asociar_equipo_guardado_gui(torneo_id);
+        break;
+    case 5:
+        tor_agregar_equipos_nombres_gui(torneo_id);
+        break;
+    case 6:
+        agregar_equipo_nombre_torneo(torneo_id);
+        break;
+    default:
+        return;
+    }
+#endif
 }
 
 void eliminar_torneo()
 {
+#ifdef UNIT_TEST
     clear_screen();
     print_header("ELIMINAR TORNEO");
 
@@ -796,6 +2173,51 @@ void eliminar_torneo()
 
     printf("Torneo eliminado exitosamente.\n");
     pause_console();
+#else
+    int torneo_id = 0;
+    sqlite3_stmt *stmt = NULL;
+    const char *sqls[] =
+    {
+        "DELETE FROM equipo_fase WHERE torneo_id = ?;",
+        "DELETE FROM torneo_fases WHERE torneo_id = ?;",
+        "DELETE FROM jugador_estadisticas WHERE torneo_id = ?;",
+        "DELETE FROM equipo_torneo_estadisticas WHERE torneo_id = ?;",
+        "DELETE FROM partido_torneo WHERE torneo_id = ?;",
+        "DELETE FROM equipo_torneo WHERE torneo_id = ?;",
+        "DELETE FROM equipo_torneo_nombre WHERE torneo_id = ?;",
+        "DELETE FROM equipo_historial WHERE torneo_id = ?;",
+        "DELETE FROM torneo_temporada WHERE torneo_id = ?;",
+        "DELETE FROM torneo WHERE id = ?;",
+        NULL
+    };
+
+    if (!tor_seleccionar_torneo_gui("ELIMINAR TORNEO",
+                                    "Click o ENTER para seleccionar | ESC: cancelar",
+                                    &torneo_id))
+    {
+        return;
+    }
+
+    if (!tor_modal_confirmar_gui("CONFIRMAR ELIMINACION",
+                                 "Esta seguro de eliminar este torneo? Se eliminaran datos asociados.",
+                                 "Eliminar"))
+    {
+        return;
+    }
+
+    for (int i = 0; sqls[i] != NULL; i++)
+    {
+        if (preparar_stmt(sqls[i], &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, torneo_id);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    tor_mostrar_info_gui("TORNEO ELIMINADO",
+                         "Torneo eliminado exitosamente.");
+#endif
 }
 
 /**
@@ -803,6 +2225,7 @@ void eliminar_torneo()
  */
 static void actualizar_nombre_torneo(int torneo_id)
 {
+#ifdef UNIT_TEST
     char nuevo_nombre[50];
     input_string("Ingrese el nuevo nombre: ", nuevo_nombre, sizeof(nuevo_nombre));
 
@@ -823,6 +2246,41 @@ static void actualizar_nombre_torneo(int torneo_id)
         }
         sqlite3_finalize(stmt);
     }
+#else
+    char nuevo_nombre[50] = {0};
+    sqlite3_stmt *stmt = NULL;
+    const char *sql_update = "UPDATE torneo SET nombre = ? WHERE id = ?;";
+
+    if (!tor_modal_input_texto_gui("MODIFICAR NOMBRE",
+                                   "Nuevo nombre del torneo",
+                                   "Letras, numeros y espacios",
+                                   nuevo_nombre,
+                                   sizeof(nuevo_nombre),
+                                   0,
+                                   TOR_INPUT_ALNUM))
+    {
+        return;
+    }
+
+    if (preparar_stmt(sql_update, &stmt))
+    {
+        sqlite3_bind_text(stmt, 1, nuevo_nombre, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, torneo_id);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE)
+        {
+            tor_mostrar_info_gui("NOMBRE ACTUALIZADO",
+                                 "Nombre actualizado exitosamente.");
+        }
+        else
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Error al actualizar el nombre: %s", sqlite3_errmsg(db));
+            tor_mostrar_info_gui("ERROR", msg);
+        }
+        sqlite3_finalize(stmt);
+    }
+#endif
 }
 
 /**
@@ -831,8 +2289,17 @@ static void actualizar_nombre_torneo(int torneo_id)
  */
 static int seleccionar_equipo_disponible(void)
 {
+#ifdef UNIT_TEST
     return select_team_id("\nIngrese el ID del equipo fijo (0 para cancelar): ",
                           "equipos registrados", 1);
+#else
+    int equipo_id = 0;
+    if (!tor_seleccionar_equipo_gui("SELECCIONAR EQUIPO FIJO", &equipo_id))
+    {
+        return 0;
+    }
+    return equipo_id;
+#endif
 }
 
 /**
@@ -840,6 +2307,7 @@ static int seleccionar_equipo_disponible(void)
  */
 static void actualizar_equipo_fijo(int torneo_id)
 {
+#ifdef UNIT_TEST
     int nuevo_tiene_equipo_fijo = confirmar("El torneo tiene equipo fijo?");
 
     if (!nuevo_tiene_equipo_fijo)
@@ -884,6 +2352,73 @@ static void actualizar_equipo_fijo(int torneo_id)
         }
         sqlite3_finalize(stmt);
     }
+#else
+    sqlite3_stmt *stmt = NULL;
+    const char *opciones[] = {"No", "Si"};
+    int seleccion = 0;
+
+    if (!tor_modal_selector_opcion_gui("EQUIPO FIJO",
+                                       "TIENE EQUIPO FIJO",
+                                       opciones,
+                                       ARRAY_COUNT(opciones),
+                                       0,
+                                       &seleccion))
+    {
+        return;
+    }
+
+    if (seleccion == 0)
+    {
+        const char *sql_update = "UPDATE torneo SET tiene_equipo_fijo = 0, equipo_fijo_id = -1 WHERE id = ?;";
+        if (preparar_stmt(sql_update, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, torneo_id);
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                tor_mostrar_info_gui("EQUIPO FIJO",
+                                     "Equipo fijo removido exitosamente.");
+            }
+            else
+            {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Error al remover el equipo fijo: %s", sqlite3_errmsg(db));
+                tor_mostrar_info_gui("ERROR", msg);
+            }
+            sqlite3_finalize(stmt);
+        }
+        return;
+    }
+
+    {
+        int equipo_id = seleccionar_equipo_disponible();
+        if (equipo_id == 0)
+        {
+            return;
+        }
+
+        const char *sql_update = "UPDATE torneo SET tiene_equipo_fijo = ?, equipo_fijo_id = ? WHERE id = ?;";
+        if (preparar_stmt(sql_update, &stmt))
+        {
+            sqlite3_bind_int(stmt, 1, 1);
+            sqlite3_bind_int(stmt, 2, equipo_id);
+            sqlite3_bind_int(stmt, 3, torneo_id);
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                tor_mostrar_info_gui("EQUIPO FIJO",
+                                     "Equipo fijo actualizado exitosamente.");
+            }
+            else
+            {
+                char msg[256];
+                snprintf(msg, sizeof(msg), "Error al actualizar el equipo fijo: %s", sqlite3_errmsg(db));
+                tor_mostrar_info_gui("ERROR", msg);
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+#endif
 }
 
 /**
@@ -891,6 +2426,7 @@ static void actualizar_equipo_fijo(int torneo_id)
  */
 static void actualizar_tipo_formato_torneo(int torneo_id, int cantidad)
 {
+#ifdef UNIT_TEST
     int opcion = 0;
 
     if (cantidad >= 4 && cantidad <= 6)
@@ -934,6 +2470,102 @@ static void actualizar_tipo_formato_torneo(int torneo_id, int cantidad)
     FormatoTorneos formato;
     obtener_formato_por_cantidad(opcion, cantidad, &tipo, &formato);
     aplicar_actualizacion_formato(torneo_id, tipo, formato);
+#else
+    int opcion = 1;
+
+    if (cantidad >= 4 && cantidad <= 6)
+    {
+        const char *opciones[] =
+        {
+            "Round-robin (sistema liga)",
+            "Mini grupo con final"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 7 && cantidad <= 12)
+    {
+        const char *opciones[] =
+        {
+            "Liga simple",
+            "Liga doble",
+            "Grupos + final",
+            "Copa simple"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 13 && cantidad <= 20)
+    {
+        const char *opciones[] =
+        {
+            "Grupos (4-5 grupos) + eliminacion",
+            "Copa + repechaje",
+            "Liga grande"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else if (cantidad >= 21)
+    {
+        const char *opciones[] =
+        {
+            "Multiples grupos",
+            "Eliminacion directa por fases"
+        };
+        int seleccion = 0;
+        if (!tor_modal_selector_opcion_gui("FORMATO DE TORNEO",
+                                           "FORMATO",
+                                           opciones,
+                                           ARRAY_COUNT(opciones),
+                                           0,
+                                           &seleccion))
+        {
+            return;
+        }
+        opcion = seleccion + 1;
+    }
+    else
+    {
+        tor_mostrar_info_gui("CANTIDAD NO VALIDA",
+                             "Cantidad de equipos no valida. No se actualizara el formato.");
+        return;
+    }
+
+    {
+        TipoTorneos tipo;
+        FormatoTorneos formato;
+        obtener_formato_por_cantidad(opcion, cantidad, &tipo, &formato);
+        aplicar_actualizacion_formato(torneo_id, tipo, formato);
+    }
+#endif
 }
 
 /**
@@ -1028,14 +2660,14 @@ const char* get_equipo_nombre(int equipo_id)
  */
 void menu_torneos()
 {
-    MenuItem items[] =
+    static const MenuItem items[] =
     {
-        {1, "Crear Torneo", crear_torneo},
-        {2, "Listar Torneos", listar_torneos},
-        {3, "Modificar Torneo", modificar_torneo},
-        {4, "Eliminar Torneo", eliminar_torneo},
-        {0, "Volver", NULL}
+        TOR_ITEM(1, "Crear", crear_torneo),
+        TOR_ITEM(2, "Listar", listar_torneos),
+        TOR_ITEM(3, "Modificar", modificar_torneo),
+        TOR_ITEM(4, "Eliminar", eliminar_torneo),
+        TOR_BACK_ITEM
     };
 
-    ejecutar_menu_estandar("TORNEOS", items, 5);
+    ejecutar_menu_estandar("TORNEOS", items, ARRAY_COUNT(items));
 }

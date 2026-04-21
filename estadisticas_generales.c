@@ -14,6 +14,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "estadisticas_gui_capture.h"
+
 /**
  * @brief Funcion auxiliar para generar el CASE WHEN para clima
  * @return Cadena SQL con el CASE WHEN para convertir clima numerico a texto

@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "estadisticas_gui_capture.h"
+
 /**
  * @brief Visualiza evolucion anual del rendimiento deportivo
  *
@@ -57,7 +59,7 @@ void mostrar_estadisticas_por_anio()
     }
 
     if (!hay)
-        mostrar_no_hay_registros("estadisticas");
+        printf("No hay estadisticas registradas.\n");
 
     sqlite3_finalize(stmt);
     pause_console();

@@ -11,7 +11,16 @@
 #include "utils.h"
 #include "menu.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#ifndef UNIT_TEST
+#include "estadisticas_gui_capture.h"
+#endif
+
+#define ARRAY_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0])))
+#define LOGROS_ITEM(numero, texto, accion) {(numero), (texto), (accion), MENU_CATEGORY_ANALISIS}
+#define LOGROS_BACK_ITEM {0, "Volver", NULL, MENU_CATEGORY_ADMIN}
 
 
 /**
@@ -25,6 +34,17 @@ static int preparar_stmt(const char *sql, sqlite3_stmt **stmt)
         return 0;
     }
     return 1;
+}
+
+static void mostrar_no_hay_registros_logros(const char *entidad)
+{
+    if (!entidad || entidad[0] == '\0')
+    {
+        printf("No hay registros disponibles.\n");
+        return;
+    }
+
+    printf("No hay %s registrados.\n", entidad);
 }
 
 /**
@@ -47,6 +67,19 @@ typedef struct
     const char *tipo;
     const char *sql;
 } LogroQuery;
+
+typedef struct
+{
+    int id;
+    char nombre[128];
+} CamisetaRow;
+
+typedef struct
+{
+    const Logro *logro;
+    int estado;
+    int progreso;
+} LogroVistaRow;
 
 /**
  * @brief Array de consultas SQL predefinidas para cada tipo de logro
@@ -389,33 +422,298 @@ static void obtener_nombre_camiseta(int camiseta_id, char *nombre)
 static void mostrar_logro_individual(const Logro *logro, int estado, int progreso)
 {
     const char *estado_texto;
-    const char *color;
 
     switch (estado)
     {
     case 0:
         estado_texto = "[NO INICIADO]";
-        color = "\x1b[31m"; // rojo
         break;
     case 1:
         estado_texto = "[EN PROGRESO]";
-        color = "\x1b[33m"; // amarillo
         break;
     case 2:
         estado_texto = "[COMPLETADO]";
-        color = "\x1b[32m"; // Verde
         break;
     default:
         estado_texto = "[DESCONOCIDO]";
-        color = "\x1b[37m"; // blanco
         break;
     }
-    // ARREGLAR COLOR CONSOLA
-    ui_printf_centered_line("%s%s %s\x1b[0m", color, logro->nombre, estado_texto);
-    ui_printf_centered_line("%s", logro->descripcion);
-    ui_printf_centered_line("Progreso: %d/%d", progreso, logro->objetivo);
-    ui_printf("\n");
+
+    printf("%s %s\n", logro->nombre, estado_texto);
+    printf("%s\n", logro->descripcion);
+    printf("Progreso: %d/%d\n\n", progreso, logro->objetivo);
 }
+
+static int logro_estado_cumple_filtro(int estado, int filtro)
+{
+    if (filtro == 1 && estado != 2)
+    {
+        return 0;
+    }
+    if (filtro == 2 && estado != 1)
+    {
+        return 0;
+    }
+    if (filtro == 3 && estado != 0)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+static Color logro_color_por_estado(int estado)
+{
+    if (estado == 2)
+    {
+        return (Color){56, 176, 92, 255};
+    }
+    if (estado == 1)
+    {
+        return (Color){232, 193, 72, 255};
+    }
+    return (Color){201, 75, 75, 255};
+}
+
+static const char *logro_etiqueta_estado(int estado)
+{
+    if (estado == 2) return "COMPLETADO";
+    if (estado == 1) return "EN PROGRESO";
+    return "NO COMPLETADO";
+}
+
+static int cargar_logros_vista(int camiseta_id,
+                               int filtro,
+                               LogroVistaRow **rows_out,
+                               int *count_out,
+                               int *completados_out,
+                               int *progreso_out,
+                               int *no_completados_out)
+{
+    LogroVistaRow *rows = NULL;
+    int count = 0;
+    int comp = 0;
+    int prog = 0;
+    int no_comp = 0;
+
+    if (!rows_out || !count_out || !completados_out || !progreso_out || !no_completados_out)
+    {
+        return 0;
+    }
+
+    *rows_out = NULL;
+    *count_out = 0;
+    *completados_out = 0;
+    *progreso_out = 0;
+    *no_completados_out = 0;
+
+    rows = (LogroVistaRow *)malloc(NUM_LOGROS * sizeof(LogroVistaRow));
+    if (!rows)
+    {
+        return 0;
+    }
+
+    for (size_t i = 0; i < NUM_LOGROS; i++)
+    {
+        int progreso = 0;
+        int estado = obtener_estado_logro(camiseta_id, &LOGROS[i], &progreso);
+
+        if (estado == 2)
+        {
+            comp++;
+        }
+        else if (estado == 1)
+        {
+            prog++;
+        }
+        else
+        {
+            no_comp++;
+        }
+
+        if (!logro_estado_cumple_filtro(estado, filtro))
+        {
+            continue;
+        }
+
+        rows[count].logro = &LOGROS[i];
+        rows[count].estado = estado;
+        rows[count].progreso = progreso;
+        count++;
+    }
+
+    *rows_out = rows;
+    *count_out = count;
+    *completados_out = comp;
+    *progreso_out = prog;
+    *no_completados_out = no_comp;
+    return 1;
+}
+
+#ifndef UNIT_TEST
+static void dibujar_logro_row_visual(const LogroVistaRow *row, Rectangle rect)
+{
+    Color estado_color = logro_color_por_estado(row->estado);
+    Rectangle progress_bg = {rect.x + 14.0f, rect.y + rect.height - 17.0f, rect.width - 28.0f, 8.0f};
+    Rectangle progress_fill = progress_bg;
+    float ratio = 0.0f;
+    char progreso_txt[64];
+
+    if (row->logro->objetivo > 0)
+    {
+        ratio = (float)row->progreso / (float)row->logro->objetivo;
+        if (ratio < 0.0f) ratio = 0.0f;
+        if (ratio > 1.0f) ratio = 1.0f;
+    }
+    progress_fill.width = progress_bg.width * ratio;
+
+    DrawRectangleRounded(rect, 0.10f, 8, ColorAlpha(estado_color, 0.18f));
+    DrawRectangleRoundedLines(rect, 0.10f, 8, estado_color);
+
+    gui_text_truncated(row->logro->nombre, rect.x + 14.0f, rect.y + 8.0f, 18.0f, rect.width - 190.0f, RAYWHITE);
+    gui_text(logro_etiqueta_estado(row->estado), rect.x + rect.width - 166.0f, rect.y + 8.0f, 16.0f, estado_color);
+
+    gui_text_truncated(row->logro->descripcion,
+                       rect.x + 14.0f,
+                       rect.y + 34.0f,
+                       15.0f,
+                       rect.width - 28.0f,
+                       (Color){218, 232, 222, 255});
+
+    DrawRectangleRec(progress_bg, ColorAlpha(BLACK, 0.40f));
+    if (progress_fill.width > 0.0f)
+    {
+        DrawRectangleRec(progress_fill, estado_color);
+    }
+
+    (void)snprintf(progreso_txt, sizeof(progreso_txt),
+                   "%d/%d", row->progreso, row->logro->objetivo);
+    gui_text(progreso_txt,
+             progress_bg.x + progress_bg.width - 72.0f,
+             progress_bg.y - 17.0f,
+             13.0f,
+             (Color){228, 236, 232, 255});
+}
+
+static void mostrar_logros_camiseta_visual_gui(int camiseta_id, const char *titulo, int filtro)
+{
+    char nombre_camiseta[128] = {0};
+    LogroVistaRow *rows = NULL;
+    int count = 0;
+    int total_comp = 0;
+    int total_prog = 0;
+    int total_no_comp = 0;
+    int scroll = 0;
+    const int row_h = 88;
+
+    obtener_nombre_camiseta(camiseta_id, nombre_camiseta);
+    if (safe_strnlen(nombre_camiseta, sizeof(nombre_camiseta)) == 0)
+    {
+        return;
+    }
+
+    if (!cargar_logros_vista(camiseta_id,
+                             filtro,
+                             &rows,
+                             &count,
+                             &total_comp,
+                             &total_prog,
+                             &total_no_comp))
+    {
+        return;
+    }
+
+    while (!WindowShouldClose())
+    {
+        const int sw = GetScreenWidth();
+        const int sh = GetScreenHeight();
+        const int panel_x = 40;
+        const int panel_y = 102;
+        const int panel_w = sw - 80;
+        const int panel_h = sh - 148;
+        const int list_y = panel_y + 110;
+        const int list_h = panel_h - 146;
+        int visible_rows = list_h / row_h;
+        int max_scroll = 0;
+        char subtitle[192];
+        char resumen[128];
+
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 2;
+        if (GetMouseWheelMove() < -0.01f) scroll += 2;
+        if (IsKeyPressed(KEY_UP)) scroll--;
+        if (IsKeyPressed(KEY_DOWN)) scroll++;
+        if (IsKeyPressed(KEY_PAGE_UP)) scroll -= visible_rows;
+        if (IsKeyPressed(KEY_PAGE_DOWN)) scroll += visible_rows;
+        if (IsKeyPressed(KEY_HOME)) scroll = 0;
+        if (IsKeyPressed(KEY_END)) scroll = max_scroll;
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo, sw);
+
+        DrawRectangleRounded((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                             0.020f, 8, (Color){20, 42, 31, 255});
+        DrawRectangleRoundedLines((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                                  0.020f, 8, (Color){53, 112, 81, 255});
+
+        (void)snprintf(subtitle, sizeof(subtitle), "Camiseta: %s", nombre_camiseta);
+        gui_text(subtitle, (float)(panel_x + 14), (float)(panel_y + 12), 22.0f, (Color){233, 247, 236, 255});
+
+        (void)snprintf(resumen, sizeof(resumen), "Verde: %d | Amarillo: %d | Rojo: %d", total_comp, total_prog, total_no_comp);
+        gui_text(resumen, (float)(panel_x + 14), (float)(panel_y + 42), 17.0f, (Color){196, 224, 210, 255});
+
+        DrawCircle(panel_x + 20, panel_y + 76, 6.0f, logro_color_por_estado(2));
+        gui_text("Completado", (float)(panel_x + 32), (float)(panel_y + 68), 15.0f, (Color){228, 240, 232, 255});
+
+        DrawCircle(panel_x + 162, panel_y + 76, 6.0f, logro_color_por_estado(1));
+        gui_text("En progreso", (float)(panel_x + 174), (float)(panel_y + 68), 15.0f, (Color){228, 240, 232, 255});
+
+        DrawCircle(panel_x + 304, panel_y + 76, 6.0f, logro_color_por_estado(0));
+        gui_text("No completado", (float)(panel_x + 316), (float)(panel_y + 68), 15.0f, (Color){228, 240, 232, 255});
+
+        BeginScissorMode(panel_x + 10, list_y, panel_w - 20, list_h);
+        if (count == 0)
+        {
+            gui_text("No hay logros para este filtro.", (float)(panel_x + 18), (float)(list_y + 16), 20.0f, (Color){225, 122, 122, 255});
+        }
+        else
+        {
+            for (int i = scroll; i < count; i++)
+            {
+                int row = i - scroll;
+                float y = (float)(list_y + row * row_h);
+                Rectangle row_rect;
+
+                if (row >= visible_rows)
+                {
+                    break;
+                }
+
+                row_rect = (Rectangle){(float)(panel_x + 12), y, (float)(panel_w - 24), (float)(row_h - 6)};
+                dibujar_logro_row_visual(&rows[i], row_rect);
+            }
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Rueda/Flechas: desplazarte | ESC/Enter: volver", (float)panel_x, sh);
+        EndDrawing();
+
+        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+}
+#endif
 
 /**
  * @brief Muestra los logros de una camiseta especifica
@@ -432,9 +730,8 @@ static void mostrar_logros_camiseta(int camiseta_id, int filtro)
 
     if (safe_strnlen(nombre_camiseta, sizeof(nombre_camiseta)) == 0) return; // Error already printed
 
-    ui_printf_centered_line("LOGROS DE: %s", nombre_camiseta);
-    ui_printf_centered_line("========================================");
-    ui_printf("\n");
+    printf("LOGROS DE: %s\n", nombre_camiseta);
+    printf("========================================\n\n");
 
     int mostrados = 0;
 
@@ -443,13 +740,10 @@ static void mostrar_logros_camiseta(int camiseta_id, int filtro)
         int progreso = 0;
         int estado = obtener_estado_logro(camiseta_id, &LOGROS[i], &progreso);
 
-        // Aplicar filtro
-        if (filtro == 1 && estado != 2)
-            continue; // Solo completados
-        if (filtro == 2 && estado != 1)
-            continue; // Solo en progreso
-        if (filtro == 3 && estado == 2)
-            continue; // Solo no completados
+        if (!logro_estado_cumple_filtro(estado, filtro))
+        {
+            continue;
+        }
 
         mostrados++;
         mostrar_logro_individual(&LOGROS[i], estado, progreso);
@@ -457,55 +751,212 @@ static void mostrar_logros_camiseta(int camiseta_id, int filtro)
 
     if (mostrados == 0)
     {
-        mostrar_no_hay_registros("logros que mostrar con el filtro seleccionado");
+        mostrar_no_hay_registros_logros("logros que mostrar con el filtro seleccionado");
     }
 }
 
 /**
- * @brief Lista camisetas que tienen partidos asociados
+ * @brief Carga camisetas con partidos para selector GUI
  *
- * Para evitar mostrar camisetas sin logros, filtra solo las que han jugado partidos.
+ * Para evitar seleccion invalida, filtra solo camisetas que tienen al menos un partido.
  */
-static void listar_camisetas_con_partidos()
+static int cargar_camisetas_con_partidos(CamisetaRow **rows_out, int *count_out)
 {
-    ui_printf_centered_line("Camisetas disponibles:");
+    CamisetaRow *rows = NULL;
+    int count = 0;
+    int cap = 16;
     sqlite3_stmt *stmt;
+
+    if (!rows_out || !count_out)
+    {
+        return 0;
+    }
+
+    *rows_out = NULL;
+    *count_out = 0;
+
+    rows = (CamisetaRow *)malloc((size_t)cap * sizeof(CamisetaRow));
+    if (!rows)
+    {
+        return 0;
+    }
+
     if (!preparar_stmt("SELECT DISTINCT c.id, c.nombre FROM camiseta c INNER JOIN partido p ON c.id = p.camiseta_id ORDER BY c.id", &stmt))
     {
-        pause_console();
-        return;
+        free(rows);
+        return 0;
     }
-    int count = 0;
+
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        ui_printf_centered_line("%d | %s", sqlite3_column_int(stmt, 0), sqlite3_column_text(stmt, 1));
+        if (count >= cap)
+        {
+            int new_cap = cap * 2;
+            CamisetaRow *tmp = (CamisetaRow *)realloc(rows, (size_t)new_cap * sizeof(CamisetaRow));
+            if (!tmp)
+            {
+                sqlite3_finalize(stmt);
+                free(rows);
+                return 0;
+            }
+            rows = tmp;
+            cap = new_cap;
+        }
+
+        rows[count].id = sqlite3_column_int(stmt, 0);
+        (void)snprintf(rows[count].nombre,
+                       sizeof(rows[count].nombre),
+                       "%s",
+                       sqlite3_column_text(stmt, 1) ? (const char *)sqlite3_column_text(stmt, 1) : "(sin nombre)");
         count++;
     }
     sqlite3_finalize(stmt);
 
     if (count == 0)
     {
-        mostrar_no_hay_registros("camisetas cargadas");
-        pause_console();
+        free(rows);
+        rows = NULL;
     }
+
+    *rows_out = rows;
+    *count_out = count;
+    return 1;
 }
 
 /**
- * @brief Permite al usuario seleccionar una camiseta valida
+ * @brief Selector GUI de camiseta para ver logros
  *
- * Valida la seleccion para asegurar que la camiseta existe antes de proceder.
+ * Usa lista clickeable para eliminar input CLI en el flujo de logros.
  *
- * @return ID de la camiseta o -1 si invalida
+ * @return 1 si se selecciono, 0 si se cancelo o fallo
  */
-static int seleccionar_camiseta()
+static int seleccionar_camiseta_gui(const char *titulo, int *id_out)
 {
+#ifdef UNIT_TEST
     int camiseta_id = input_int("ID de la camiseta,(0 para Cancelar): ");
+    if (camiseta_id == 0)
+    {
+        if (id_out) *id_out = 0;
+        return 0;
+    }
     if (!existe_id("camiseta", camiseta_id))
     {
         printf("La camiseta no existe.\n");
-        return -1;
+        if (id_out) *id_out = 0;
+        return 0;
     }
-    return camiseta_id;
+    if (id_out) *id_out = camiseta_id;
+    return 1;
+#else
+    CamisetaRow *rows = NULL;
+    int count = 0;
+    int scroll = 0;
+    const int row_h = 34;
+
+    if (!id_out)
+    {
+        return 0;
+    }
+    *id_out = 0;
+
+    if (!cargar_camisetas_con_partidos(&rows, &count))
+    {
+        return 0;
+    }
+
+    if (count == 0)
+    {
+        free(rows);
+        clear_screen();
+        print_header(titulo);
+        mostrar_no_hay_registros_logros("camisetas con partidos");
+        pause_console();
+        return 0;
+    }
+
+    while (!WindowShouldClose())
+    {
+        const int sw = GetScreenWidth();
+        const int sh = GetScreenHeight();
+        const int panel_x = 60;
+        const int panel_y = 110;
+        const int panel_w = sw - 120;
+        const int panel_h = sh - 180;
+        const int content_y = panel_y + 32;
+        const int content_h = panel_h - 32;
+        int visible_rows = content_h / row_h;
+        int max_scroll = 0;
+        int clicked_id = 0;
+
+        if (visible_rows < 1)
+        {
+            visible_rows = 1;
+        }
+        max_scroll = (count > visible_rows) ? (count - visible_rows) : 0;
+
+        if (GetMouseWheelMove() > 0.01f) scroll -= 3;
+        if (GetMouseWheelMove() < -0.01f) scroll += 3;
+        if (IsKeyPressed(KEY_UP)) scroll--;
+        if (IsKeyPressed(KEY_DOWN)) scroll++;
+        if (IsKeyPressed(KEY_PAGE_UP)) scroll -= visible_rows;
+        if (IsKeyPressed(KEY_PAGE_DOWN)) scroll += visible_rows;
+        if (IsKeyPressed(KEY_HOME)) scroll = 0;
+        if (IsKeyPressed(KEY_END)) scroll = max_scroll;
+
+        if (scroll < 0) scroll = 0;
+        if (scroll > max_scroll) scroll = max_scroll;
+
+        BeginDrawing();
+        ClearBackground((Color){14, 27, 20, 255});
+        gui_draw_module_header(titulo, sw);
+
+        gui_draw_list_shell((Rectangle){(float)panel_x, (float)panel_y, (float)panel_w, (float)panel_h},
+                            "ID", 12.0f,
+                            "CAMISETA", 80.0f);
+
+        BeginScissorMode(panel_x, content_y, panel_w, content_h);
+        for (int i = scroll; i < count; i++)
+        {
+            const int row = i - scroll;
+            const int y = content_y + row * row_h;
+            Rectangle fila;
+
+            if (row >= visible_rows)
+            {
+                break;
+            }
+
+            fila = (Rectangle){(float)(panel_x + 6), (float)y, (float)(panel_w - 12), (float)(row_h - 2)};
+            gui_draw_list_row_bg(fila, row, CheckCollisionPointRec(GetMousePosition(), fila));
+            if (CheckCollisionPointRec(GetMousePosition(), fila) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                clicked_id = rows[i].id;
+            }
+
+            gui_text(TextFormat("%3d", rows[i].id), (float)(panel_x + 12), (float)(y + 7), 18.0f, (Color){220, 238, 225, 255});
+            gui_text(rows[i].nombre, (float)(panel_x + 80), (float)(y + 7), 18.0f, (Color){233, 247, 236, 255});
+        }
+        EndScissorMode();
+
+        gui_draw_footer_hint("Click para seleccionar | Rueda/Flechas: desplazarte | ESC/Enter: volver", (float)panel_x, sh);
+        EndDrawing();
+
+        if (clicked_id > 0)
+        {
+            *id_out = clicked_id;
+            free(rows);
+            return 1;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+        {
+            break;
+        }
+    }
+
+    free(rows);
+    return 0;
+#endif
 }
 
 /**
@@ -519,11 +970,20 @@ static int seleccionar_camiseta()
  */
 static void mostrar_logros_con_filtro(const char *titulo, int filtro)
 {
+    int camiseta_id = 0;
+
+    if (!seleccionar_camiseta_gui("SELECCIONAR CAMISETA", &camiseta_id))
+    {
+        return;
+    }
+
+#ifndef UNIT_TEST
+    mostrar_logros_camiseta_visual_gui(camiseta_id, titulo, filtro);
+    return;
+#endif
+
     clear_screen();
     print_header(titulo);
-    listar_camisetas_con_partidos();
-    int camiseta_id = seleccionar_camiseta();
-    if (camiseta_id == -1) return;
     mostrar_logros_camiseta(camiseta_id, filtro);
     pause_console();
 }
@@ -565,14 +1025,14 @@ void mostrar_logros_no_completados()
  */
 void menu_logros()
 {
-    MenuItem items[] =
+    static const MenuItem items[] =
     {
-        {1, "Ver Todos los Logros", mostrar_todos_logros},
-        {2, "Logros Completados", mostrar_logros_completados},
-        {3, "Logros en Progreso", mostrar_logros_en_progreso},
-        {4, "Logros No Completados", mostrar_logros_no_completados},
-        {0, "Volver", NULL}
+        LOGROS_ITEM(1, "Ver Todos los Logros", mostrar_todos_logros),
+        LOGROS_ITEM(2, "Logros Completados", mostrar_logros_completados),
+        LOGROS_ITEM(3, "Logros en Progreso", mostrar_logros_en_progreso),
+        LOGROS_ITEM(4, "Logros No Completados", mostrar_logros_no_completados),
+        LOGROS_BACK_ITEM
     };
 
-    ejecutar_menu_estandar("LOGROS", items, 5);
+    ejecutar_menu_estandar("LOGROS", items, ARRAY_COUNT(items));
 }

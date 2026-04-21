@@ -1,0 +1,19 @@
+ID,Fecha,Tipo,Categoria,Descripcion,Monto,Item_Especifico
+13,2026-04-21,Ingreso,Transporte,"Sube 600",600,"Pago Trasnporte"
+12,2026-04-13,Gasto,Canchas,"Pago por alquiler de cancha",5000,"(12 |Cancha:Futbolin |Fecha:27/08/2026 20:00 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+11,2026-04-13,Gasto,Canchas,"Pago por alquiler de cancha",5000,"(12 |Cancha:Futbolin |Fecha:13/04/2026 16:43 | G:1 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+10,2026-04-13,Gasto,Canchas,"Pago por alquiler de cancha",6500,"(11 |Cancha:Predio Talleres  |Fecha:13/04/2026 01:39 | G:2 A:1 |Camiseta:Independiente Azul | DERROTA)"
+9,2026-04-09,Gasto,Canchas,"Pago por alquiler de cancha",6000,"(11 |Cancha:Futbolin |Fecha:09/04/2026 16:18 | G:4 A:1 |Camiseta:Hamer 19 | VICTORIA)"
+8,2026-04-08,Gasto,Canchas,"Pago por alquiler de cancha",6500,"(10 |Cancha:Predio Talleres  |Fecha:08/04/2026 23:21 | G:1 A:1 |Camiseta:Independiente Azul | VICTORIA)"
+7,2026-03-23,Gasto,Canchas,"Pago por alquiler de cancha",6500,"(9 |Cancha:Predio Talleres  |Fecha:23/03/2026 23:15 | G:0 A:0 |Camiseta:Real Madrid | VICTORIA)"
+6,2026-03-01,Gasto,Canchas,"Pago por alquiler de cancha",4000,"(8 |Cancha:Predio Talleres  |Fecha:01/03/2026 23:55 | G:0 A:1 |Camiseta:Argentina Messi 10 | VICTORIA)"
+5,2026-02-03,Gasto,Canchas,"Pago por alquiler de cancha",2000,"(8 |Cancha:Roca |Fecha:03/02/2026 23:45 | G:1 A:2 |Camiseta:Argentina Messi 10 | VICTORIA)"
+4,2026-02-02,Gasto,Canchas,"Pago por alquiler de cancha",6000,"(7 |Cancha:Village Adrogue |Fecha:02/02/2026 22:13 | G:1 A:1 |Camiseta:Palmerias | VICTORIA)"
+3,2026-01-19,Gasto,Canchas,"Partido",3500,"(4 |Cancha:Predio Talleres  |Fecha:18/01/2026 22:12 | G:0 A:0 |Camiseta:Independiente Millan 14 | EMPATE |Cl0188ö"
+2,2026-01-09,Gasto,Canchas,"Pago a Ivan",3500,"Partido ID: 3"
+1,2026-01-09,Gasto,Medicina,"Atomo Desinflamante",11900,"Crema"
+
+RESUMEN,,Total Transacciones:,13
+RESUMEN,,Total Ingresos:,$600
+RESUMEN,,Total Gastos:,$66400
+RESUMEN,,Balance Neto:,$-65800

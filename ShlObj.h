@@ -2,7 +2,7 @@
 #define COMPAT_SHLOBJ_H
 
 #ifdef _WIN32
-typedef int HRESULT;
+#include <windows.h>
 #ifndef S_OK
 #define S_OK 0
 #endif
@@ -11,7 +11,7 @@ typedef int HRESULT;
 #endif
 #define CSIDL_PERSONAL 0x0005
 #define CSIDL_LOCAL_APPDATA 0x001c
-int SHGetFolderPathA(void *hwndOwner, int nFolder, void *hToken, unsigned long dwFlags, char *pszPath);
+HRESULT WINAPI SHGetFolderPathA(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPSTR pszPath);
 #else
 
 typedef int HRESULT;

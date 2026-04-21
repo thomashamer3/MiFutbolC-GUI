@@ -79,56 +79,34 @@ typedef struct
 } Equipo;
 
 /**
- * @brief Interfaz de menú para operaciones CRUD de equipos
+ * @brief Interfaz GUI principal para operaciones de equipos
  *
- * Implementa patrón de menú delegando a funciones especializadas
- * para cada operación sobre entidades de equipo, utilizando
- * estructura MenuItem para navegación controlada.
+ * Abre el modulo Equipos en GUI con opciones de crear, listar,
+ * modificar y eliminar.
  */
 void menu_equipos();
 
 /**
- * @brief Punto de entrada para creación de entidades de equipo
+ * @brief Punto de entrada GUI para crear equipos
  *
- * Implementa menú de selección entre modos fijo (persistente) y momentáneo,
- * delegando a funciones especializadas según el tipo seleccionado por usuario.
+ * Abre el flujo de creación GUI para equipos fijos y momentáneos.
  */
 void crear_equipo();
 
 /**
- * @brief Muestra un listado de todos los equipos registrados
- *
- * Consulta la base de datos y muestra en pantalla todos los equipos
- * con sus respectivos datos.
+ * @brief Muestra el listado GUI de equipos registrados
  */
 void listar_equipos();
 
 /**
- * @brief Permite modificar los datos de un equipo existente
- *
- * Muestra la lista de equipos disponibles, solicita el ID a modificar,
- * verifica que exista y permite cambiar los campos del equipo.
+ * @brief Abre el flujo GUI para modificar un equipo existente
  */
 void modificar_equipo();
 
 /**
- * @brief Permite eliminar un equipo existente
- *
- * Muestra la lista de equipos disponibles, solicita el ID a eliminar,
- * verifica que exista y solicita confirmación antes de proceder con
- * la eliminación del registro de la base de datos.
+ * @brief Abre el flujo GUI para eliminar un equipo existente
  */
 void eliminar_equipo();
-
-
-/**
- * @brief Muestra la información de un equipo
- *
- * Muestra todos los detalles de un equipo, incluyendo sus jugadores.
- *
- * @param equipo Puntero al equipo a mostrar
- */
-void mostrar_equipo(const Equipo *equipo);
 
 /**
  * @brief Obtiene el nombre de una posición
